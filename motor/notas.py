@@ -24,6 +24,7 @@ RE_VINCULO_REGRESO = re.compile(
 )
 RE_NOTA_LEGACY = re.compile(r'\(NT(\d+)\)')
 RE_ANCLA_REGRESO = re.compile(r'↩︎?')
+RE_IMG = re.compile(r'<img\b[^>]*?/?>', re.DOTALL | re.IGNORECASE)
 
 ARCHIVO_NOTAS = 'notas_Finales.xhtml'
 
@@ -92,16 +93,54 @@ def asignar_capitulos(notas: list[Nota], capitulos: list[Chapter], start_num: in
             nota.cap_archivo = f'C{start_num:02d}.xhtml'
 
 
+def _texto_con_imagenes(texto: str, num: int) -> str:
+    """Renombra las imágenes de una nota a ../Images/nota-XX.jpg (la segunda
+    es nota-XX-2.jpg, etc.) y separa imagen y texto con <br/><br/>."""
+    numeros = list(RE_IMG.finditer(texto))
+    if not numeros:
+        return texto
+
+    partes: list[str] = []
+    posicion = 0
+    for indice, match in enumerate(numeros, start=1):
+        sufijo = f'-{indice}' if indice > 1 else ''
+        fragmento = texto[posicion:match.start()].strip()
+        if fragmento and partes:
+            partes.append('<br/><br/>')
+        if fragmento:
+            partes.append(fragmento)
+        partes.append(f'<img src="../Images/nota-{num:02d}{sufijo}.jpg" alt=""/>')
+        posicion = match.end()
+
+    resto = texto[posicion:].strip()
+    if resto:
+        partes.append('<br/><br/>')
+        partes.append(resto)
+    return ' '.join(partes)
+
+
 def formatear_nota(nota: Nota) -> str:
-    """Formatea una nota como div ePub con su backlink al capítulo."""
+    """Formatea una nota como div ePub con su backlink al capítulo.
+
+    Si la nota tiene imágenes, el div se envuelve con sigil_split_marker
+    y el texto queda como <img …/><br/><br/> texto (§5.5)."""
     num_fmt = f'{nota.num:02d}'
     archivo = nota.cap_archivo
     if archivo is None:
         archivo = f'C{nota.cap_num if nota.cap_num is not None else 1:02d}.xhtml'
-    return (
+
+    texto = _texto_con_imagenes(nota.texto, nota.num)
+    div = (
         f'<div class="nota">\n'
         f' <p id="nt{num_fmt}">\n'
-        f'   <a href="{archivo}#rf{num_fmt}"><sup>❮{num_fmt}❯</sup> {nota.texto}</a>\n'
+        f'   <a href="{archivo}#rf{num_fmt}"><sup>❮{num_fmt}❯</sup> {texto}</a>\n'
         f' </p>\n'
         f'</div>'
     )
+
+    if '<img' in texto:
+        return (
+            f'<hr class="sigil_split_marker" />\n{div}\n'
+            f'<hr class="sigil_split_marker" />'
+        )
+    return div

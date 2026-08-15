@@ -116,6 +116,12 @@ manuscrito o en la tabla. Prohibido añadir heurísticas tipo "título si termin
 - Extracción de `<section id="footnotes">` (pandoc), quitar anclas de retorno `↩︎`,
   limpiar basura.
 - Formato nota: `<div class="nota"><p id="nt01"><a href="C01.xhtml#rf01"><sup>❮01❯</sup> …</a></p></div>`
+- **Notas con imagen**: el div se envuelve con `<hr class="sigil_split_marker" />` (uno
+  encima y otro debajo) y las imágenes se reescriben a `../Images/nota-XX.jpg`
+  (namespace propio, independiente de la numeración `NN.jpg` de los capítulos;
+  segunda imagen de una nota → `nota-XX-2.jpg`). La etiqueta se normaliza a
+  `<img src="…" alt=""/>` (sin width/height) y el texto se separa de la imagen
+  con `<br/><br/>`. Sin imagen → formato simple, sin markers.
 - **El backlink `C0N.xhtml` apunta al capítulo que contiene la llamada** (`id="rfNN"`),
   detectado tras el split; por defecto `C01.xhtml` si la nota no está referenciada.
 - Formato llamada inline: `<a href="notas_Finales.xhtml#nt01" id="rf01"><sup>❮01❯</sup></a>`

@@ -126,5 +126,39 @@ class TestFormato(unittest.TestCase):
         self.assertEqual(notas[0].cap_num, 1)
 
 
+class TestFormatoConImagenes(unittest.TestCase):
+    def test_nota_con_imagen_se_envuelve_con_markers(self):
+        nota = Nota(
+            num=1,
+            texto='<img src="media/image3.jpg" width="200" alt=""/> Figura.',
+            cap_archivo='C01.xhtml',
+        )
+        html = formatear_nota(nota)
+        self.assertTrue(html.startswith('<hr class="sigil_split_marker" />'))
+        self.assertTrue(html.endswith('<hr class="sigil_split_marker" />'))
+        self.assertIn('<img src="../Images/nota-01.jpg" alt=""/>', html)
+        self.assertIn('<br/><br/>', html)
+        self.assertIn('C01.xhtml#rf01', html)
+        self.assertNotIn('media/image3.jpg', html)
+        self.assertNotIn('width="200"', html)
+
+    def test_nota_con_varias_imagenes_secuenciales(self):
+        nota = Nota(
+            num=3,
+            texto='<img src="a.jpg" alt=""/> texto <img src="b.jpg" alt=""/>',
+            cap_num=2,
+        )
+        html = formatear_nota(nota)
+        self.assertIn('src="../Images/nota-03.jpg"', html)
+        self.assertIn('src="../Images/nota-03-2.jpg"', html)
+
+    def test_nota_sin_imagen_sin_markers(self):
+        nota = Nota(num=1, texto='Solo texto.', cap_num=1)
+        html = formatear_nota(nota)
+        self.assertNotIn('<hr class="sigil_split_marker" />', html)
+        self.assertNotIn('<br/><br/>', html)
+        self.assertNotIn('<img', html)
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -152,4 +152,14 @@ Las nuevas entradas se añaden al final de cada sesión de trabajo.
 - Tests: `tests/test_plantillas.py` (clasificación, render con marcador + título
   dinámico, backlink a prólogo). Suite: 76 passed, 2 skipped. Commit `cd0d716`.
 
+      03:32 — 3 cambios hechos
+- Notas con imagen (§5.5): `motor/notas.py` gana `RE_IMG` y `_texto_con_imagenes`
+  — las imágenes de una nota se reescriben a `../Images/nota-XX.jpg` (namespace
+  propio; segunda imagen `nota-XX-2.jpg`), se normaliza `<img src alt=""/>`
+  (sin width/height) y se separan de la nota con `<br/><br/>`. Estas notas se
+  envuelven con `<hr class="sigil_split_marker" />` por ambos lados, tal como
+  la plantilla canónica de la usuaria. Notas sin imagen: formato intacto.
+- Tests: `TestFormatoConImagenes` en `tests/test_notas.py` (marcadores, renombrado,
+  imágenes múltiples, formato simple intacto). Suite: 79 passed, 2 skipped.
+
 ---
