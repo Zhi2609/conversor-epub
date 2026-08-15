@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=ConversorEpub
+Comment=Conversor unificado de manuscritos a ePub
+Exec=ConversorEpub
+Icon=ConversorEpub
+Terminal=false
+Categories=Office;
