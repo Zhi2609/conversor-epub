@@ -150,6 +150,6 @@ Las nuevas entradas se añaden al final de cada sesión de trabajo.
   (empaquetada vía `ruta_plantillas_empaquetado` y `--add-data` en empaquetar.sh).
 - Al imprimir nombres se usa `capitulo.archivo or C{NN:02d}.xhtml`.
 - Tests: `tests/test_plantillas.py` (clasificación, render con marcador + título
-  dinámico, backlink a prólogo). Suite: 76 passed, 2 skipped.
+  dinámico, backlink a prólogo). Suite: 76 passed, 2 skipped. Commit `cd0d716`.
 
 ---
