@@ -92,14 +92,14 @@ Las nuevas entradas se añaden al final de cada sesión de trabajo.
   y aviso de título ausente.
   Total suite: 68 passed, 2 skipped (pandoc ausente en este equipo).
 
-      02:16 — 3 cambios hechos
+      11:24 — 3 cambios hechos
 - Creado `requirements.txt`: PySide6>=6.5 y pytest>=7.
 - Creado `empaquetar.sh`: build PyInstaller onefile + AppImage con linuxdeploy
   (la plantilla se empaqueta con `--add-data`).
 - Actualizados `motor/__init__.py`, `motor-cli.py` y `app/app.py`: la ruta de la
   plantilla usa `ruta_template_empaquetado()` (soporta PyInstaller).
 
-      02:17 — 3 cambios hechos
+      11:25 — 3 cambios hechos
 - Movido `Conversor.py`, `Migrador.py` y `MigradorMD.py` a `Old/` (despedida
   legacy; el root tenía copia idéntica de `Old/Conversor.py`). La carpeta
   `Conv_Xhtml/` conserva `template.xhtml`, `caps.txt` y `NovelaMD/`.
@@ -107,7 +107,7 @@ Las nuevas entradas se añaden al final de cada sesión de trabajo.
 - Nota: PyInstaller no pudo ejecutarse en este equipo (falta `binutils`/objdump);
   `empaquetar.sh` está listo para ejecutarse en la máquina del usuario.
 
-      02:18 — 1 cambio hecho
+      11:26 — 1 cambio hecho
 - Limpieza del árbol: eliminados `Capitulos/`, `Conv_Xhtml/Capitulos/`, `caps.txt`
   (raíz y `Conv_Xhtml/`), `Instrucciones.md`, `Old/Conversor_v12..v19.py`,
   `Old/Old.7z` y todos los `__pycache__`/`.pytest_cache`. Se conservan los 3
@@ -115,7 +115,7 @@ Las nuevas entradas se añaden al final de cada sesión de trabajo.
   `Old/template.xhtml`, `Conv_Xhtml/template.xhtml` y `NovelaMD/`. Suite intacta:
   68 passed, 2 skipped.
 
-      02:58 — 5 cambios hechos
+      11:35 — 5 cambios hechos
 - Corregido bug real de usuaria (1.er fallo reportado tras empaquetar): el
   DOCX con notas al pie daba 0 notas. Causa: la limpieza (§5.4) borraba los
   `id=` de pandoc (`<section id="footnotes">`, `<li id="fn1">`) ANTES de la
@@ -132,7 +132,7 @@ Las nuevas entradas se añaden al final de cada sesión de trabajo.
 - Actualizado `AGENTS.md` (orden D6 en §4 + excepción `id="rfNN"` en §5.4).
 - Suite: 70 passed, 2 skipped.
 
-      03:14 — 8 cambios hechos
+      11:45 — 8 cambios hechos
 - Nuevo §5.8 en AGENTS.md: capítulos especiales sin numeración (D8)
   — prólogo/epílogo/palabras del autor → `prologo.xhtml`/`epilogo.xhtml`/`auto.xhtml`
   con plantillas en `Plantillas/` clasificadas por prefijo del título (sin
@@ -152,7 +152,7 @@ Las nuevas entradas se añaden al final de cada sesión de trabajo.
 - Tests: `tests/test_plantillas.py` (clasificación, render con marcador + título
   dinámico, backlink a prólogo). Suite: 76 passed, 2 skipped. Commit `cd0d716`.
 
-      03:32 — 3 cambios hechos
+      11:49 — 3 cambios hechos
 - Notas con imagen (§5.5): `motor/notas.py` gana `RE_IMG` y `_texto_con_imagenes`
   — las imágenes de una nota se reescriben a `../Images/nota-XX.jpg` (namespace
   propio; segunda imagen `nota-XX-2.jpg`), se normaliza `<img src alt=""/>`
