@@ -8,7 +8,7 @@ capítulos XHTML listos para ensamblar en un editor como Sigil.
 ## Características
 
 - **3 modos de entrada** con detección automática:
-  - **Word**: `.docx` → pandas... → HTML, con notas al pie reales de Word
+  - **Word**: `.docx` → pandoc → HTML, con notas al pie reales de Word
   - **Calibre**: carpeta con `.xhtml`/`.html` exportados desde Calibre
   - **Markdown**: carpeta con `.md` (párrafos automáticos, imágenes, blockquotes)
 - **Limpieza tipográfica canónica**: máquina de estados de comillas `«»` a todos los
