@@ -162,4 +162,14 @@ Las nuevas entradas se añaden al final de cada sesión de trabajo.
 - Tests: `TestFormatoConImagenes` en `tests/test_notas.py` (marcadores, renombrado,
   imágenes múltiples, formato simple intacto). Suite: 79 passed, 2 skipped.
 
+      12:12 — 4 cambios hechos
+- Bug reportado en AppImage: la plantilla de Palabras del autor estaba como
+  `autor.xhtml` pero el mapeo canónico (§5.8) espera `auto.xhtml` → ENOENT en
+  `/tmp/_MEIPASS/Plantillas/auto.xhtml` al generar. Renombrado a `auto.xhtml`.
+- `motor/procesar.py`: si la plantilla especial no existe, el capítulo vuelve a
+  la numeración normal y se añade un aviso (nunca más un crash) en vez de petar.
+- Docstrings de `procesar` y help del CLI corregidos (autor.xhtml → auto.xhtml).
+- Test `test_plantilla_especial_faltante_usa_numero_normal`. Suite: 80 passed,
+  2 skipped.
+
 ---

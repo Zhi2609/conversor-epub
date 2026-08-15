@@ -38,7 +38,7 @@ def main() -> None:
     parser.add_argument('-t', '--template', type=Path, default=RUTA_TEMPLATE_DEFECTO, help='Plantilla XHTML')
     parser.add_argument('-c', '--caps', type=Path, default=None, help='Archivo de títulos opcional (prefill)')
     parser.add_argument('-p', '--plantillas', type=Path, default=None,
-                        help='Carpeta con prologo.xhtml/epilogo.xhtml/autor.xhtml (capítulos especiales)')
+                        help='Carpeta con prologo.xhtml/epilogo.xhtml/auto.xhtml (capítulos especiales)')
     parser.add_argument('-n', '--start-num', type=int, default=1, help='Número inicial de capítulos')
     parser.add_argument(
         '--modo', choices=sorted(MODOS) + ['auto'], default='auto',

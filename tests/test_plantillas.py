@@ -91,6 +91,24 @@ class TestProcesarEspeciales(unittest.TestCase):
         self.assertIsNone(resultado.capitulos[1].archivo)
         self.assertEqual(resultado.notas[0].cap_archivo, 'prologo.xhtml')
 
+    def test_plantilla_especial_faltante_usa_numero_normal(self):
+        with TemporaryDirectory() as tmp:
+            carpeta = Path(tmp)
+            (carpeta / '01.html').write_text(
+                '<html><body><h1>Prólogo</h1>'
+                '<p>Inicio.</p></body></html>',
+                encoding='utf-8',
+            )
+            (carpeta / 'template.xhtml').write_text(TEMPLATE, encoding='utf-8')
+            resultado = procesar(
+                'calibre',
+                carpeta,
+                carpeta / 'template.xhtml',
+                ruta_plantillas=carpeta,
+            )
+        self.assertIsNone(resultado.capitulos[0].archivo)
+        self.assertTrue(any('plantilla especial no encontrada' in a for a in resultado.avisos))
+
 
 if __name__ == '__main__':
     unittest.main()

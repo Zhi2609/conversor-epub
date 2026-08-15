@@ -49,9 +49,11 @@ def procesar(
 ) -> Resultado:
     """Procesa el manuscrito completo y devuelve capítulos, notas y conteos.
 
-    ruta_plantillas: carpeta con prologo.xhtml/epilogo.xhtml/autor.xhtml;
+    ruta_plantillas: carpeta con prologo.xhtml/epilogo.xhtml/auto.xhtml;
     si se indica, los capítulos cuyo título coincida con la tabla especial
-    (§5.8) se marcan con su archivo y plantilla propios."""
+    (§5.8) se marcan con su archivo y plantilla propios. Si la plantilla
+    especial no existe, el capítulo se queda con la numeración normal y se
+    añade un aviso."""
     if modo not in ('word', 'calibre', 'markdown'):
         raise ValueError(f'Modo desconocido: {modo}')
 
@@ -95,8 +97,15 @@ def procesar(
         for capitulo in capitulos:
             archivo = clasificar_especial(capitulo.titulo)
             if archivo:
-                capitulo.archivo = archivo
-                capitulo.plantilla_ruta = ruta_plantillas / archivo
+                plantilla_ruta = ruta_plantillas / archivo
+                if plantilla_ruta.is_file():
+                    capitulo.archivo = archivo
+                    capitulo.plantilla_ruta = plantilla_ruta
+                else:
+                    avisos.append(
+                        f'"{capitulo.titulo}": plantilla especial no encontrada '
+                        f'({archivo}), se usa la numeración normal'
+                    )
 
     asignar_capitulos(notas, capitulos, start_num)
 
