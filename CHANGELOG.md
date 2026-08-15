@@ -172,4 +172,16 @@ Las nuevas entradas se añaden al final de cada sesión de trabajo.
 - Test `test_plantilla_especial_faltante_usa_numero_normal`. Suite: 80 passed,
   2 skipped.
 
+      12:18 — 4 cambios hechos
+- Bug reportado: el prólogo consumía el número C01, dejando el primer capítulo
+  normal como C02. Ahora los 3 especiales NO consumen número: `procesar`
+  asigna `archivo` a todos los capítulos (C## renumerados solo entre los
+  normales; el primer capítulo tras el prólogo es C01.xhtml) y
+  `numero_de_archivo` (nuevo en `motor/plantillas.py`) extrae el número del
+  placeholder `Capítulo X` del archivo. Los backlinks de notas ya apuntaban
+  al `archivo` real, así que quedan correctos sin cambios.
+- CLI y GUI: usan `capitulo.archivo` y el número renumerado al renderizar.
+- Tests: renumeración sin especiales, `numero_de_archivo`, y casos ajustados
+  (archivo C01 en vez de None). Suite: 82 passed, 2 skipped.
+
 ---

@@ -158,6 +158,10 @@ sin tildes, prefijo):
 `prólogo`, `epílogo`, `palabras del autor` → `prologo.xhtml`, `epilogo.xhtml`,
 `auto.xhtml`. El resto (incluidos los capítulos especiales/extras como
 "Secreto Oculto 1") usan numeración normal `C{NN:02d}.xhtml`.
+**Los especiales NO consumen número**: el primer capítulo normal tras el
+prólogo es `C01.xhtml` (renumeración sobre los capítulos con numeración;
+`Chapter.archivo` se asigna a todos y `numero_de_archivo` extrae el número
+del placeholder `Capítulo X`).
 
 - Las plantillas viven en `Plantillas/` (se empaquetan con `--add-data` y se
   resuelven con `ruta_plantillas_empaquetado`).

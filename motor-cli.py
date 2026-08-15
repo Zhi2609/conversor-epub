@@ -6,6 +6,7 @@ from pathlib import Path
 
 from motor import detectar_modo, procesar, ruta_template_empaquetado
 from motor.adaptadores import MODOS
+from motor.plantillas import numero_de_archivo
 from motor.render import (
     limpiar_carpeta,
     render_capitulo,
@@ -72,14 +73,15 @@ def main() -> None:
         template = args.template.read_text(encoding='utf-8')
         for num, capitulo in enumerate(resultado.capitulos, start=args.start_num):
             archivo = capitulo.archivo or f'C{num:02d}.xhtml'
+            numero = numero_de_archivo(archivo, num)
             if capitulo.plantilla_ruta is not None:
                 plantilla_especial = capitulo.plantilla_ruta.read_text(encoding='utf-8')
                 html_final = render_capitulo_especial(
-                    plantilla_especial, capitulo.titulo, num, capitulo.html_cuerpo
+                    plantilla_especial, capitulo.titulo, numero, capitulo.html_cuerpo
                 )
             else:
                 html_final = render_capitulo(
-                    template, capitulo.titulo, num, capitulo.html_cuerpo
+                    template, capitulo.titulo, numero, capitulo.html_cuerpo
                 )
             ruta = args.salida / archivo
             ruta.write_text(html_final, encoding='utf-8')

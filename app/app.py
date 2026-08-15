@@ -25,6 +25,7 @@ from PySide6.QtWidgets import (
 )
 
 from motor import detectar_modo, procesar, ruta_plantillas_empaquetado, ruta_template_empaquetado
+from motor.plantillas import numero_de_archivo
 from motor.render import (
     limpiar_carpeta,
     render_capitulo,
@@ -309,14 +310,15 @@ class VentanaPrincipal(QMainWindow):
             for indice, capitulo in enumerate(self._resultado.capitulos):
                 num = indice + 1
                 archivo = capitulo.archivo or f'C{num:02d}.xhtml'
+                numero = numero_de_archivo(archivo, num)
                 if capitulo.plantilla_ruta is not None:
                     plantilla_especial = capitulo.plantilla_ruta.read_text(encoding='utf-8')
                     html_final = render_capitulo_especial(
-                        plantilla_especial, titulos[indice], num, capitulo.html_cuerpo
+                        plantilla_especial, titulos[indice], numero, capitulo.html_cuerpo
                     )
                 else:
                     html_final = render_capitulo(
-                        plantilla, titulos[indice], num, capitulo.html_cuerpo
+                        plantilla, titulos[indice], numero, capitulo.html_cuerpo
                     )
                 ruta = salida / archivo
                 ruta.write_text(html_final, encoding='utf-8')

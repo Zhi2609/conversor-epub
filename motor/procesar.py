@@ -107,6 +107,12 @@ def procesar(
                         f'({archivo}), se usa la numeración normal'
                     )
 
+    numero = start_num
+    for capitulo in capitulos:
+        if capitulo.archivo is None:
+            capitulo.archivo = f'C{numero:02d}.xhtml'
+            numero += 1
+
     asignar_capitulos(notas, capitulos, start_num)
 
     contadores = Contadores(

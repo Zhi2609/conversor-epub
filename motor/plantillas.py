@@ -11,10 +11,22 @@ TABLA_ESPECIALES: dict[str, str] = {
     'palabras del autor': 'auto.xhtml',
 }
 
+RE_ARCHIVO_C = re.compile(r'^C(\d+)\.xhtml$')
+
 RE_MARCADOR_CONTENIDO = re.compile(
     r'<!--\s*Aquí va el contenido\s*-->(.*?)</section>',
     re.DOTALL | re.IGNORECASE,
 )
+
+
+def numero_de_archivo(archivo: str | None, por_defecto: int) -> int:
+    """Número para el placeholder 'Capítulo X': el del archivo renumerado
+    (los especiales no consumen número, §5.8) o el índice global."""
+    if archivo:
+        coincidencia = RE_ARCHIVO_C.match(archivo)
+        if coincidencia:
+            return int(coincidencia.group(1))
+    return por_defecto
 
 
 def _normalizar_titulo(titulo: str) -> str:

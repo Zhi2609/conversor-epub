@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from motor.plantillas import clasificar_especial
+from motor.plantillas import clasificar_especial, numero_de_archivo
 from motor.procesar import procesar
 from motor.render import render_capitulo_especial
 
@@ -88,8 +88,40 @@ class TestProcesarEspeciales(unittest.TestCase):
             )
         self.assertEqual(resultado.capitulos[0].archivo, 'prologo.xhtml')
         self.assertEqual(resultado.capitulos[0].plantilla_ruta, carpeta / 'prologo.xhtml')
-        self.assertIsNone(resultado.capitulos[1].archivo)
+        self.assertEqual(resultado.capitulos[1].archivo, 'C01.xhtml')
         self.assertEqual(resultado.notas[0].cap_archivo, 'prologo.xhtml')
+
+    def test_numero_de_archivo(self):
+        self.assertEqual(numero_de_archivo('C01.xhtml', 7), 1)
+        self.assertEqual(numero_de_archivo('C23.xhtml', 7), 23)
+        self.assertEqual(numero_de_archivo('prologo.xhtml', 7), 7)
+        self.assertEqual(numero_de_archivo(None, 7), 7)
+
+    def test_los_especiales_no_consumen_numero(self):
+        with TemporaryDirectory() as tmp:
+            carpeta = Path(tmp)
+            for nombre, titulo, texto in (
+                ('00.html', 'Prólogo', 'Inicio.'),
+                ('01.html', 'Capítulo Uno', 'Cuerpo uno.'),
+                ('02.html', 'Secreto Oculto 1', 'Interludio.'),
+                ('03.html', 'Capítulo Dos', 'Cuerpo dos.'),
+            ):
+                (carpeta / nombre).write_text(
+                    f'<html><body><h1>{titulo}</h1><p>{texto}</p></body></html>',
+                    encoding='utf-8',
+                )
+            plantillas = carpeta / 'plantillas'
+            plantillas.mkdir()
+            (plantillas / 'template.xhtml').write_text(TEMPLATE, encoding='utf-8')
+            (plantillas / 'prologo.xhtml').write_text(PROLOGO, encoding='utf-8')
+            resultado = procesar(
+                'calibre', carpeta, plantillas / 'template.xhtml',
+                ruta_plantillas=plantillas,
+            )
+        archivos = [c.archivo for c in resultado.capitulos]
+        self.assertEqual(
+            archivos, ['prologo.xhtml', 'C01.xhtml', 'C02.xhtml', 'C03.xhtml']
+        )
 
     def test_plantilla_especial_faltante_usa_numero_normal(self):
         with TemporaryDirectory() as tmp:
@@ -106,7 +138,7 @@ class TestProcesarEspeciales(unittest.TestCase):
                 carpeta / 'template.xhtml',
                 ruta_plantillas=carpeta,
             )
-        self.assertIsNone(resultado.capitulos[0].archivo)
+        self.assertEqual(resultado.capitulos[0].archivo, 'C01.xhtml')
         self.assertTrue(any('plantilla especial no encontrada' in a for a in resultado.avisos))
 
 
