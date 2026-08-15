@@ -1,14 +1,20 @@
 """Modelo de datos central del motor."""
 
 from dataclasses import dataclass, field
+from pathlib import Path
 
 
 @dataclass
 class Chapter:
-    """Un capítulo del libro: título + cuerpo HTML ya limpio."""
+    """Un capítulo del libro: título + cuerpo HTML ya limpio.
+
+    archivo: nombre de salida (p.ej. 'prologo.xhtml'); None → C{NN:02d}.xhtml.
+    plantilla_ruta: plantilla especial (Prólogo/Epílogo/Palabras del autor)."""
 
     titulo: str
     html_cuerpo: str
+    archivo: str | None = None
+    plantilla_ruta: Path | None = None
 
 
 @dataclass
@@ -18,6 +24,7 @@ class Nota:
     num: int
     texto: str
     cap_num: int | None = None
+    cap_archivo: str | None = None
 
 
 @dataclass

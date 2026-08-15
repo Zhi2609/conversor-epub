@@ -24,12 +24,18 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from motor import detectar_modo, procesar, ruta_template_empaquetado
-from motor.render import limpiar_carpeta, render_capitulo, render_notas
+from motor import detectar_modo, procesar, ruta_plantillas_empaquetado, ruta_template_empaquetado
+from motor.render import (
+    limpiar_carpeta,
+    render_capitulo,
+    render_capitulo_especial,
+    render_notas,
+)
 
 RUTA_RAIZ = Path(__file__).resolve().parent.parent
 RUTA_TEMPLATE_DEFECTO = ruta_template_empaquetado()
 RUTA_SALIDA_DEFECTO = RUTA_RAIZ / 'Capitulos'
+RUTA_PLANTILLAS_DEFECTO = ruta_plantillas_empaquetado()
 
 ETIQUETA_MODOS = {'word': 'Modo Word', 'calibre': 'Modo Calibre', 'markdown': 'Modo Markdown'}
 
@@ -162,7 +168,16 @@ class VentanaPrincipal(QMainWindow):
         self.etiqueta_modo.setText(f'🔄 Procesando… ({ETIQUETA_MODOS[modo]})')
         QApplication.processEvents()
         try:
-            self._resultado = procesar(modo, ruta, Path(self.campo_template.text()))
+            self._resultado = procesar(
+                modo,
+                ruta,
+                Path(self.campo_template.text()),
+                ruta_plantillas=(
+                    RUTA_PLANTILLAS_DEFECTO
+                    if RUTA_PLANTILLAS_DEFECTO.is_dir()
+                    else None
+                ),
+            )
             self._documentos_raw = []
             if modo == 'word':
                 from motor.adaptadores.docx import convertir_docx
@@ -293,11 +308,18 @@ class VentanaPrincipal(QMainWindow):
             titulos = self._titulos_de_tabla()
             for indice, capitulo in enumerate(self._resultado.capitulos):
                 num = indice + 1
-                ruta = salida / f'C{num:02d}.xhtml'
-                ruta.write_text(
-                    render_capitulo(plantilla, titulos[indice], num, capitulo.html_cuerpo),
-                    encoding='utf-8',
-                )
+                archivo = capitulo.archivo or f'C{num:02d}.xhtml'
+                if capitulo.plantilla_ruta is not None:
+                    plantilla_especial = capitulo.plantilla_ruta.read_text(encoding='utf-8')
+                    html_final = render_capitulo_especial(
+                        plantilla_especial, titulos[indice], num, capitulo.html_cuerpo
+                    )
+                else:
+                    html_final = render_capitulo(
+                        plantilla, titulos[indice], num, capitulo.html_cuerpo
+                    )
+                ruta = salida / archivo
+                ruta.write_text(html_final, encoding='utf-8')
             if self._resultado.notas:
                 (salida / 'notas_Finales.xhtml').write_text(
                     render_notas(self._resultado.notas), encoding='utf-8'

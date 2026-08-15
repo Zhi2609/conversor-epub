@@ -12,6 +12,7 @@ from motor.imagenes import procesar_imagenes, procesar_separadores
 from motor.limpieza import limpiar_texto_html
 from motor.modelo import Chapter, Contadores, Nota, Resultado
 from motor.notas import asignar_capitulos, extraer_notas
+from motor.plantillas import clasificar_especial
 
 
 def _procesar_documento(
@@ -44,8 +45,13 @@ def procesar(
     ruta_template: Path,
     titulos: list[str] | None = None,
     start_num: int = 1,
+    ruta_plantillas: Path | None = None,
 ) -> Resultado:
-    """Procesa el manuscrito completo y devuelve capítulos, notas y conteos."""
+    """Procesa el manuscrito completo y devuelve capítulos, notas y conteos.
+
+    ruta_plantillas: carpeta con prologo.xhtml/epilogo.xhtml/autor.xhtml;
+    si se indica, los capítulos cuyo título coincida con la tabla especial
+    (§5.8) se marcan con su archivo y plantilla propios."""
     if modo not in ('word', 'calibre', 'markdown'):
         raise ValueError(f'Modo desconocido: {modo}')
 
@@ -84,6 +90,13 @@ def procesar(
                 else (titulo_auto or f'Capítulo {num}')
             )
             capitulos.append(Chapter(titulo=titulo, html_cuerpo=html.strip()))
+
+    if ruta_plantillas is not None:
+        for capitulo in capitulos:
+            archivo = clasificar_especial(capitulo.titulo)
+            if archivo:
+                capitulo.archivo = archivo
+                capitulo.plantilla_ruta = ruta_plantillas / archivo
 
     asignar_capitulos(notas, capitulos, start_num)
 

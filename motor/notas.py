@@ -75,23 +75,29 @@ def extraer_notas(html: str) -> tuple[str, list[Nota]]:
 
 
 def asignar_capitulos(notas: list[Nota], capitulos: list[Chapter], start_num: int = 1) -> None:
-    """Asigna a cada nota el número del capítulo que contiene su llamada
-    (id="rfNN"); por defecto el primer capítulo si no está referenciada."""
+    """Asigna a cada nota el capítulo que contiene su llamada (id="rfNN"),
+    guardando su nombre de archivo real (§5.8); por defecto el primer
+    capítulo si no está referenciada."""
     for nota in notas:
         referencia = f'id="rf{nota.num:02d}"'
         for num, capitulo in enumerate(capitulos, start=start_num):
             if referencia in capitulo.html_cuerpo:
                 nota.cap_num = num
+                nota.cap_archivo = (
+                    capitulo.archivo or f'C{num:02d}.xhtml'
+                )
                 break
         else:
             nota.cap_num = start_num
+            nota.cap_archivo = f'C{start_num:02d}.xhtml'
 
 
 def formatear_nota(nota: Nota) -> str:
     """Formatea una nota como div ePub con su backlink al capítulo."""
     num_fmt = f'{nota.num:02d}'
-    cap_num = nota.cap_num if nota.cap_num is not None else 1
-    archivo = f'C{cap_num:02d}.xhtml'
+    archivo = nota.cap_archivo
+    if archivo is None:
+        archivo = f'C{nota.cap_num if nota.cap_num is not None else 1:02d}.xhtml'
     return (
         f'<div class="nota">\n'
         f' <p id="nt{num_fmt}">\n'

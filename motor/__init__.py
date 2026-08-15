@@ -13,3 +13,10 @@ def ruta_template_empaquetado(ruta_relativa: str = 'Conv_Xhtml/template.xhtml') 
     if getattr(sys, 'frozen', False):
         return Path(sys._MEIPASS) / ruta_relativa
     return Path(__file__).resolve().parent.parent / ruta_relativa
+
+
+def ruta_plantillas_empaquetado(ruta_relativa: str = 'Plantillas') -> Path:
+    """Ruta de la carpeta de plantillas especiales (§5.8), empaquetada o del repo."""
+    if getattr(sys, 'frozen', False):
+        return Path(sys._MEIPASS) / ruta_relativa
+    return Path(__file__).resolve().parent.parent / ruta_relativa

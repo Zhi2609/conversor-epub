@@ -23,6 +23,7 @@ build() {
     "$PYTHON" -m PyInstaller --noconfirm --clean --onefile --windowed \
         --name "$NOMBRE" \
         --add-data "Conv_Xhtml/template.xhtml:Conv_Xhtml" \
+        --add-data "Plantillas:Plantillas" \
         app/app.py
     echo "✅ Binario: $DIST"
 }

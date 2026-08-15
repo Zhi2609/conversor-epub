@@ -145,9 +145,32 @@ manuscrito o en la tabla. Prohibido añadir heurísticas tipo "título si termin
   del cuerpo (evita duplicar el título con el header del template) y alimenta la tabla
   de títulos. Los `#` intermedios se conservan en el cuerpo.
 
+### 5.8 Capítulos especiales sin numeración (D8)
+
+Solo existen 3 archivos sin numeración, clasificados por el título (minúsculas,
+sin tildes, prefijo):
+`prólogo`, `epílogo`, `palabras del autor` → `prologo.xhtml`, `epilogo.xhtml`,
+`auto.xhtml`. El resto (incluidos los capítulos especiales/extras como
+"Secreto Oculto 1") usan numeración normal `C{NN:02d}.xhtml`.
+
+- Las plantillas viven en `Plantillas/` (se empaquetan con `--add-data` y se
+  resuelven con `ruta_plantillas_empaquetado`).
+- **El contenido se inyecta debajo del marcador `<!-- Aquí va el contenido -->`**:
+  el marcador se conserva como separador visible entre el encabezado y el
+  contenido, y todo lo que haya entre él y el `</section>` de la plantilla se
+  sustituye (borra relleno de ejemplo). Sin marcador → error visible.
+- `Capítulo X` / `Título del capítulo` se sustituyen globalmente como en el
+  template normal (p.ej. `Prólogo: Título del capítulo` → `Prólogo: ¿Sueño o Realidad?`).
+- La clasificación se hace al cargar el manuscrito (tabla de títulos); si la
+  usuaria edita un título en la GUI, hay que recargar para re-clasificar.
+- Los backlinks de notas apuntan al **archivo real** (`prologo.xhtml#rfXX`),
+  no a C0X (§5.5).
+
 ## 6. Formato de salida
 
 - `C01.xhtml`…`C{NN:02d}.xhtml` por capítulo; `notas_Finales.xhtml`; carpeta `Capitulos/`.
+  Los 3 capítulos especiales se escriben como `prologo.xhtml`, `epilogo.xhtml` y
+  `auto.xhtml` (§5.8).
 - Template `template.xhtml` con placeholders: `Capítulo X`, `Título del capítulo`,
   `{{CONTENIDO}}` (heredado; MigradorMD usa los tres, Conversor solo los dos primeros).
 - Carpeta de salida se limpia antes de escribir (heredado de `preparar_entorno`).

@@ -132,4 +132,24 @@ Las nuevas entradas se añaden al final de cada sesión de trabajo.
 - Actualizado `AGENTS.md` (orden D6 en §4 + excepción `id="rfNN"` en §5.4).
 - Suite: 70 passed, 2 skipped.
 
+      03:14 — 8 cambios hechos
+- Nuevo §5.8 en AGENTS.md: capítulos especiales sin numeración (D8)
+  — prólogo/epílogo/palabras del autor → `prologo.xhtml`/`epilogo.xhtml`/`auto.xhtml`
+  con plantillas en `Plantillas/` clasificadas por prefijo del título (sin
+  tildes). El resto (incluidos los especiales numerados tipo "Secreto Oculto 1")
+  sigue con `C{NN:02d}.xhtml`.
+- Nuevo `motor/plantillas.py`: `TABLA_ESPECIALES`, `clasificar_especial`
+  (normalización NFD sin tildes) y `RE_MARCADOR_CONTENIDO`.
+- `motor/modelo.py`: `Chapter.archivo` y `Chapter.plantilla_ruta`; `Nota.cap_archivo`.
+- `motor/render.py`: `render_capitulo_especial` — el contenido se inyecta debajo
+  del marcador `<!-- Aquí va el contenido -->` (se conserva como separador) y
+  todo lo que había hasta `</section>` se sustituye; sin marcador → error.
+- `motor/notas.py`: los backlinks usan el archivo real (`prologo.xhtml#rfXX`).
+- `motor/procesar.py`: parámetro `ruta_plantillas` (opt-in, sin efectos si no
+  se pasa); CLI `-p/--plantillas` y GUI detectan `Plantillas/` automáticamente
+  (empaquetada vía `ruta_plantillas_empaquetado` y `--add-data` en empaquetar.sh).
+- Al imprimir nombres se usa `capitulo.archivo or C{NN:02d}.xhtml`.
+- Tests: `tests/test_plantillas.py` (clasificación, render con marcador + título
+  dinámico, backlink a prólogo). Suite: 76 passed, 2 skipped.
+
 ---

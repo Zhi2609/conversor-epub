@@ -3,6 +3,7 @@
 from pathlib import Path
 
 from motor.notas import formatear_nota
+from motor.plantillas import RE_MARCADOR_CONTENIDO
 
 
 def render_capitulo(template: str, titulo: str, num: int, cuerpo: str) -> str:
@@ -11,6 +12,25 @@ def render_capitulo(template: str, titulo: str, num: int, cuerpo: str) -> str:
     html = template.replace('Capítulo X', f'Capítulo {num}')
     html = html.replace('Título del capítulo', titulo)
     return html.replace('{{CONTENIDO}}', cuerpo.strip())
+
+
+def render_capitulo_especial(template: str, titulo: str, num: int, cuerpo: str) -> str:
+    """Inyecta el contenido en una plantilla especial (§5.8): el marcador
+    '<!-- Aquí va el contenido -->' se conserva como separador y todo lo que
+    haya hasta el cierre de </section> se sustituye por el cuerpo."""
+    match = RE_MARCADOR_CONTENIDO.search(template)
+    if not match:
+        raise ValueError(
+            'La plantilla especial no tiene el marcador <!-- Aquí va el contenido -->'
+        )
+    html = (
+        template[: match.start()]
+        + '<!-- Aquí va el contenido -->\n'
+        + cuerpo.strip()
+        + template[match.end():]
+    )
+    html = html.replace('Capítulo X', f'Capítulo {num}')
+    return html.replace('Título del capítulo', titulo)
 
 
 def render_notas(notas) -> str:
