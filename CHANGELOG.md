@@ -162,6 +162,9 @@ Las nuevas entradas se añaden al final de cada sesión de trabajo.
 - Tests: `TestFormatoConImagenes` en `tests/test_notas.py` (marcadores, renombrado,
   imágenes múltiples, formato simple intacto). Suite: 79 passed, 2 skipped.
 
+---
+## 17 de Agosto de 2026
+  
       12:12 — 4 cambios hechos
 - Bug reportado en AppImage: la plantilla de Palabras del autor estaba como
   `autor.xhtml` pero el mapeo canónico (§5.8) espera `auto.xhtml` → ENOENT en
@@ -183,5 +186,30 @@ Las nuevas entradas se añaden al final de cada sesión de trabajo.
 - CLI y GUI: usan `capitulo.archivo` y el número renumerado al renderizar.
 - Tests: renumeración sin especiales, `numero_de_archivo`, y casos ajustados
   (archivo C01 en vez de None). Suite: 82 passed, 2 skipped.
+
+      17:00 — 1 cambio hecho
+- Renombrado `Plantillas/auto.xhtml` → `Plantillas autor.xhtml` (git mv);
+  actualizado mapeo en `motor/plantillas.py` (`'palabras del autor': 'autor.xhtml'`);
+  tests `tests/test_plantillas.py` ajustados; AGENTS.md §5.8 corregido (2 refs);
+  CLI help y docstring de `procesar.py` corregidos. Suite: 84 passed, 2 skipped.
+
+      17:30 — 12 cambios hechos (Fase 5: Mejora visual de la GUI)
+- `app/app.py` — **Fase 5.1 Tema oscuro**: estilo Fusion + paleta Catppuccin-inspired
+  (`#1e1e2e` base, `#89b4fa` acento, `#a6e3a1` éxito, `#f38ba8` error, `#f9e2af` aviso)
+  + QSS global (~180 líneas) con botones redondeados, tabla con filas alternadas, diff
+  viewer monoespaciado, badges de color, drop zone con borde discontinuo.
+- `app/app.py` — **Fase 5.2 Campo de template eliminado**: el template se auto-detecta
+  con `RUTA_TEMPLATE_DEFECTO`; import `QLineEdit` eliminado.
+- `app/app.py` — **Fase 5.3 Dashboard con badges individuales**: 4 labels separados
+  (`badge_capitulos`, `badge_notas`, `badge_imagenes`, `badge_separadores`) con colores
+  por tipo (azul, amarillo, verde, rosa) en vez de una sola línea de texto.
+- `app/app.py` — **Fase 5.4 Drop zone mejorada**: `ZonaEntrada` usa `objectName='drop_zone'`
+  con borde discontinuo `2px dashed` que cambia a azul al hover; texto con icono 📂.
+- `app/app.py` — **Fase 5.5 Jerarquía de botones**: "Generar Archivos" es primario
+  (verde, `objectName='generar'`); "Explorar", "＋ Añadir fila", "－ Eliminar fila"
+  son secundarios (`objectName='secundario'`, gris más oscuro).
+- `app/app.py` — **Fase 5.6 Labels con object names**: `#modo`, `#aviso`,
+  `#validacion_error` reemplazan estilos inline para targeting QSS.
+- Suite: 84 passed, 2 skipped.
 
 ---

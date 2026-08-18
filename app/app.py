@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QColor, QPalette
 from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
@@ -12,7 +13,6 @@ from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
-    QLineEdit,
     QMainWindow,
     QMessageBox,
     QPushButton,
@@ -40,6 +40,151 @@ RUTA_PLANTILLAS_DEFECTO = ruta_plantillas_empaquetado()
 
 ETIQUETA_MODOS = {'word': 'Modo Word', 'calibre': 'Modo Calibre', 'markdown': 'Modo Markdown'}
 
+_ESTILO_QSS = """
+QWidget {
+    font-family: "Segoe UI", "Noto Sans", sans-serif;
+    font-size: 13px;
+}
+QPushButton {
+    background-color: #313244;
+    border: 1px solid #45475a;
+    border-radius: 6px;
+    padding: 6px 16px;
+    color: #cdd6f4;
+}
+QPushButton:hover {
+    background-color: #45475a;
+}
+QPushButton:pressed {
+    background-color: #585b70;
+}
+QPushButton:disabled {
+    background-color: #1e1e2e;
+    color: #585b70;
+}
+QPushButton#generar {
+    background-color: #a6e3a1;
+    color: #1e1e2e;
+    font-weight: bold;
+    font-size: 14px;
+    padding: 8px 28px;
+    border: none;
+}
+QPushButton#generar:hover {
+    background-color: #94e2d5;
+}
+QPushButton#generar:pressed {
+    background-color: #74c7ec;
+}
+QPushButton#generar:disabled {
+    background-color: #45475a;
+    color: #585b70;
+}
+QTableWidget {
+    background-color: #313244;
+    alternate-background-color: #3b3b4f;
+    gridline-color: #45475a;
+    border: 1px solid #45475a;
+    border-radius: 6px;
+    selection-background-color: #89b4fa;
+    selection-color: #1e1e2e;
+}
+QTableWidget::item {
+    padding: 4px 8px;
+}
+QTableWidget::item:alternate {
+    background-color: #3b3b4f;
+}
+QHeaderView::section {
+    background-color: #45475a;
+    color: #cdd6f4;
+    border: none;
+    border-bottom: 2px solid #585b70;
+    padding: 8px;
+    font-weight: bold;
+}
+QComboBox {
+    background-color: #313244;
+    border: 1px solid #45475a;
+    border-radius: 6px;
+    padding: 6px 12px;
+    color: #cdd6f4;
+    min-height: 24px;
+}
+QComboBox:hover {
+    border-color: #89b4fa;
+}
+QComboBox::drop-down {
+    border: none;
+    width: 24px;
+}
+QComboBox QAbstractItemView {
+    background-color: #313244;
+    color: #cdd6f4;
+    selection-background-color: #89b4fa;
+    selection-color: #1e1e2e;
+    border: 1px solid #45475a;
+}
+QTextBrowser {
+    background-color: #1e1e2e;
+    border: 1px solid #45475a;
+    border-radius: 6px;
+    color: #cdd6f4;
+    font-family: "monospace";
+    font-size: 12px;
+    padding: 8px;
+}
+QSplitter::handle {
+    background-color: #45475a;
+    width: 3px;
+}
+QLabel {
+    color: #cdd6f4;
+}
+QLabel#modo {
+    color: #89b4fa;
+    font-weight: bold;
+    font-size: 14px;
+}
+QLabel#validacion_ok {
+    color: #a6e3a1;
+    font-weight: bold;
+}
+QLabel#validacion_error {
+    color: #f38ba8;
+    font-weight: bold;
+}
+QLabel#aviso {
+    color: #f9e2af;
+}
+QLabel#badge {
+    background-color: #45475a;
+    border-radius: 12px;
+    padding: 4px 12px;
+    color: #cdd6f4;
+}
+QLabel#badge_capitulos { background-color: #45475a; border-radius: 12px; padding: 4px 12px; color: #89b4fa; font-weight: bold; }
+QLabel#badge_notas { background-color: #45475a; border-radius: 12px; padding: 4px 12px; color: #f9e2af; font-weight: bold; }
+QLabel#badge_imagenes { background-color: #45475a; border-radius: 12px; padding: 4px 12px; color: #a6e3a1; font-weight: bold; }
+QLabel#badge_separadores { background-color: #45475a; border-radius: 12px; padding: 4px 12px; color: #f38ba8; font-weight: bold; }
+QFrame#drop_zone {
+    border: 2px dashed #585b70;
+    border-radius: 12px;
+    background-color: #1e1e2e;
+}
+QFrame#drop_zone:hover {
+    border-color: #89b4fa;
+    background-color: #252536;
+}
+QPushButton#secundario {
+    background-color: #45475a;
+    border: 1px solid #585b70;
+}
+QPushButton#secundario:hover {
+    background-color: #585b70;
+}
+"""
+
 
 class ZonaEntrada(QFrame):
     """Área de Drag & Drop para el archivo .docx o la carpeta de trabajo."""
@@ -48,10 +193,12 @@ class ZonaEntrada(QFrame):
         super().__init__()
         self.al_aceptar = al_aceptar
         self.setAcceptDrops(True)
+        self.setObjectName('drop_zone')
         self.setFrameShape(QFrame.StyledPanel)
-        self.setMinimumHeight(90)
-        texto = QLabel('Arrastra aquí tu .docx o tu carpeta (.md / .xhtml / .html)\no pulsa el botón de exploración')
+        self.setMinimumHeight(100)
+        texto = QLabel('📂  Arrastra aquí tu .docx o tu carpeta (.md / .xhtml / .html)')
         boton = QPushButton('Explorar...')
+        boton.setObjectName('secundario')
         boton.clicked.connect(self._explorar)
         layout = QVBoxLayout(self)
         layout.addWidget(texto, alignment=Qt.AlignCenter)
@@ -91,15 +238,30 @@ class VentanaPrincipal(QMainWindow):
 
         self.zona_entrada = ZonaEntrada(self._aceptar_entrada)
         self.etiqueta_modo = QLabel('Sin archivo cargado')
-        self.etiqueta_modo.setStyleSheet('font-weight: bold; color: #555;')
+        self.etiqueta_modo.setObjectName('modo')
         layout.addWidget(self.zona_entrada)
         layout.addWidget(self.etiqueta_modo)
 
-        self.etiqueta_conteos = QLabel('📄 Capítulos: —   📝 Notas: —   🖼️ Imágenes: —   ✂️ Separadores: —')
-        layout.addWidget(self.etiqueta_conteos)
+        # Dashboard con badges individuales de color
+        dashboard = QHBoxLayout()
+        dashboard.setSpacing(12)
+        self.badge_capitulos = QLabel('📄 Capítulos: —')
+        self.badge_capitulos.setObjectName('badge_capitulos')
+        self.badge_notas = QLabel('📝 Notas: —')
+        self.badge_notas.setObjectName('badge_notas')
+        self.badge_imagenes = QLabel('🖼️ Imágenes: —')
+        self.badge_imagenes.setObjectName('badge_imagenes')
+        self.badge_separadores = QLabel('✂️ Separadores: —')
+        self.badge_separadores.setObjectName('badge_separadores')
+        dashboard.addWidget(self.badge_capitulos)
+        dashboard.addWidget(self.badge_notas)
+        dashboard.addWidget(self.badge_imagenes)
+        dashboard.addWidget(self.badge_separadores)
+        dashboard.addStretch()
+        layout.addLayout(dashboard)
 
         self.etiqueta_avisos = QLabel('')
-        self.etiqueta_avisos.setStyleSheet('color: #b9770e;')
+        self.etiqueta_avisos.setObjectName('aviso')
         self.etiqueta_avisos.setWordWrap(True)
         self.etiqueta_avisos.hide()
         layout.addWidget(self.etiqueta_avisos)
@@ -107,10 +269,13 @@ class VentanaPrincipal(QMainWindow):
         self.tabla = QTableWidget(0, 2)
         self.tabla.setHorizontalHeaderLabels(['Nº', 'Título del capítulo'])
         self.tabla.horizontalHeader().setStretchLastSection(True)
+        self.tabla.setAlternatingRowColors(True)
         self.tabla.cellChanged.connect(self._validar_conteo)
         filas = QHBoxLayout()
         boton_anadir = QPushButton('＋ Añadir fila')
+        boton_anadir.setObjectName('secundario')
         boton_quitar = QPushButton('－ Eliminar fila')
+        boton_quitar.setObjectName('secundario')
         boton_anadir.clicked.connect(self._anadir_fila)
         boton_quitar.clicked.connect(self._quitar_fila)
         filas.addWidget(boton_anadir)
@@ -120,7 +285,7 @@ class VentanaPrincipal(QMainWindow):
         layout.addLayout(filas)
 
         self.etiqueta_validacion = QLabel('')
-        self.etiqueta_validacion.setStyleSheet('color: #c0392b; font-weight: bold;')
+        self.etiqueta_validacion.setObjectName('validacion_error')
         layout.addWidget(self.etiqueta_validacion)
 
         diff = QSplitter(Qt.Horizontal)
@@ -143,10 +308,9 @@ class VentanaPrincipal(QMainWindow):
         layout.addWidget(diff, stretch=1)
 
         generacion = QHBoxLayout()
-        generacion.addWidget(QLabel('Template:'))
-        self.campo_template = QLineEdit(str(RUTA_TEMPLATE_DEFECTO))
-        generacion.addWidget(self.campo_template, stretch=1)
+        generacion.addStretch()
         boton_generar = QPushButton('Generar Archivos')
+        boton_generar.setObjectName('generar')
         boton_generar.clicked.connect(self._generar)
         self.boton_generar = boton_generar
         generacion.addWidget(boton_generar)
@@ -172,7 +336,7 @@ class VentanaPrincipal(QMainWindow):
             self._resultado = procesar(
                 modo,
                 ruta,
-                Path(self.campo_template.text()),
+                RUTA_TEMPLATE_DEFECTO,
                 ruta_plantillas=(
                     RUTA_PLANTILLAS_DEFECTO
                     if RUTA_PLANTILLAS_DEFECTO.is_dir()
@@ -202,12 +366,10 @@ class VentanaPrincipal(QMainWindow):
 
         self.etiqueta_modo.setText(f'✅ {ETIQUETA_MODOS[modo]} — {ruta.name}')
         contadores = self._resultado.contadores
-        self.etiqueta_conteos.setText(
-            f'📄 Capítulos: {contadores.capitulos}   '
-            f'📝 Notas: {contadores.notas}   '
-            f'🖼️ Imágenes: {contadores.imagenes}   '
-            f'✂️ Separadores: {contadores.separadores}'
-        )
+        self.badge_capitulos.setText(f'📄 Capítulos: {contadores.capitulos}')
+        self.badge_notas.setText(f'📝 Notas: {contadores.notas}')
+        self.badge_imagenes.setText(f'🖼️ Imágenes: {contadores.imagenes}')
+        self.badge_separadores.setText(f'✂️ Separadores: {contadores.separadores}')
         if self._resultado.avisos:
             self.etiqueta_avisos.setText('⚠️ ' + '; '.join(self._resultado.avisos))
             self.etiqueta_avisos.show()
@@ -289,7 +451,7 @@ class VentanaPrincipal(QMainWindow):
         self.limpio.setHtml(capitulo.html_cuerpo)
 
     def _generar(self):
-        template = Path(self.campo_template.text())
+        template = RUTA_TEMPLATE_DEFECTO
         if not template.exists():
             self._mostrar_error(f'No se encuentra el template: {template}')
             return
@@ -334,6 +496,28 @@ class VentanaPrincipal(QMainWindow):
 
 def main():
     app = QApplication(sys.argv)
+    app.setStyle('Fusion')
+
+    # Paleta oscura (Catppuccin-inspired)
+    paleta = QPalette()
+    paleta.setColor(QPalette.Window, QColor('#1e1e2e'))
+    paleta.setColor(QPalette.WindowText, QColor('#cdd6f4'))
+    paleta.setColor(QPalette.Base, QColor('#313244'))
+    paleta.setColor(QPalette.AlternateBase, QColor('#45475a'))
+    paleta.setColor(QPalette.ToolTipBase, QColor('#313244'))
+    paleta.setColor(QPalette.ToolTipText, QColor('#cdd6f4'))
+    paleta.setColor(QPalette.Text, QColor('#cdd6f4'))
+    paleta.setColor(QPalette.Button, QColor('#313244'))
+    paleta.setColor(QPalette.ButtonText, QColor('#cdd6f4'))
+    paleta.setColor(QPalette.BrightText, QColor('#f38ba8'))
+    paleta.setColor(QPalette.Link, QColor('#89b4fa'))
+    paleta.setColor(QPalette.Highlight, QColor('#89b4fa'))
+    paleta.setColor(QPalette.HighlightedText, QColor('#1e1e2e'))
+    app.setPalette(paleta)
+
+    # QSS global
+    app.setStyleSheet(_ESTILO_QSS)
+
     ventana = VentanaPrincipal()
     ventana.show()
     sys.exit(app.exec())

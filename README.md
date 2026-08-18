@@ -19,9 +19,10 @@ capítulos XHTML listos para ensamblar en un editor como Sigil.
 - **Imágenes** (pandoc, `[IMAGEN N]`, `!\ImageN\`) → `<figure>` con `sigil_split_marker`.
 - **Separadores** `[HR]`/`[SEPARADOR]` → `※ ・ ※ ・ ※`.
 - **Auto-splitter** por `<h1>/<h2>/<h3>` con tabla editable de títulos en la GUI.
-- **GUI con visor de diferencias** antes/después y dashboard de capítulos, notas,
-  imágenes y separadores.
-- **Tests golden**: 70 tests que congelan el comportamiento de salida.
+- **GUI con visor de diferencias** antes/después, dashboard con badges de color
+  individuales (capítulos, notas, imágenes, separadores) y tema oscuro Catppuccin.
+- **Drop zone** con borde discontinuo para arrastrar archivos o carpetas.
+- **Tests golden**: 84 tests que congelan el comportamiento de salida.
 
 ## Instalación
 
@@ -41,7 +42,7 @@ python3 -m venv .venv
 python3 app/app.py
 ```
 
-Arrastra el archivo/carpeta a la ventana, edita los títulos, ajusta la plantilla y
+Arrastra el archivo/carpeta a la ventana, edita los títulos y
 pulsa **Generar Archivos**.
 
 ### Línea de comandos (motor sin GUI)
@@ -101,7 +102,7 @@ app/                  # GUI PySide6 (drag&drop, títulos, visor Diff)
 motor/                # núcleo puro: limpieza, notas, imágenes, split, render
   adaptadores/        # docx (pandoc), calibre, markdown
 motor-cli.py          # entry point de consola
-tests/                # 70 tests + golden
+tests/                # 84 tests + golden
 assets/               # icono y .desktop para el AppImage
 empaquetar.sh         # build PyInstaller + AppImage
 Old/                  # scripts legacy (regresión, ya retirados del flujo)

@@ -246,6 +246,11 @@ python3 app/app.py                           # GUI
    (build PyInstaller + AppImage con linuxdeploy), plantilla empaquetada vía
    `ruta_template_empaquetado`, legacy movido a `Old/`. Nota: PyInstaller requiere
    `binutils` (objdump) en el sistema.
+5. **Fase 5 — Mejora visual de la GUI**: tema oscuro Catppuccin-inspired (Fusion + QPalette +
+   QSS global ~180 líneas), campo de template eliminado (auto-detectado), dashboard con
+   badges de color individuales, drop zone con borde discontinuo, jerarquía de botones
+   (primario verde / secundario gris), labels con object names para QSS, tabla con filas
+   alternadas, diff viewer monoespaciado. **Completada.**
 
 ## 11. Cambios y registro
 
