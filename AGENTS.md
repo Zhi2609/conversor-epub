@@ -156,7 +156,7 @@ manuscrito o en la tabla. Prohibido añadir heurísticas tipo "título si termin
 Solo existen 3 archivos sin numeración, clasificados por el título (minúsculas,
 sin tildes, prefijo):
 `prólogo`, `epílogo`, `palabras del autor` → `prologo.xhtml`, `epilogo.xhtml`,
-`auto.xhtml`. El resto (incluidos los capítulos especiales/extras como
+`autor.xhtml`. El resto (incluidos los capítulos especiales/extras como
 "Secreto Oculto 1") usan numeración normal `C{NN:02d}.xhtml`.
 **Los especiales NO consumen número**: el primer capítulo normal tras el
 prólogo es `C01.xhtml` (renumeración sobre los capítulos con numeración;
@@ -180,7 +180,7 @@ del placeholder `Capítulo X`).
 
 - `C01.xhtml`…`C{NN:02d}.xhtml` por capítulo; `notas_Finales.xhtml`; carpeta `Capitulos/`.
   Los 3 capítulos especiales se escriben como `prologo.xhtml`, `epilogo.xhtml` y
-  `auto.xhtml` (§5.8).
+  `autor.xhtml` (§5.8).
 - Template `template.xhtml` con placeholders: `Capítulo X`, `Título del capítulo`,
   `{{CONTENIDO}}` (heredado; MigradorMD usa los tres, Conversor solo los dos primeros).
 - Carpeta de salida se limpia antes de escribir (heredado de `preparar_entorno`).

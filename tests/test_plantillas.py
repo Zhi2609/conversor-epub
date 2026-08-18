@@ -33,8 +33,8 @@ class TestClasificacion(unittest.TestCase):
             'Prólogo: ¿Sueño o Realidad?': 'prologo.xhtml',
             'PROLOGO': 'prologo.xhtml',
             'Epílogo': 'epilogo.xhtml',
-            'Palabras del autor': 'auto.xhtml',
-            'Palabras del autor: Gracias': 'auto.xhtml',
+            'Palabras del autor': 'autor.xhtml',
+            'Palabras del autor: Gracias': 'autor.xhtml',
         }
         for titulo, esperado in casos.items():
             self.assertEqual(clasificar_especial(titulo), esperado)

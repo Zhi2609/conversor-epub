@@ -8,7 +8,7 @@ import unicodedata
 TABLA_ESPECIALES: dict[str, str] = {
     'prologo': 'prologo.xhtml',
     'epilogo': 'epilogo.xhtml',
-    'palabras del autor': 'auto.xhtml',
+    'palabras del autor': 'autor.xhtml',
 }
 
 RE_ARCHIVO_C = re.compile(r'^C(\d+)\.xhtml$')

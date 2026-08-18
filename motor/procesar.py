@@ -49,7 +49,7 @@ def procesar(
 ) -> Resultado:
     """Procesa el manuscrito completo y devuelve capítulos, notas y conteos.
 
-    ruta_plantillas: carpeta con prologo.xhtml/epilogo.xhtml/auto.xhtml;
+    ruta_plantillas: carpeta con prologo.xhtml/epilogo.xhtml/autor.xhtml;
     si se indica, los capítulos cuyo título coincida con la tabla especial
     (§5.8) se marcan con su archivo y plantilla propios. Si la plantilla
     especial no existe, el capítulo se queda con la numeración normal y se
