@@ -99,15 +99,15 @@ red de seguridad para cualquier cambio futuro del motor.
 ## Estructura
 
 ```
-app/                  # GUI PySide6 (drag&drop, títulos, visor Diff)
-motor/                # núcleo puro: limpieza, notas, imágenes, split, render, plantillas, procesar
-  adaptadores/        # docx (pandoc), calibre, markdown
-Plantillas/           # plantillas para capítulos especiales (prologo.xhtml, epilogo.xhtml, autor.xhtml)
-motor-cli.py          # entry point de consola
-tests/                # 84 tests + golden
-assets/               # icono y .desktop para el AppImage
-empaquetar.sh         # build PyInstaller + AppImage
-Old/                  # scripts legacy (regresión, ya retirados del flujo)
+conversor-epub/
+├── app/              # Interfaz gráfica de usuario (PySide6)
+├── motor/            # Lógica central pura de conversión
+├── assets/           # Recursos estáticos
+│   ├── Plantillas/   # plantillas para capítulos especiales (prologo.xhtml, epilogo.xhtml, autor.xhtml)
+│   └── Conv_Xhtml/   # template central
+├── tests/            # Tests golden y unitarios
+├── motor-cli.py      # entry point de consola
+└── empaquetar.sh     # build PyInstaller + AppImage
 ```
 
 ## Documentación

@@ -22,16 +22,9 @@ maquetación de manuscritos para ePubs. Un solo motor central con 3 adaptadores 
 - Distribución: PyInstaller → AppImage (Linux).
 - Tests: `pytest` con archivos golden (salida esperada).
 
-## 3. Estado actual (scripts legacy)
+## 3. Estado actual (scripts unificados)
 
-| Script | Entrada | Rol |
-|---|---|---|
-| `Old/Conversor.py` | `.docx` | pandoc → HTML; notas al pie; imágenes `[IMAGEN X]`; separadores `[HR]`; split por `caps.txt` |
-| `Old/Migrador.py` | carpeta `.xhtml`/`.html` de Calibre | extrae `<body>`, quita h1 duplicado, limpia basura calibre, template, `caps.txt` |
-| `Old/MigradorMD.py` | carpeta `.md` | md → HTML, párrafos auto, imágenes `!\ImageXX\`, template, `{{CONTENIDO}}` |
-
-Los tres comparten ~70% del motor de limpieza (**duplicado y ya divergido**). Al unificar se debe
-elegir un comportamiento canónico (ver §5) y verificar con golden tests antes de borrar legacy.
+La carpeta `Old/` con los scripts legacy (`Conversor.py`, `Migrador.py`, `MigradorMD.py`) ha sido eliminada por completo tras verificarse que el motor unificado de PySide6 es estable y todos los golden tests pasan.
 
 ## 4. Arquitectura objetivo
 
@@ -52,7 +45,9 @@ motor/                   # núcleo puro: sin print, sin rutas globales
     calibre.py           # extraer <body>, quitar <h1> del cuerpo
     markdown.py          # md → HTML, párrafos, imágenes con placeholders \x00IMG_x\x00
   render.py              # inyecta Chapter en template.xhtml → C01.xhtml...
-Plantillas/              # plantillas para capítulos especiales (prologo.xhtml, epilogo.xhtml, autor.xhtml)
+assets/                  # recursos estáticos consolidados
+  Plantillas/            # plantillas para capítulos especiales (prologo.xhtml, epilogo.xhtml, autor.xhtml)
+  Conv_Xhtml/            # template central
 tests/golden/            # archivos de entrada + salida esperada
 CLI (motor-cli.py)       # entry point de consola para tests y uso sin GUI
 ```

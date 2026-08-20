@@ -221,3 +221,10 @@ Las nuevas entradas se añaden al final de cada sesión de trabajo.
 - Añadido parser ligero de tablas Markdown en `motor/adaptadores/markdown.py` (`_procesar_tablas`) con soporte para `colspan` (`||`), alineaciones y `[caption:]`.
 
 ---
+
+## 20 de Agosto de 2026 (Parte 2)
+
+      10:20 — Reestructuración de Carpetas (Chore)
+- **Eliminación Definitiva de Legacy**: Se eliminó permanentemente la carpeta `Old/` que contenía los scripts legacy (`Conversor.py`, `Migrador.py`, `MigradorMD.py`), ya que el nuevo motor de PySide6 es completamente estable y todos los tests pasan.
+- **Consolidación de Recursos (Assets)**: Se movieron las carpetas estáticas `Plantillas/` y `Conv_Xhtml/` hacia un nuevo directorio centralizado `assets/`.
+- **Refactorización de Rutas**: Se actualizaron las referencias en `motor/__init__.py`, `tests/test_procesar.py` y `empaquetar.sh` para apuntar a la nueva estructura. Las pruebas unitarias confirmaron la integridad del motor de conversión tras el cambio.
