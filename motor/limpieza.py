@@ -153,6 +153,9 @@ def _alinear_comillas_y_etiquetas(html: str) -> str:
 def _eliminar_basura(html: str) -> str:
     """Elimina la basura HTML de Word y de Calibre: spans con atributos,
     class/id/style, dir, lang, etiquetas vacías y divs vacíos."""
+    html = re.sub(r'<colgroup>.*?</colgroup>', '', html, flags=re.DOTALL)
+    html = re.sub(r'\sstyle="[^"]*text-align:\s*center;?[^"]*"', ' class="centrado"', html)
+    
     html = RE_SPAN_BASURA.sub('', html)
     html = html.replace('</span>', '')
     html = RE_DIR_LTR.sub('', html)

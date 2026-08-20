@@ -28,6 +28,80 @@ def _md_a_html(texto: str) -> str:
     return texto
 
 
+
+def _procesar_tablas(texto: str) -> str:
+    lineas = texto.split('\n')
+    en_tabla = False
+    resultado = []
+    alineaciones = []
+    header_celdas = []
+    caption = ""
+    
+    def render_row(celdas, alineaciones, is_header):
+        tag = 'th' if is_header else 'td'
+        tr = ['<tr>']
+        i = 0
+        while i < len(celdas):
+            c = celdas[i]
+            colspan = 1
+            start_idx = i
+            while i + 1 < len(celdas) and celdas[i+1] == '':
+                colspan += 1
+                i += 1
+            align = alineaciones[start_idx] if start_idx < len(alineaciones) else ''
+            col_attr = f' colspan="{colspan}"' if colspan > 1 else ''
+            tr.append(f'<{tag}{col_attr}{align}>{c}</{tag}>')
+            i += 1
+        tr.append('</tr>')
+        return ''.join(tr)
+
+    for linea in lineas:
+        l = linea.strip()
+        if l.startswith('[caption:') and l.endswith(']'):
+            caption = l[9:-1].strip()
+            continue
+            
+        if l.startswith('|') and l.endswith('|'):
+            celdas = [c.strip() for c in l[1:-1].split('|')]
+            if not en_tabla:
+                en_tabla = True
+                header_celdas = celdas
+            else:
+                if '---' in l and not alineaciones:
+                    for c in celdas:
+                        if c.startswith(':') and c.endswith(':'):
+                            alineaciones.append(' class="centrado"')
+                        elif c.endswith(':'):
+                            alineaciones.append(' style="text-align: right;"')
+                        elif c.startswith(':'):
+                            alineaciones.append(' style="text-align: left;"')
+                        else:
+                            alineaciones.append('')
+                    
+                    resultado.append('<table>')
+                    if caption:
+                        resultado.append(f'<caption>{caption}</caption>')
+                        caption = ""
+                    resultado.append('<thead>')
+                    resultado.append(render_row(header_celdas, alineaciones, True))
+                    resultado.append('</thead>')
+                    resultado.append('<tbody>')
+                else:
+                    resultado.append(render_row(celdas, alineaciones, False))
+        else:
+            if en_tabla:
+                en_tabla = False
+                resultado.append('</tbody>')
+                resultado.append('</table>')
+                alineaciones = []
+            resultado.append(linea)
+            
+    if en_tabla:
+        resultado.append('</tbody>')
+        resultado.append('</table>')
+        
+    return '\n'.join(resultado)
+
 def _parrafos_a_html(texto: str) -> str:
     bloques = re.split(r'\n{2,}', texto)
     resultado: list[str] = []
@@ -35,7 +109,7 @@ def _parrafos_a_html(texto: str) -> str:
         bloque = bloque.strip()
         if not bloque:
             continue
-        if bloque.startswith(('<h1', '<hr', '<figure')) or bloque.startswith('\x00IMG_'):
+        if bloque.startswith(('<h1', '<hr', '<figure', '<table')) or bloque.startswith('\x00IMG_'):
             resultado.append(bloque)
         else:
             bloque = bloque.replace('\n', ' ')
@@ -97,6 +171,7 @@ def documentos_markdown(ruta: Path) -> tuple[list[tuple[str, str | None, list[st
         texto = _limpiar_invisibles(texto)
         texto, imagenes = _convertir_imagenes(texto)
         html = _md_a_html(texto)
+        html = _procesar_tablas(html)
         html = _parrafos_a_html(html)
 
         titulo: str | None = None

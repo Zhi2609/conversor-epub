@@ -213,3 +213,11 @@ Las nuevas entradas se añaden al final de cada sesión de trabajo.
 - Suite: 84 passed, 2 skipped.
 
 ---
+## 20 de Agosto de 2026
+
+      08:59 — 3 cambios hechos
+- Sincronizada documentación (`AGENTS.md`, `README.md`, `Requisitos.md`) que había quedado desactualizada tras las Fases 3 y 5 (añadido `procesar.py`, `plantillas.py`, parámetro `-p` y regla canónica D1 rectificada).
+- Añadido soporte para limpieza de tablas DOCX en `motor/limpieza.py` (eliminación de `<colgroup>`, traducción de `text-align: center` a `class="centrado"`).
+- Añadido parser ligero de tablas Markdown en `motor/adaptadores/markdown.py` (`_procesar_tablas`) con soporte para `colspan` (`||`), alineaciones y `[caption:]`.
+
+---
