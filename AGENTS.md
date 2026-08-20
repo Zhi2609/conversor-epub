@@ -38,16 +38,21 @@ elegir un comportamiento canónico (ver §5) y verificar con golden tests antes 
 ```
 app/                     # aplicación (capa GUI, PySide6)
 motor/                   # núcleo puro: sin print, sin rutas globales
+  __init__.py
   modelo.py              # Chapter(titulo: str, html_cuerpo: str) — pieza central
   limpieza.py            # máquina de estados de comillas + limpieza de basura
   notas.py               # extracción y formateo de notas al pie
   imagenes.py            # imágenes y separadores
   division.py            # auto-splitter: h1/h2/h3 → lista de Chapter
+  plantillas.py          # clasificación y manejo de capítulos especiales sin numerar
+  procesar.py            # orquestador del pipeline (adaptador → limpieza → notas → imágenes → split)
   adaptadores/
+    __init__.py
     docx.py              # pandoc + extracción de notas ANTES del split
     calibre.py           # extraer <body>, quitar <h1> del cuerpo
     markdown.py          # md → HTML, párrafos, imágenes con placeholders \x00IMG_x\x00
   render.py              # inyecta Chapter en template.xhtml → C01.xhtml...
+Plantillas/              # plantillas para capítulos especiales (prologo.xhtml, epilogo.xhtml, autor.xhtml)
 tests/golden/            # archivos de entrada + salida esperada
 CLI (motor-cli.py)       # entry point de consola para tests y uso sin GUI
 ```

@@ -19,6 +19,7 @@ capítulos XHTML listos para ensamblar en un editor como Sigil.
 - **Imágenes** (pandoc, `[IMAGEN N]`, `!\ImageN\`) → `<figure>` con `sigil_split_marker`.
 - **Separadores** `[HR]`/`[SEPARADOR]` → `※ ・ ※ ・ ※`.
 - **Auto-splitter** por `<h1>/<h2>/<h3>` con tabla editable de títulos en la GUI.
+- **Capítulos especiales sin numeración** (Prólogo, Epílogo, Palabras del autor) con plantillas independientes (`Plantillas/`).
 - **GUI con visor de diferencias** antes/después, dashboard con badges de color
   individuales (capítulos, notas, imágenes, separadores) y tema oscuro Catppuccin.
 - **Drop zone** con borde discontinuo para arrastrar archivos o carpetas.
@@ -48,7 +49,7 @@ pulsa **Generar Archivos**.
 ### Línea de comandos (motor sin GUI)
 
 ```bash
-python3 motor-cli.py <entrada> -o <salida> [-t template.xhtml] [-c titulos.txt] [-n 1] [--modo auto|word|calibre|markdown]
+python3 motor-cli.py <entrada> -o <salida> [-t template.xhtml] [-c titulos.txt] [-p Plantillas] [-n 1] [--modo auto|word|calibre|markdown]
 ```
 
 Ejemplos:
@@ -99,8 +100,9 @@ red de seguridad para cualquier cambio futuro del motor.
 
 ```
 app/                  # GUI PySide6 (drag&drop, títulos, visor Diff)
-motor/                # núcleo puro: limpieza, notas, imágenes, split, render
+motor/                # núcleo puro: limpieza, notas, imágenes, split, render, plantillas, procesar
   adaptadores/        # docx (pandoc), calibre, markdown
+Plantillas/           # plantillas para capítulos especiales (prologo.xhtml, epilogo.xhtml, autor.xhtml)
 motor-cli.py          # entry point de consola
 tests/                # 84 tests + golden
 assets/               # icono y .desktop para el AppImage

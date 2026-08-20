@@ -9,7 +9,7 @@ La app detectará el formato automáticamente, aplicará la pre-conversión nece
 
 ## 2. Stack Tecnológico Sugerido
 * **Lenguaje:** Python 3.10+
-* **Interfaz Gráfica (GUI):** CustomTkinter (recomendado para diseño moderno) o PyQt6/PySide6 (recomendado si se requiere un visor HTML avanzado).
+* **Interfaz Gráfica (GUI):** PySide6 / PyQt6 (elegido definitivamente porque el visor Diff necesita renderizado HTML, descartando CustomTkinter).
 * **Dependencia Externa:** `pandoc` (debe estar instalado en el sistema para la conversión de DOCX a HTML).
 * **Distribución:** Empaquetado nativo para Linux (binario ELF ejecutable, AppImage o Flatpak) usando PyInstaller o similar.
 
@@ -55,7 +55,8 @@ Dependiendo del origen de los datos, el programa ejecutará un pre-procesamiento
 ### 4.2. Auto-Splitter (División de Capítulos)
 * **Eliminación del archivo `caps.txt`:** El programa debe leer el archivo HTML completo, detectar etiquetas de encabezado (`<h1>`, `<h2>` o `<h3>`) y usar cada aparición como punto de corte.
 * El texto comprendido entre un encabezado y el siguiente será inyectado en una plantilla maestra (`template.xhtml`).
-* Se creará un archivo enumerado por cada corte (ej. `C01.xhtml`, `C02.xhtml`).
+* Se creará un archivo enumerado por cada corte normal (ej. `C01.xhtml`, `C02.xhtml`).
+* **Capítulos Especiales:** Los capítulos con títulos como "Prólogo", "Epílogo" o "Palabras del autor" usarán plantillas específicas ubicadas en la carpeta `Plantillas/`, y no consumirán numeración secuencial (`prologo.xhtml`, etc.).
 
 ### 4.3. Limpieza de Código (Basura de Word y Calibre)
 * Normalizar etiquetas: Convertir `<strong>` a `<b>` y `<em>` a `<i>`.
@@ -70,8 +71,7 @@ Dependiendo del origen de los datos, el programa ejecutará un pre-procesamiento
 ### 4.4. Máquina de Estados: Comillas Anidadas
 * **Normalización:** Las comillas dobles (rectas, tipográficas) se estandarizan a `"`. Las simples a `'`.
 * **Rastreo de Niveles:** El programa debe iterar carácter por carácter para determinar la profundidad de la cita:
-  * **Nivel 1:** Apertura `«` / Cierre `»`.
-  * **Nivel > 1:** Apertura `‘` / Cierre `’`.
+  * **Todos los niveles** de comillas dobles (rectas o tipográficas) se convierten en `«` (apertura) / `»` (cierre). El contador de niveles se mantiene solo para emparejar aperturas y cierres y para el cortafuegos de fin de párrafo.
 * **Comillas Simples Independientes:** Las comillas simples explícitas originales se procesarán con tipografía curva (`‘` `’`) sin afectar el contador de niveles de las comillas dobles.
 * **Cortafuegos de Párrafo:** El contador de nivel debe resetearse obligatoriamente a `0` al encontrar un salto de línea (`\n`) o un cierre de bloque (`</p>`, `<br>`, `</div>`, etc.) para evitar "efectos cascada" por errores de tipeo en el manuscrito original.
 
