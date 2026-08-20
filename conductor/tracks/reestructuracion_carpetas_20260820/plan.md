@@ -8,7 +8,7 @@
 - [x] Task: Mover las carpetas estáticas.
   - [x] Mover `Plantillas/` dentro de `assets/`.
   - [x] Mover `Conv_Xhtml/` dentro de `assets/`.
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [x] Task: Phase Verification - [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md) Checkpoint [checkpoint: 8ef63d4]
 
 ## Phase 2: Refactorización de Rutas en Código
 - [ ] Task: Actualizar rutas relativas en el núcleo (`motor/`).
@@ -17,12 +17,12 @@
 - [ ] Task: Actualizar scripts de empaquetado.
   - [ ] Revisar `empaquetar.sh` o el script de PyInstaller.
   - [ ] Modificar el flag `--add-data` para que apunte a las nuevas rutas dentro de `assets/`.
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [x] Task: Phase Verification - [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md) Checkpoint [checkpoint: 8ef63d4]
 
 ## Phase 3: Validación y Pruebas
 - [ ] Task: Ejecutar la suite de pruebas unitarias.
   - [ ] Correr `pytest` para verificar que el auto-splitter y la carga de plantillas sigan funcionando (los golden tests deben pasar).
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [x] Task: Phase Verification - [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md) Checkpoint [checkpoint: 8ef63d4]
 
 ## Phase 4: Sincronización de Documentación
 - [ ] Task: Actualizar `AGENTS.md`.
@@ -32,4 +32,4 @@
   - [ ] Actualizar el árbol de directorios para mostrar la nueva estructura.
 - [ ] Task: Actualizar `CHANGELOG.md`.
   - [ ] Registrar la eliminación de `Old/` y el movimiento a `assets/`.
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [x] Task: Phase Verification - [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md) Checkpoint [checkpoint: 8ef63d4]
