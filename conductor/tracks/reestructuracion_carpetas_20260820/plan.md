@@ -22,14 +22,14 @@
 ## Phase 3: Validación y Pruebas
 - [x] Task: Ejecutar la suite de pruebas unitarias.
   - [x] Correr `pytest` para verificar que el auto-splitter y la carga de plantillas sigan funcionando (los golden tests deben pasar).
-- [x] Task: Phase Verification - [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md) Checkpoint [checkpoint: 8ef63d4]
+- [x] Task: Phase Verification - [x] Task: Phase Verification & Checkpoint [checkpoint: 634e36f] Checkpoint [checkpoint: 8ef63d4]
 
 ## Phase 4: Sincronización de Documentación
-- [ ] Task: Actualizar `AGENTS.md`.
-  - [ ] Eliminar referencias a los scripts de `Old/`.
-  - [ ] Actualizar el diagrama de arquitectura objetivo para mostrar `assets/`.
-- [ ] Task: Actualizar `README.md`.
-  - [ ] Actualizar el árbol de directorios para mostrar la nueva estructura.
-- [ ] Task: Actualizar `CHANGELOG.md`.
-  - [ ] Registrar la eliminación de `Old/` y el movimiento a `assets/`.
+- [x] Task: Actualizar `AGENTS.md`.
+  - [x] Eliminar referencias a los scripts de `Old/`.
+  - [x] Actualizar el diagrama de arquitectura objetivo para mostrar `assets/`.
+- [x] Task: Actualizar `README.md`.
+  - [x] Actualizar el árbol de directorios para mostrar la nueva estructura.
+- [x] Task: Actualizar `CHANGELOG.md`.
+  - [x] Registrar la eliminación de `Old/` y el movimiento a `assets/`.
 - [x] Task: Phase Verification - [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md) Checkpoint [checkpoint: 8ef63d4]
