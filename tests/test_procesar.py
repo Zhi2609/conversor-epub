@@ -10,7 +10,7 @@ from motor.render import render_capitulo, render_notas
 RUTA_TESTS = Path(__file__).resolve().parent
 RUTA_GOLDEN = RUTA_TESTS / 'golden'
 RUTA_RAIZ = RUTA_TESTS.parent
-RUTA_TEMPLATE = RUTA_RAIZ / 'Conv_Xhtml' / 'template.xhtml'
+RUTA_TEMPLATE = RUTA_RAIZ / 'assets' / 'Conv_Xhtml' / 'template.xhtml'
 
 
 class TestE2EMarkdown(unittest.TestCase):

@@ -22,8 +22,8 @@ build() {
     echo "=== PyInstaller (onefile) ==="
     "$PYTHON" -m PyInstaller --noconfirm --clean --onefile --windowed \
         --name "$NOMBRE" \
-        --add-data "Conv_Xhtml/template.xhtml:Conv_Xhtml" \
-        --add-data "Plantillas:Plantillas" \
+        --add-data "assets/Conv_Xhtml/template.xhtml:assets/Conv_Xhtml" \
+        --add-data "assets/Plantillas:assets/Plantillas" \
         app/app.py
     echo "✅ Binario: $DIST"
 }
