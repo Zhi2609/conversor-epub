@@ -17,11 +17,11 @@
 - [x] Task: Actualizar scripts de empaquetado.
   - [x] Revisar `empaquetar.sh` o el script de PyInstaller.
   - [x] Modificar el flag `--add-data` para que apunte a las nuevas rutas dentro de `assets/`.
-- [x] Task: Phase Verification - [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md) Checkpoint [checkpoint: 8ef63d4]
+- [x] Task: Phase Verification - [x] Task: Phase Verification & Checkpoint [checkpoint: 86497cc] Checkpoint [checkpoint: 8ef63d4]
 
 ## Phase 3: Validación y Pruebas
-- [ ] Task: Ejecutar la suite de pruebas unitarias.
-  - [ ] Correr `pytest` para verificar que el auto-splitter y la carga de plantillas sigan funcionando (los golden tests deben pasar).
+- [x] Task: Ejecutar la suite de pruebas unitarias.
+  - [x] Correr `pytest` para verificar que el auto-splitter y la carga de plantillas sigan funcionando (los golden tests deben pasar).
 - [x] Task: Phase Verification - [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md) Checkpoint [checkpoint: 8ef63d4]
 
 ## Phase 4: Sincronización de Documentación
