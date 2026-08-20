@@ -1,13 +1,13 @@
 # Plan: Reestructuración de Carpetas (Chore)
 
 ## Phase 1: Reubicación de Archivos y Limpieza
-- [ ] Task: Eliminar carpeta `Old/`.
-  - [ ] Borrar el directorio `Old/` usando comandos de sistema operativo/git.
-- [ ] Task: Crear carpeta de recursos consolidados.
-  - [ ] Crear el directorio raíz `assets/`.
-- [ ] Task: Mover las carpetas estáticas.
-  - [ ] Mover `Plantillas/` dentro de `assets/`.
-  - [ ] Mover `Conv_Xhtml/` dentro de `assets/`.
+- [x] Task: Eliminar carpeta `Old/`.
+  - [x] Borrar el directorio `Old/` usando comandos de sistema operativo/git.
+- [x] Task: Crear carpeta de recursos consolidados.
+  - [x] Crear el directorio raíz `assets/`.
+- [x] Task: Mover las carpetas estáticas.
+  - [x] Mover `Plantillas/` dentro de `assets/`.
+  - [x] Mover `Conv_Xhtml/` dentro de `assets/`.
 - [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
 
 ## Phase 2: Refactorización de Rutas en Código
