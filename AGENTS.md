@@ -75,6 +75,22 @@ Reglas de arquitectura:
   (Descartado: `‘’` y `‹›` para nivel >1 — `‹›` venía de Migrador, se descarta.)
 - **D2: Las comillas simples explícitas `'` → `‘ ’`**, independientes del contador de niveles.
   Ejemplo: `un 'niño'` → `un ‘niño’`.
+- **Excepción a D2 — simples como niveles de anidamiento (D9)**: una comilla simple
+  se trata como nivel de anidamiento (→ `«`/`»`, contando para el nivel) cuando:
+  1. está **encadenada** a una doble del mismo signo sin separación
+     (`“‘…’”` → `««…»»`) **y su apertura también fue anidada**, o
+  2. forma parte de una **terna o más** de simples consecutivas
+     (`'''AHHH!!'''` → `«««AHHH!!»»»`), que nunca es tipografía legítima.
+  Motivación: Word autocorrige los gritos anidados a `“‘‘Ahh!!’’”`; antes el motor
+  producía `«‘‘Ahh!!’’»`. Las simples legítimas (`un 'niño'`) nunca están pegadas
+  a una doble ni aparecen en ternas, así que quedan intactas. Implementación:
+  `_cadena_con_doble` en `motor/limpieza.py`.
+  **Refinamiento (22-08-2026)**: el encadenamiento del cierre solo aplica si la
+  pareja abrió como anidada. Si la simple abrió como cita legítima (D2) y su
+  cierre cae pegado a la doble que cierra el diálogo (`"…una 'pared'".`),
+  permanece legítima: `«…una ‘pared’». ` (antes producía `«…una ‘pared»».`).
+  Implementado con contador `simples_legitimas` en `_convertir_comillas`,
+  reseteado por los cortafuegos.
 - Cortafuegos: `\n`, `</p>`, `<br>`, `</div>`, `</section>`, `</blockquote>`, `<hr>` resetean
   el nivel a 0 (evita efecto cascada por errores del manuscrito).
 - Cierre automático: al final del párrafo, las comillas abiertas sin cerrar se cierran en
@@ -130,10 +146,19 @@ manuscrito o en la tabla. Prohibido añadir heurísticas tipo "título si termin
   pero el archivo se escribe como `notas_Finales.xhtml` (`:370`). Al unificar se usa
   `notas_Finales.xhtml` en ambos lados.
 - Soporte legacy `(NT##)`.
+- **Soporte markdown `[^N]`** (22-08-2026): llamadas inline `[^N]` y definiciones
+  al pie del archivo `[^N]: contenido`. El adaptador MD no las toca: al llegar a
+  `extraer_notas` las definiciones ya están envueltas en `<p>` (por
+  `_parrafos_a_html`, que une líneas múltiples con espacios). Se procesan junto
+  a pandoc y legacy con la misma salida (llamada ePub + `Nota` limpiada).
+  Numeración literal del corchete. Limitación: llamada sin definición queda
+  huérfana; imágenes dentro de definiciones MD no soportadas (los placeholders
+  `\x00IMG_x\x00` se restauran después de extraer notas).
 
 ### 5.6 Imágenes y separadores
 
-- Detectadas: pandoc nativo `<img…image0N…>`, `[IMAGEN N]`, `!\ImageN\` (md).
+- Detectadas: pandoc nativo `<img…image0N…>`, `[IMAGEN N]` (case-insensitive,
+  acepta `[Imagen N]`), `!\ImageN\` (md).
 - Reemplazo: `<hr class="sigil_split_marker" />` + `<figure class="dimg"><img src="../Images/NN.jpg" alt=""/></figure>` + `<hr class="sigil_split_marker" />`
 - En MD se procesan con placeholders `\x00IMG_x\x00` para que la limpieza no los toque
   (heredado de MigradorMD).
@@ -229,6 +254,17 @@ python3 app/app.py                           # GUI
 - Incluir: comillas sin cerrar al final de párrafo, dobles talks adyacentes
   (`«hola», «adiós»`), cortafuegos por `</p>`, basura de Word y de Calibre,
   notas al pie pandoc + legacy `(NT01)`, imágenes (3 sintaxis), separadores, `{{CONTENIDO}}`.
+- **Tests de invariantes (fuzzing)** en `tests/test_comillas.py`
+  (`TestInvariantesComillas`): generan 10.000 manuscritos realistas con semilla
+  fija y verifican propiedades estructurales para CUALQUIER entrada:
+  1. cero comillas rectas (`"`/`'`) sobrevivientes fuera de etiquetas;
+  2. por segmento entre cortafuegos: `»−« ∈ {0,1}` y `’−‘ ∈ {0,1}`
+     (el `1` es la comilla sin cerrar del manuscrito, confinada por diseño).
+  Son la red de seguridad obligatoria antes de tocar `_es_apertura`,
+  `_cadena_con_doble` o los `CARACTERES_*`. Si un cambio exige relajar un
+  invariante, es cambio de comportamiento canónico → registrar en §5 primero.
+  Regla de trabajo: todo bug nuevo de comillas entra como caso canónico
+  (entrada → salida esperada) ANTES de arreglarse.
 
 ## 10. Hoja de ruta
 

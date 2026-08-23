@@ -69,6 +69,54 @@ class TestNotasLegacy(unittest.TestCase):
         self.assertIn('notas_Finales.xhtml', html)
 
 
+class TestNotasMarkdown(unittest.TestCase):
+    HTML_MD = (
+        '<p>Era de noche[^1] cuando llegó[^2].</p>'
+        '<p>[^1]: La luna salía sobre el puerto.</p>'
+        '<p>[^2]: Nadie recordaba el camino, '
+        'ni siquiera los que volvieron.</p>'
+    )
+
+    def test_definiciones_extraidas_como_nota(self):
+        html, notas = extraer_notas(self.HTML_MD)
+        self.assertEqual(len(notas), 2)
+        self.assertEqual(notas[0].num, 1)
+        self.assertEqual(notas[0].texto, 'La luna salía sobre el puerto.')
+        self.assertEqual(
+            notas[1].texto,
+            'Nadie recordaba el camino, ni siquiera los que volvieron.',
+        )
+
+    def test_llamadas_reemplazadas_y_definiciones_eliminadas(self):
+        html, _ = extraer_notas(self.HTML_MD)
+        self.assertIn(f'href="{ARCHIVO_NOTAS}#nt01" id="rf01"', html)
+        self.assertIn('id="rf02"', html)
+        self.assertNotIn('[^', html)
+
+    def test_llamada_sin_definicion_queda_huerfana(self):
+        html, notas = extraer_notas('<p>texto[^3] suelto</p>')
+        self.assertEqual(notas, [])
+        self.assertIn('id="rf03"', html)
+
+    def test_pipeline_markdown_end_to_end(self):
+        md = (
+            '# Capítulo Uno\n\n'
+            'Era de noche[^1] cuando llegó.\n\n'
+            '[^1]: La luna salía sobre el puerto.\n'
+        )
+        with TemporaryDirectory() as tmp:
+            carpeta = Path(tmp)
+            (carpeta / '01.md').write_text(md, encoding='utf-8')
+            plantillas = carpeta / 'plantillas'
+            plantillas.mkdir()
+            template_ruta = plantillas / 'template.xhtml'
+            template_ruta.write_text(TEMPLATE, encoding='utf-8')
+            resultado = procesar('markdown', carpeta, template_ruta)
+        self.assertEqual(resultado.contadores.notas, 1)
+        self.assertIn('id="rf01"', resultado.capitulos[0].html_cuerpo)
+        self.assertEqual(resultado.notas[0].texto, 'La luna salía sobre el puerto.')
+
+
 class TestPipelinePandoc(unittest.TestCase):
     def test_limpieza_no_borra_id_rf_generado(self):
         from motor.limpieza import limpiar_texto_html

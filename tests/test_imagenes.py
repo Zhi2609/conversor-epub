@@ -38,6 +38,12 @@ class TestImagenes(unittest.TestCase):
         self.assertIn('<figure class="dimg">', resultado)
         self.assertEqual(conteo, 1)
 
+    def test_marca_imagen_mixta_case_insensitive(self):
+        html = '<p>[Imagen 2]</p>'
+        resultado, conteo = procesar_imagenes(html)
+        self.assertIn('../Images/02.jpg', resultado)
+        self.assertEqual(conteo, 1)
+
 
 class TestSeparadores(unittest.TestCase):
     def test_separador_en_parrafo(self):

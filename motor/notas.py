@@ -23,6 +23,8 @@ RE_VINCULO_REGRESO = re.compile(
     re.DOTALL,
 )
 RE_NOTA_LEGACY = re.compile(r'\(NT(\d+)\)')
+RE_NOTA_MD_DEF = re.compile(r'<p>\s*\[\^(\d+)\]:\s*(.*?)</p>', re.DOTALL)
+RE_NOTA_MD_LLAMADA = re.compile(r'\[\^(\d+)\]')
 RE_ANCLA_REGRESO = re.compile(r'↩︎?')
 RE_IMG = re.compile(r'<img\b[^>]*?/?>', re.DOTALL | re.IGNORECASE)
 
@@ -47,9 +49,25 @@ def _reemplazar_notas_legacy(html: str) -> str:
     return RE_NOTA_LEGACY.sub(reemplazar, html)
 
 
+def _procesar_notas_markdown(html: str, notas: list[Nota]) -> str:
+    """Extrae definiciones markdown <p>[^N]: contenido</p> como Nota y
+    reemplaza las llamadas inline [^N] por llamadas en formato ePub (§5.5).
+    Las definiciones se eliminan ANTES de reemplazar llamadas porque
+    `[^N]:` contiene `[^N]`."""
+    for num_str, contenido in RE_NOTA_MD_DEF.findall(html):
+        notas.append(
+            Nota(num=int(num_str), texto=limpiar_texto_html(contenido.strip()))
+        )
+    html = RE_NOTA_MD_DEF.sub('', html)
+    return RE_NOTA_MD_LLAMADA.sub(
+        lambda m: formatear_llamada(int(m.group(1))), html
+    )
+
+
 def extraer_notas(html: str) -> tuple[str, list[Nota]]:
     """Extrae la sección de notas (pandoc) del HTML y la devuelve formateada
-    como lista de Nota; las llamadas inline se actualizan al formato ePub."""
+    como lista de Nota; las llamadas inline (pandoc, markdown y legacy)
+    se actualizan al formato ePub."""
     notas: list[Nota] = []
 
     match = RE_SECCION_NOTAS.search(html)
@@ -71,6 +89,7 @@ def extraer_notas(html: str) -> tuple[str, list[Nota]]:
 
         html = RE_VINCULO_NOTA_PANDOC.sub(reemplazar_llamada, html)
 
+    html = _procesar_notas_markdown(html, notas)
     html = _reemplazar_notas_legacy(html)
     return html, notas
 
