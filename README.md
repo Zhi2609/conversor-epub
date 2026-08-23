@@ -12,7 +12,8 @@ capítulos XHTML listos para ensamblar en un editor como Sigil.
   - **Calibre**: carpeta con `.xhtml`/`.html` exportados desde Calibre
   - **Markdown**: carpeta con `.md` (párrafos automáticos, imágenes, blockquotes)
 - **Limpieza tipográfica canónica**: máquina de estados de comillas `«»` a todos los
-  niveles (D1), comillas simples `‘’` (D2), remoción de basura de Word y Calibre,
+  niveles (D1), comillas simples `‘’` (D2) con excepción para gritos anidados
+  (`“‘‘Ahh!!’’”` → `«««Ahh!!»»»`, D9), remoción de basura de Word y Calibre,
   unificación de etiquetas `<strong>`→`<b>`, `<em>`→`<i>`.
 - **Notas al pie** de pandoc y legacy `(NT##)` → `notas_Finales.xhtml` con llamadas
   enlazadas a su capítulo.
@@ -23,7 +24,9 @@ capítulos XHTML listos para ensamblar en un editor como Sigil.
 - **GUI con visor de diferencias** antes/después, dashboard con badges de color
   individuales (capítulos, notas, imágenes, separadores) y tema oscuro Catppuccin.
 - **Drop zone** con borde discontinuo para arrastrar archivos o carpetas.
-- **Tests golden**: 84 tests que congelan el comportamiento de salida.
+- **Tests golden e invariantes**: 88 tests que congelan el comportamiento de salida
+  y verifican propiedades estructurales de comillas sobre 10.000 manuscritos
+  generados (fuzzing con semilla fija).
 
 ## Instalación
 

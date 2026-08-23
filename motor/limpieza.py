@@ -55,6 +55,27 @@ def _es_apertura(texto: str, idx: int) -> bool:
     return es_apertura_prev
 
 
+def _cadena_con_doble(texto: str, idx: int, es_apertura: bool) -> bool:
+    """True si una comilla simple es un nivel de anidamiento (D1) y no una
+    cita simple (D2). Dos casos:
+    1. Encadenada a una doble del mismo signo («‘…’» sin separación):
+       gritos anidados tipo “‘‘Ahh!!’’” → «««Ahh!!»»».
+    2. Terna o más de simples consecutivas ('''AHHH!!'''), que nunca es
+       tipografía legítima. Las simples legítimas (un 'niño') no cumplen
+       ninguna de las dos."""
+    j = idx
+    while j > 0 and texto[j - 1] == "'":
+        j -= 1
+    k = idx
+    while k < len(texto) - 1 and texto[k + 1] == "'":
+        k += 1
+    if k - j + 1 >= 3:
+        return True
+    if es_apertura:
+        return j > 0 and texto[j - 1] == '"'
+    return k < len(texto) - 1 and texto[k + 1] == '"'
+
+
 def _convertir_comillas(html: str) -> str:
     """Reemplaza comillas rectas por latinas con sistema de niveles:
     D1: todos los niveles de comillas dobles se escriben «/», el contador
@@ -66,6 +87,7 @@ def _convertir_comillas(html: str) -> str:
 
     resultado: list[str] = []
     nivel = 0
+    simples_legitimas = 0
     dentro_de_tag = False
     tag_buffer: list[str] = []
 
@@ -83,10 +105,12 @@ def _convertir_comillas(html: str) -> str:
                 dentro_de_tag = False
                 if "".join(tag_buffer).lower() in CORTARAFUEGOS:
                     nivel = 0
+                    simples_legitimas = 0
             continue
 
         if char == '\n':
             nivel = 0
+            simples_legitimas = 0
             resultado.append(char)
             continue
 
@@ -100,7 +124,27 @@ def _convertir_comillas(html: str) -> str:
                     nivel -= 1
 
         elif char == "'":
-            resultado.append('\x01' if _es_apertura(html, i) else '\x02')
+            apertura = _es_apertura(html, i)
+            anidada = _cadena_con_doble(html, i, apertura)
+            if anidada and not apertura and simples_legitimas > 0:
+                # D9 solo aplica si la simple también abrió como anidada
+                # (encadenada a una doble). Si abrió como cita legítima (D2),
+                # su cierre pegado a una doble no la convierte en nivel:
+                # "…una 'pared'". → «…una ‘pared’».
+                anidada = False
+                simples_legitimas -= 1
+            elif not anidada and apertura:
+                simples_legitimas += 1
+            if anidada:
+                if apertura:
+                    nivel += 1
+                    resultado.append('«')
+                else:
+                    resultado.append('»')
+                    if nivel > 0:
+                        nivel -= 1
+            else:
+                resultado.append('\x01' if apertura else '\x02')
 
         else:
             resultado.append(char)

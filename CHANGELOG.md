@@ -228,3 +228,59 @@ Las nuevas entradas se añaden al final de cada sesión de trabajo.
 - **Eliminación Definitiva de Legacy**: Se eliminó permanentemente la carpeta `Old/` que contenía los scripts legacy (`Conversor.py`, `Migrador.py`, `MigradorMD.py`), ya que el nuevo motor de PySide6 es completamente estable y todos los tests pasan.
 - **Consolidación de Recursos (Assets)**: Se movieron las carpetas estáticas `Plantillas/` y `Conv_Xhtml/` hacia un nuevo directorio centralizado `assets/`.
 - **Refactorización de Rutas**: Se actualizaron las referencias en `motor/__init__.py`, `tests/test_procesar.py` y `empaquetar.sh` para apuntar a la nueva estructura. Las pruebas unitarias confirmaron la integridad del motor de conversión tras el cambio.
+
+---
+
+## 22 de Agosto de 2026
+
+      11:57 — 4 cambios hechos
+- **Regla canónica D9 (gritos anidados)**: nueva excepción a D2 en
+  `motor/limpieza.py` (`_cadena_con_doble`). Una comilla simple se trata como
+  nivel de anidamiento (→ `«/»`) cuando está encadenada a una doble del mismo
+  signo (`“‘‘Ahh!!’’”` → `«««Ahh!!»»»`, caso que Word genera al autocorregir
+  gritos anidados) o forma parte de una terna o más de simples consecutivas
+  (`'''AHHH!!'''` → `«««AHHH!!»»»`). Las simples legítimas (`un 'niño'`)
+  siguen intactas. Registrado en AGENTS.md §5.1.
+- **Tests de invariantes (fuzzing)** añadidos a `tests/test_comillas.py`
+  (`TestInvariantesComillas`): 10.000 manuscritos realistas con semilla fija;
+  verifican cero comillas rectas sobrevivientes y balance `»−« ∈ {0,1}` /
+  `’−‘ ∈ {0,1}` por segmento entre cortafuegos. Red de seguridad para futuros
+  cambios en `_es_apertura` / `_cadena_con_doble`. Documentado en AGENTS.md §9.
+- Nuevos casos canónicos: grito anidado mixto, terna de simples y conservación
+  de simples legítimas junto a dobles separadas.
+- Suite completo: 88 tests OK.
+
+## 22 de Agosto de 2026
+
+      14:30 — 1 cambio hecho
+- **Corrección D9 (refinamiento del encadenamiento)**: `"…una 'pared'".`
+  producía `«…una ‘pared»».` porque `_cadena_con_doble` clasificaba el cierre
+  de la simple como anidamiento al estar pegado a la doble de cierre del
+  diálogo, sin importar cómo abrió la pareja. Ahora `_convertir_comillas`
+  lleva un contador `simples_legitimas` (reseteado por los cortafuegos): si
+  la simple abrió como cita legítima (D2), su cierre permanece legítimo
+  (`’`) aunque caiga pegado a una doble. El grito anidado real
+  (`“‘‘Ahh!!’’”` → `«««Ahh!!»»»`) sigue funcionando porque su apertura
+  también fue anidada. Nuevo caso canónico en `tests/test_comillas.py`.
+  Registrado en AGENTS.md §5.1. Suite completo: 89 tests OK.
+
+      19:45 — 6 cambios hechos
+- **Soporte de notas markdown `[^N]`**: llamadas inline `[^N]` y definiciones
+  al pie del archivo `[^N]: contenido` ahora se procesan en `extraer_notas`
+  (`motor/notas.py`, nuevas regex `RE_NOTA_MD_DEF` / `RE_NOTA_MD_LLAMADA` y
+  función `_procesar_notas_markdown`) con la misma salida que pandoc y legacy:
+  llamada ePub `<a href="notas_Finales.xhtml#ntNN" id="rfNN">` en el capítulo y
+  contenido limpiado en `notas_Finales.xhtml` con backlink al capítulo real.
+  El adaptador MD no cambia: las definiciones llegan ya envueltas en `<p>` por
+  `_parrafos_a_html`. Numeración literal del corchete. Limitaciones: llamada
+  sin definición queda huérfana; imágenes dentro de definiciones MD no
+  soportadas. Registrado en AGENTS.md §5.5.
+- Confirmado (sin cambio de código): `[Imagen N]` ya funciona case-insensitive
+  en todos los modos (`RE_IMAGEN_TAG` / `RE_IMAGEN_TAG_P` ya tenían
+  `re.IGNORECASE`). Registrado explícitamente en AGENTS.md §5.6.
+- Nuevos tests en `tests/test_notas.py` (`TestNotasMarkdown`): extracción de
+  definiciones, reemplazo de llamadas, definiciones multilínea, llamada
+  huérfana y test end-to-end del pipeline markdown.
+- Nuevo test en `tests/test_imagenes.py`: `[Imagen 2]` mixto → figura correcta.
+- Creado design doc `thoughts/shared/designs/2026-08-22-md-notas-imagenes-design.md`.
+- Suite completo: 94 tests OK.
