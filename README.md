@@ -7,10 +7,11 @@ capítulos XHTML listos para ensamblar en un editor como Sigil.
 
 ## Características
 
-- **3 modos de entrada** con detección automática:
+- **4 modos de entrada** con detección automática:
   - **Word**: `.docx` → pandoc → HTML, con notas al pie reales de Word
+  - **PDF**: `.pdf` → pdf2docx → DOCX temporal → HTML
   - **Calibre**: carpeta con `.xhtml`/`.html` exportados desde Calibre
-  - **Markdown**: carpeta con `.md` (párrafos automáticos, imágenes, blockquotes)
+  - **Markdown**: carpeta con `.md` (procesado directamente vía pandoc)
 - **Limpieza tipográfica canónica**: máquina de estados de comillas `«»` a todos los
   niveles (D1), comillas simples `‘’` (D2) con excepción para gritos anidados
   (`“‘‘Ahh!!’’”` → `«««Ahh!!»»»`, D9), remoción de basura de Word y Calibre,
@@ -30,12 +31,18 @@ capítulos XHTML listos para ensamblar en un editor como Sigil.
 
 ## Instalación
 
-Requiere **Python 3.10+** y **pandoc** para el modo Word:
+Requiere **Python 3.10+**, **pandoc** (para los modos Word y Markdown) y un entorno virtual (recomendado):
 
 ```bash
+# 1. Instalar pandoc en el sistema
 sudo apt install pandoc
-python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt   # PySide6, pytest
+
+# 2. Crear y activar entorno virtual
+python3 -m venv venv
+source venv/bin/activate
+
+# 3. Instalar librerías
+pip install -r requirements.txt   # PySide6, pdf2docx, pytest, PyInstaller
 ```
 
 ## Uso
@@ -76,17 +83,21 @@ python3 motor-cli.py carpeta_calibre/ -o Capitulos -c caps.txt
 
 ## Empaquetado (AppImage)
 
+> [!IMPORTANT]
+> Debes tener activado tu entorno virtual (`source venv/bin/activate`) antes de correr el script de empaquetado para asegurar que `PyInstaller` empaquete todas las dependencias correctamente (`pdf2docx`, `PySide6`, etc.).
+
 ```bash
 sudo apt install binutils        # PyInstaller lo necesita (objdump)
-pip install pyinstaller
 # linuxdeploy: binario de https://github.com/linuxdeploy/linuxdeploy/releases
+
+# Asegúrate de estar dentro del venv
+source venv/bin/activate
 
 ./empaquetar.sh                  # PyInstaller onefile → dist/ConversorEpub
 ./empaquetar.sh appimage         # → ConversorEpub-x86_64.AppImage
 ```
 
-Tras modificar el código, basta con repetir `./empaquetar.sh [appimage]` para
-regenerar el binario.
+Tras modificar el código, basta con repetir `./empaquetar.sh [appimage]` (siempre con el `venv` activado) para regenerar el binario.
 
 ## Tests
 

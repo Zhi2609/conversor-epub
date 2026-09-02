@@ -10,15 +10,16 @@ reglas de comportamiento canónico, estilo de código y hoja de ruta resueltas a
 
 Unificar los scripts legacy (`Old/Conversor.py`, `Old/Migrador.py`, `Old/MigradorMD.py`)
 en una **aplicación de escritorio Linux** (PySide6) que automatiza la limpieza tipográfica y
-maquetación de manuscritos para ePubs. Un solo motor central con 3 adaptadores de entrada
-(DOCX, XHTML de Calibre, Markdown) + interfaz gráfica con visor de diferencias antes/después.
+maquetación de manuscritos para ePubs. Un solo motor central con 4 adaptadores de entrada
+(DOCX, PDF, XHTML de Calibre, Markdown) + interfaz gráfica con visor de diferencias antes/después.
 
 ## 2. Stack
 
 - Python 3.10+
 - GUI: **PySide6 / PyQt6** (elegido sobre CustomTkinter porque CustomTkinter no renderiza HTML;
   el visor Diff necesita `QTextBrowser` o similar). CustomTkinter queda descartado.
-- Dependencia externa: `pandoc` (DOCX → HTML). Verificar presencia con `shutil.which('pandoc')`.
+- Dependencia externa: `pandoc` (DOCX y MD → HTML). Verificar presencia con `shutil.which('pandoc')`.
+- Dependencia extra: `pdf2docx` para procesar archivos PDF reconstruyendo su semántica.
 - Distribución: PyInstaller → AppImage (Linux).
 - Tests: `pytest` con archivos golden (salida esperada).
 
@@ -32,7 +33,7 @@ La carpeta `Old/` con los scripts legacy (`Conversor.py`, `Migrador.py`, `Migrad
 app/                     # aplicación (capa GUI, PySide6)
 motor/                   # núcleo puro: sin print, sin rutas globales
   __init__.py
-  modelo.py              # Chapter(titulo: str, html_cuerpo: str) — pieza central
+  modelo.py              # Chapter(titulo: str, html_cuerpo: str, html_raw: str) — pieza central
   limpieza.py            # máquina de estados de comillas + limpieza de basura
   notas.py               # extracción y formateo de notas al pie
   imagenes.py            # imágenes y separadores
@@ -40,11 +41,12 @@ motor/                   # núcleo puro: sin print, sin rutas globales
   plantillas.py          # clasificación y manejo de capítulos especiales sin numerar
   procesar.py            # orquestador del pipeline (adaptador → limpieza → notas → imágenes → split)
   adaptadores/
-    __init__.py
+    __init__.py          # utilidades compartidas como num_key
     docx.py              # pandoc + extracción de notas ANTES del split
+    pdf.py               # puente temporal pdf2docx → docx.py
     calibre.py           # extraer <body>, quitar <h1> del cuerpo
-    markdown.py          # md → HTML, párrafos, imágenes con placeholders \x00IMG_x\x00
-  render.py              # inyecta Chapter en template.xhtml → C01.xhtml...
+    markdown.py          # md → HTML vía pandoc, imágenes con placeholders \x00IMG_x\x00
+  render.py              # inyecta Chapter en template.xhtml, usa shutil.rmtree
 assets/                  # recursos estáticos consolidados
   Plantillas/            # plantillas para capítulos especiales (prologo.xhtml, epilogo.xhtml, autor.xhtml)
   Conv_Xhtml/            # template central
@@ -168,10 +170,9 @@ manuscrito o en la tabla. Prohibido añadir heurísticas tipo "título si termin
 ### 5.7 Markdown → HTML
 
 - Limpiar invisibles `\u200B-\u200D\uFEFF`.
-- `***x***` → `<b><i>`, `**x**` → `<b>`, `_x_` → `<i>`, `\x` → `x`, `# x` (línea) → `<h1>`.
-- `[blockquote]` → `<blockquote class="mistico">`.
-- Párrafos: split por `\n{2,}`, envolver en `<p>` salvo bloques que ya empiezan por
-  `<h1`, `<hr`, `<figure` o placeholder de imagen; unir líneas internas con espacio.
+- `***x***` → `<b><i>`, `**x**` → `<b>`, `_x_` → `<i>`, `\x` → `x`, `# x` (línea) → `<h1>` son **manejados nativamente por pandoc**.
+- `[blockquote]` → `<blockquote class="mistico">` (pre-procesado).
+- Párrafos, tablas y listas: generados automáticamente y de manera robusta por `pandoc`.
 - **Un primer `<h1>` al inicio del archivo es el título del capítulo**: se extrae, se elimina
   del cuerpo (evita duplicar el título con el header del template) y alimenta la tabla
   de títulos. Los `#` intermedios se conservan en el cuerpo.

@@ -13,6 +13,7 @@ class Chapter:
 
     titulo: str
     html_cuerpo: str
+    html_raw: str = ""
     archivo: str | None = None
     plantilla_ruta: Path | None = None
 

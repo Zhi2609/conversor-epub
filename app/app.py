@@ -39,7 +39,7 @@ RUTA_TEMPLATE_DEFECTO = ruta_template_empaquetado()
 RUTA_SALIDA_DEFECTO = RUTA_RAIZ / 'Capitulos'
 RUTA_PLANTILLAS_DEFECTO = ruta_plantillas_empaquetado()
 
-ETIQUETA_MODOS = {'word': 'Modo Word', 'calibre': 'Modo Calibre', 'markdown': 'Modo Markdown'}
+ETIQUETA_MODOS = {'word': 'Modo Word', 'calibre': 'Modo Calibre', 'markdown': 'Modo Markdown', 'pdf': 'Modo PDF'}
 
 _ESTILO_QSS = """
 QWidget {
@@ -197,7 +197,7 @@ class ZonaEntrada(QFrame):
         self.setObjectName('drop_zone')
         self.setFrameShape(QFrame.StyledPanel)
         self.setMinimumHeight(100)
-        texto = QLabel('📂  Arrastra aquí tu .docx o tu carpeta (.md / .xhtml / .html)')
+        texto = QLabel('📂  Arrastra aquí tu .docx, .pdf o tu carpeta (.md / .xhtml / .html)')
         boton = QPushButton('Explorar...')
         boton.setObjectName('secundario')
         boton.clicked.connect(self._explorar)
@@ -216,7 +216,7 @@ class ZonaEntrada(QFrame):
 
     def _explorar(self):
         ruta, _ = QFileDialog.getOpenFileName(
-            self, 'Selecciona un .docx', str(Path.home()), 'Word (*.docx)',
+            self, 'Selecciona un archivo', str(Path.home()), 'Documentos (*.docx *.pdf)',
             options=QFileDialog.Option.DontUseNativeDialog,
         )
         if ruta:
@@ -360,22 +360,6 @@ class VentanaPrincipal(QMainWindow):
                     else None
                 ),
             )
-            self._documentos_raw = []
-            if modo == 'word':
-                from motor.adaptadores.docx import convertir_docx
-                self._documentos_raw = [convertir_docx(ruta)] * len(self._resultado.capitulos)
-            elif modo == 'calibre':
-                from motor.adaptadores.calibre import extraer_cuerpo
-                self._documentos_raw = [
-                    extraer_cuerpo(archivo.read_text(encoding='utf-8'))[0]
-                    for archivo in sorted(ruta.glob('*.xhtml')) + sorted(ruta.glob('*.html'))
-                ]
-            else:
-                from motor.adaptadores.markdown import _limpiar_invisibles, _md_a_html
-                for archivo in sorted(ruta.glob('*.md')):
-                    texto = archivo.read_text(encoding='utf-8')
-                    self._documentos_raw.append(_md_a_html(_limpiar_invisibles(texto)))
-            self._documentos_raw += [self._documentos_raw[-1]] * (len(self._resultado.capitulos) - len(self._documentos_raw))
         except (ValueError, RuntimeError) as error:
             self._mostrar_error(str(error))
             QMessageBox.warning(self, 'Error al procesar', str(error))
@@ -476,8 +460,7 @@ class VentanaPrincipal(QMainWindow):
         if indice < 0:
             return
         capitulo = self._resultado.capitulos[indice]
-        original = self._documentos_raw[indice] if indice < len(self._documentos_raw) else ''
-        self.original.setPlainText(original)
+        self.original.setPlainText(capitulo.html_raw)
         self.limpio.setHtml(capitulo.html_cuerpo)
 
     def _generar(self):

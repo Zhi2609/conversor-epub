@@ -38,9 +38,9 @@ def render_notas(notas) -> str:
     return '\n'.join(formatear_nota(nota) for nota in notas)
 
 
+import shutil
+
 def limpiar_carpeta(ruta: Path) -> None:
     """Crea o limpia la carpeta de salida antes de escribir."""
+    shutil.rmtree(ruta, ignore_errors=True)
     ruta.mkdir(parents=True, exist_ok=True)
-    for archivo in ruta.iterdir():
-        if archivo.is_file():
-            archivo.unlink()

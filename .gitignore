@@ -3,6 +3,8 @@ __pycache__/
 *.pyc
 .venv/
 venv/
+env/
+.env/
 .pytest_cache/
 
 # Empaquetado (PyInstaller / linuxdeploy)

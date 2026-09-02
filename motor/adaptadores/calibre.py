@@ -11,8 +11,7 @@ RE_TITULO_CALIBRE = re.compile(
 )
 
 
-def _num_key(archivo: Path) -> list[int]:
-    return [int(n) for n in re.findall(r'\d+', archivo.stem)]
+from motor.adaptadores import num_key
 
 
 def extraer_cuerpo(html: str) -> tuple[str, str | None]:
@@ -38,8 +37,8 @@ def documentos_calibre(ruta: Path) -> tuple[list[tuple[str, str | None, list[str
     tuplas (cuerpo_sin_titulo, título_detectado, imágenes_placeholder).
     Los archivos sin <body> se omiten con un aviso."""
     if ruta.is_dir():
-        archivos = sorted(ruta.glob('*.xhtml'), key=_num_key) + sorted(
-            ruta.glob('*.html'), key=_num_key
+        archivos = sorted(ruta.glob('*.xhtml'), key=num_key) + sorted(
+            ruta.glob('*.html'), key=num_key
         )
     else:
         archivos = [ruta]

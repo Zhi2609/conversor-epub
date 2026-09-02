@@ -54,7 +54,7 @@ def procesar(
     (§5.8) se marcan con su archivo y plantilla propios. Si la plantilla
     especial no existe, el capítulo se queda con la numeración normal y se
     añade un aviso."""
-    if modo not in ('word', 'calibre', 'markdown'):
+    if modo not in ('word', 'calibre', 'markdown', 'pdf'):
         raise ValueError(f'Modo desconocido: {modo}')
 
     template = ruta_template.read_text(encoding='utf-8')
@@ -67,12 +67,19 @@ def procesar(
     n_imagenes_total = 0
     n_separadores_total = 0
 
-    if modo == 'word':
-        html = convertir_docx(ruta_entrada)
-        html, n_img, n_sep = _procesar_documento(html, notas)
+    if modo in ('word', 'pdf'):
+        if modo == 'word':
+            html_raw = convertir_docx(ruta_entrada)
+        else:
+            from motor.adaptadores.pdf import convertir_pdf
+            html_raw = convertir_pdf(ruta_entrada)
+        
+        html, n_img, n_sep = _procesar_documento(html_raw, notas)
         n_imagenes_total += n_img
         n_separadores_total += n_sep
         capitulos = dividir_en_capitulos(html, titulos, start_num)
+        for cap in capitulos:
+            cap.html_raw = html_raw
 
     else:
         if modo == 'calibre':
@@ -91,7 +98,7 @@ def procesar(
                 if titulos and indice < len(titulos)
                 else (titulo_auto or f'Capítulo {num}')
             )
-            capitulos.append(Chapter(titulo=titulo, html_cuerpo=html.strip()))
+            capitulos.append(Chapter(titulo=titulo, html_cuerpo=html.strip(), html_raw=html_doc))
 
     if ruta_plantillas is not None:
         for capitulo in capitulos:
