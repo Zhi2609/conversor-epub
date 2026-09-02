@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
     QMainWindow,
     QMessageBox,
     QPushButton,
+    QSpinBox,
     QSplitter,
     QTableWidget,
     QTableWidgetItem,
@@ -230,11 +231,23 @@ class VentanaPrincipal(QMainWindow):
         self._resultado = None
         self._documentos_raw: list[str] = []
         self._ruta_entrada: Path | None = None
+        self._start_num_actual: int = 1
         self._construir_ui()
 
     def _construir_ui(self):
         central = QWidget()
         layout = QVBoxLayout(central)
+
+        numeracion_layout = QHBoxLayout()
+        numeracion_layout.addWidget(QLabel('Iniciar numeración de capítulos en:'))
+        self.spin_start_num = QSpinBox()
+        self.spin_start_num.setMinimum(1)
+        self.spin_start_num.setMaximum(9999)
+        self.spin_start_num.setValue(1)
+        self.spin_start_num.setToolTip('Cambia este valor antes de cargar el archivo')
+        numeracion_layout.addWidget(self.spin_start_num)
+        numeracion_layout.addStretch()
+        layout.addLayout(numeracion_layout)
 
         self.zona_entrada = ZonaEntrada(self._aceptar_entrada)
         self.etiqueta_modo = QLabel('Sin archivo cargado')
@@ -332,11 +345,15 @@ class VentanaPrincipal(QMainWindow):
         self._ruta_entrada = ruta
         self.etiqueta_modo.setText(f'🔄 Procesando… ({ETIQUETA_MODOS[modo]})')
         QApplication.processEvents()
+        
+        self._start_num_actual = self.spin_start_num.value()
+        
         try:
             self._resultado = procesar(
                 modo,
                 ruta,
                 RUTA_TEMPLATE_DEFECTO,
+                start_num=self._start_num_actual,
                 ruta_plantillas=(
                     RUTA_PLANTILLAS_DEFECTO
                     if RUTA_PLANTILLAS_DEFECTO.is_dir()
@@ -377,8 +394,14 @@ class VentanaPrincipal(QMainWindow):
             self.etiqueta_avisos.hide()
         self._poblar_tabla()
         self.selector_capitulo.clear()
-        for num, capitulo in enumerate(self._resultado.capitulos, start=1):
-            self.selector_capitulo.addItem(f'Capítulo {num:02d} — {capitulo.titulo}')
+        
+        for indice, capitulo in enumerate(self._resultado.capitulos):
+            numero = numero_de_archivo(capitulo.archivo, self._start_num_actual + indice)
+            if capitulo.plantilla_ruta:
+                self.selector_capitulo.addItem(f'{capitulo.titulo} ({capitulo.archivo})')
+            else:
+                self.selector_capitulo.addItem(f'Capítulo {numero:02d} — {capitulo.titulo}')
+                
         self.selector_capitulo.currentIndexChanged.connect(self._mostrar_diff)
         self._mostrar_diff()
         self._validar_conteo()
@@ -386,9 +409,14 @@ class VentanaPrincipal(QMainWindow):
     def _poblar_tabla(self):
         self.tabla.cellChanged.disconnect()
         self.tabla.setRowCount(len(self._resultado.capitulos))
+        start_num = self._start_num_actual
+        
         for fila, capitulo in enumerate(self._resultado.capitulos):
-            self.tabla.setItem(fila, 0, QTableWidgetItem(f'{fila + 1}'))
+            numero = numero_de_archivo(capitulo.archivo, start_num + fila)
+            texto_num = '-' if capitulo.plantilla_ruta else str(numero)
+            self.tabla.setItem(fila, 0, QTableWidgetItem(texto_num))
             self.tabla.setItem(fila, 1, QTableWidgetItem(capitulo.titulo))
+            
         self.tabla.cellChanged.connect(self._validar_conteo)
 
     def _titulos_de_tabla(self) -> list[str]:
@@ -399,9 +427,11 @@ class VentanaPrincipal(QMainWindow):
 
     def _anadir_fila(self):
         self.tabla.cellChanged.disconnect()
-        self.tabla.insertRow(self.tabla.rowCount())
-        self.tabla.setItem(self.tabla.rowCount() - 1, 0, QTableWidgetItem(f'{self.tabla.rowCount()}'))
-        self.tabla.setItem(self.tabla.rowCount() - 1, 1, QTableWidgetItem(''))
+        fila = self.tabla.rowCount()
+        self.tabla.insertRow(fila)
+        start_num = self._start_num_actual
+        self.tabla.setItem(fila, 0, QTableWidgetItem(str(start_num + fila)))
+        self.tabla.setItem(fila, 1, QTableWidgetItem(''))
         self.tabla.cellChanged.connect(self._validar_conteo)
         self._validar_conteo()
 
@@ -469,8 +499,9 @@ class VentanaPrincipal(QMainWindow):
             limpiar_carpeta(salida)
             plantilla = template.read_text(encoding='utf-8')
             titulos = self._titulos_de_tabla()
+            start_num = self._start_num_actual
             for indice, capitulo in enumerate(self._resultado.capitulos):
-                num = indice + 1
+                num = start_num + indice
                 archivo = capitulo.archivo or f'C{num:02d}.xhtml'
                 numero = numero_de_archivo(archivo, num)
                 if capitulo.plantilla_ruta is not None:
