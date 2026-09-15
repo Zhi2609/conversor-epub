@@ -6,7 +6,29 @@
 set -euo pipefail
 
 NOMBRE="ConversorEpub"
-PYTHON="${PYTHON:-python3}"
+if [ -z "${PYTHON:-}" ]; then
+    if [ -n "${VIRTUAL_ENV:-}" ] && [ -x "$VIRTUAL_ENV/bin/python" ]; then
+        PYTHON="$VIRTUAL_ENV/bin/python"
+    elif [ -x ".venv/bin/python" ]; then
+        PYTHON="$(pwd)/.venv/bin/python"
+    elif [ -x "venv/bin/python" ]; then
+        PYTHON="$(pwd)/venv/bin/python"
+    else
+        PYTHON="python3"
+    fi
+fi
+
+# En NixOS, PyInstaller requiere un entorno FHS para que los hooks de PySide6
+# puedan cargar libstdc++ y empaquetar los plugins de plataforma de Qt (libqxcb.so).
+if [ -e /etc/NIXOS ] && [ ! -d /usr/lib ]; then
+    if command -v steam-run >/dev/null 2>&1; then
+        echo "ℹ️  Detectado NixOS: relanzando dentro de steam-run para resolver dependencias de Qt..."
+        exec steam-run env PYTHON="$PYTHON" "$0" "$@"
+    else
+        echo "⚠️  Detectado NixOS sin steam-run en el PATH. Podrían faltar plugins de Qt en el ejecutable."
+    fi
+fi
+
 DIST="dist/$NOMBRE"
 DESKTOP="assets/$NOMBRE.desktop"
 

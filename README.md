@@ -81,23 +81,44 @@ python3 motor-cli.py carpeta_calibre/ -o Capitulos -c caps.txt
 - `Capitulos/notas_Finales.xhtml` con las notas al pie
 - La carpeta de salida se limpia en cada ejecución
 
-## Empaquetado (AppImage)
+## Empaquetado (Binario / AppImage)
 
 > [!IMPORTANT]
-> Debes tener activado tu entorno virtual (`source venv/bin/activate`) antes de correr el script de empaquetado para asegurar que `PyInstaller` empaquete todas las dependencias correctamente (`pdf2docx`, `PySide6`, etc.).
+> Debes tener activado tu entorno virtual (`source .venv/bin/activate` o `venv`) antes de correr el script de empaquetado para asegurar que `PyInstaller` empaquete todas las dependencias correctamente (`pdf2docx`, `PySide6`, etc.).
+
+### En distribuciones estándar (Ubuntu, Debian, Fedora, Arch):
 
 ```bash
 sudo apt install binutils        # PyInstaller lo necesita (objdump)
 # linuxdeploy: binario de https://github.com/linuxdeploy/linuxdeploy/releases
 
 # Asegúrate de estar dentro del venv
-source venv/bin/activate
+source .venv/bin/activate
 
 ./empaquetar.sh                  # PyInstaller onefile → dist/ConversorEpub
 ./empaquetar.sh appimage         # → ConversorEpub-x86_64.AppImage
+./dist/ConversorEpub             # Ejecutar la aplicación
 ```
 
-Tras modificar el código, basta con repetir `./empaquetar.sh [appimage]` (siempre con el `venv` activado) para regenerar el binario.
+### En NixOS:
+
+En NixOS, `PySide6` requiere librerías FHS estándar (como `libstdc++.so`, `libxkbcommon.so`, librerías X11/Wayland) tanto al compilar (para que PyInstaller detecte e incluya los plugins `platforms/libqxcb.so`) como al ejecutar.
+
+`./empaquetar.sh` detecta NixOS automáticamente y se relanza dentro de `steam-run`.
+
+```bash
+# 1. Recompilar tras hacer cambios en el código:
+./empaquetar.sh
+# (o explícitamente: steam-run ./empaquetar.sh build)
+
+# 2. Ejecutar el binario generado:
+steam-run ./dist/ConversorEpub
+
+# 3. (Opcional) Ejecutar directamente en desarrollo sin empaquetar:
+steam-run .venv/bin/python app/app.py
+```
+
+Tras modificar el código en el futuro, basta con ejecutar `./empaquetar.sh` para regenerar el binario y luego abrirlo con `steam-run ./dist/ConversorEpub`.
 
 ## Tests
 
