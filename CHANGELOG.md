@@ -284,3 +284,22 @@ Las nuevas entradas se añaden al final de cada sesión de trabajo.
 - Nuevo test en `tests/test_imagenes.py`: `[Imagen 2]` mixto → figura correcta.
 - Creado design doc `thoughts/shared/designs/2026-08-22-md-notas-imagenes-design.md`.
 - Suite completo: 94 tests OK.
+
+---
+## 15 de Septiembre de 2026
+
+      19:10 — 4 cambios hechos
+- **Eliminación funcional de títulos y capítulos en GUI (`app/app.py`)**:
+  `_quitar_fila` ahora sincroniza con `self._resultado.capitulos`, actualiza
+  la renumeración `C0X.xhtml`, recalcula backlinks de notas con `asignar_capitulos`,
+  actualiza el selector de diferencias (`_refrescar_selector`), badges y validación.
+  Si el capítulo a eliminar contiene texto, ofrece unirlo con el capítulo anterior o
+  descartarlo; si está vacío, lo elimina directamente.
+- **Filtro de encabezados vacíos en auto-splitter (`motor/division.py`)**:
+  `dividir_en_capitulos` solo divide en cortes donde `texto_plano` no esté vacío y
+  remueve encabezados residuales vacíos del cuerpo con `RE_ENCABEZADO_VACIO`.
+- **Limpieza de encabezados vacíos (`motor/limpieza.py`)**:
+  `_eliminar_basura` limpia `<h1-3>` vacíos con `RE_H_VACIO` y `texto_plano`
+  normaliza `&nbsp;`.
+- **Tests unitarios (`tests/test_division.py`)**:
+  Añadido test `test_ignora_encabezados_vacios`.

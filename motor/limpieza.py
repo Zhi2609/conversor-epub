@@ -21,6 +21,7 @@ RE_UNIFICAR_B = re.compile(r'</b>(\s*)<b>')
 RE_ALINEAR_APERTURA = re.compile(r'(<(?:i|b)>)([«‘])')
 RE_ALINEAR_CIERRE = re.compile(r'([»’])(</(?:i|b)>)')
 RE_ETIQUETA = re.compile(r'<[^>]+>')
+RE_H_VACIO = re.compile(r'<h[1-3][^>]*>(?:\s|&nbsp;)*</h[1-3]>', re.IGNORECASE)
 
 CORTARAFUEGOS = frozenset({
     '</p>', '<br>', '<br/>', '</div>', '</section>', '</blockquote>', '<hr>',
@@ -207,6 +208,7 @@ def _eliminar_basura(html: str) -> str:
     html = RE_ATRIBUTOS_BASURA.sub('', html)
     html = RE_VACIO_B_I.sub('', html)
     html = RE_DIV_VACIO.sub('', html)
+    html = RE_H_VACIO.sub('', html)
     return html
 
 
@@ -225,4 +227,4 @@ def limpiar_texto_html(html: str) -> str:
 
 def texto_plano(html: str) -> str:
     """Extrae el texto de un fragmento HTML sin etiquetas."""
-    return RE_ETIQUETA.sub('', html).strip()
+    return RE_ETIQUETA.sub('', html).replace('&nbsp;', ' ').strip()

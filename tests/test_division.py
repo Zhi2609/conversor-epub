@@ -43,6 +43,17 @@ class TestDivision(unittest.TestCase):
         capitulos = dividir_en_capitulos(html, start_num=5)
         self.assertEqual(capitulos[0].titulo, 'a')
 
+    def test_ignora_encabezados_vacios(self):
+        html = '<h1>Cap 1</h1><p>Texto 1</p><h1></h1><p>Texto 2</p><h1>&nbsp;</h1><h1>Cap 2</h1><p>Texto 3</p>'
+        capitulos = dividir_en_capitulos(html)
+        self.assertEqual(len(capitulos), 2)
+        self.assertEqual(capitulos[0].titulo, 'Cap 1')
+        self.assertIn('Texto 1', capitulos[0].html_cuerpo)
+        self.assertIn('Texto 2', capitulos[0].html_cuerpo)
+        self.assertNotIn('<h1', capitulos[0].html_cuerpo)
+        self.assertEqual(capitulos[1].titulo, 'Cap 2')
+        self.assertIn('Texto 3', capitulos[1].html_cuerpo)
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -26,6 +26,7 @@ from PySide6.QtWidgets import (
 )
 
 from motor import detectar_modo, procesar, ruta_plantillas_empaquetado, ruta_template_empaquetado
+from motor.notas import asignar_capitulos
 from motor.plantillas import numero_de_archivo
 from motor.render import (
     limpiar_carpeta,
@@ -317,6 +318,7 @@ class VentanaPrincipal(QMainWindow):
         l2.addWidget(self.limpio)
         diff.addWidget(panel_original)
         diff.addWidget(panel_limpio)
+        self.selector_capitulo.currentIndexChanged.connect(self._mostrar_diff)
         layout.addWidget(self.selector_capitulo)
         layout.addWidget(diff, stretch=1)
 
@@ -377,18 +379,21 @@ class VentanaPrincipal(QMainWindow):
         else:
             self.etiqueta_avisos.hide()
         self._poblar_tabla()
-        self.selector_capitulo.clear()
-        
-        for indice, capitulo in enumerate(self._resultado.capitulos):
-            numero = numero_de_archivo(capitulo.archivo, self._start_num_actual + indice)
-            if capitulo.plantilla_ruta:
-                self.selector_capitulo.addItem(f'{capitulo.titulo} ({capitulo.archivo})')
-            else:
-                self.selector_capitulo.addItem(f'Capítulo {numero:02d} — {capitulo.titulo}')
-                
-        self.selector_capitulo.currentIndexChanged.connect(self._mostrar_diff)
-        self._mostrar_diff()
+        self._refrescar_selector()
         self._validar_conteo()
+
+    def _refrescar_selector(self):
+        self.selector_capitulo.blockSignals(True)
+        self.selector_capitulo.clear()
+        if self._resultado:
+            for indice, capitulo in enumerate(self._resultado.capitulos):
+                numero = numero_de_archivo(capitulo.archivo, self._start_num_actual + indice)
+                if capitulo.plantilla_ruta:
+                    self.selector_capitulo.addItem(f'{capitulo.titulo} ({capitulo.archivo})')
+                else:
+                    self.selector_capitulo.addItem(f'Capítulo {numero:02d} — {capitulo.titulo}')
+        self.selector_capitulo.blockSignals(False)
+        self._mostrar_diff()
 
     def _poblar_tabla(self):
         self.tabla.cellChanged.disconnect()
@@ -421,11 +426,47 @@ class VentanaPrincipal(QMainWindow):
 
     def _quitar_fila(self):
         fila = self.tabla.currentRow()
-        if fila < 0:
+        if fila < 0 or not self._resultado or fila >= len(self._resultado.capitulos):
             return
-        self.tabla.cellChanged.disconnect()
-        self.tabla.removeRow(fila)
-        self.tabla.cellChanged.connect(self._validar_conteo)
+
+        for i, titulo in enumerate(self._titulos_de_tabla()):
+            self._resultado.capitulos[i].titulo = titulo
+
+        cap = self._resultado.capitulos[fila]
+        if cap.html_cuerpo.strip():
+            resp = QMessageBox.question(
+                self,
+                'Eliminar capítulo',
+                f'El capítulo "{cap.titulo}" contiene texto.\n\n¿Deseas unir su contenido con el capítulo anterior?',
+                QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel,
+                QMessageBox.Yes,
+            )
+            if resp == QMessageBox.Cancel:
+                return
+            if resp == QMessageBox.Yes:
+                if fila > 0:
+                    self._resultado.capitulos[fila - 1].html_cuerpo += '\n' + cap.html_cuerpo
+                elif len(self._resultado.capitulos) > 1:
+                    self._resultado.capitulos[fila + 1].html_cuerpo = (
+                        cap.html_cuerpo + '\n' + self._resultado.capitulos[fila + 1].html_cuerpo
+                    )
+
+        self._resultado.capitulos.pop(fila)
+
+        num = self._start_num_actual
+        for c in self._resultado.capitulos:
+            if c.plantilla_ruta is None:
+                c.archivo = f'C{num:02d}.xhtml'
+                num += 1
+        asignar_capitulos(self._resultado.notas, self._resultado.capitulos, self._start_num_actual)
+
+        self._resultado.contadores.capitulos = len(self._resultado.capitulos)
+        self.badge_capitulos.setText(f'📄 Capítulos: {len(self._resultado.capitulos)}')
+
+        self._poblar_tabla()
+        self._refrescar_selector()
+        if self.tabla.rowCount() > 0:
+            self.tabla.setCurrentCell(min(fila, self.tabla.rowCount() - 1), 1)
         self._validar_conteo()
 
     def _validar_conteo(self):
