@@ -5,6 +5,17 @@
 
 set -euo pipefail
 
+# En NixOS, PyInstaller requiere un entorno FHS para que los hooks de PySide6
+# puedan cargar libstdc++ y empaquetar los plugins de plataforma de Qt (libqxcb.so).
+if [ -e /etc/NIXOS ] && [ ! -d /usr/lib ]; then
+    if command -v steam-run >/dev/null 2>&1; then
+        echo "ℹ️  Detectado NixOS: relanzando dentro de steam-run para resolver dependencias de Qt..."
+        exec steam-run "$0" "$@"
+    else
+        echo "⚠️  Detectado NixOS sin steam-run en el PATH. Podrían faltar plugins de Qt en el ejecutable."
+    fi
+fi
+
 NOMBRE="ConversorEpub"
 if [ -z "${PYTHON:-}" ]; then
     if [ -n "${VIRTUAL_ENV:-}" ] && [ -x "$VIRTUAL_ENV/bin/python" ]; then
@@ -15,17 +26,6 @@ if [ -z "${PYTHON:-}" ]; then
         PYTHON="$(pwd)/venv/bin/python"
     else
         PYTHON="python3"
-    fi
-fi
-
-# En NixOS, PyInstaller requiere un entorno FHS para que los hooks de PySide6
-# puedan cargar libstdc++ y empaquetar los plugins de plataforma de Qt (libqxcb.so).
-if [ -e /etc/NIXOS ] && [ ! -d /usr/lib ]; then
-    if command -v steam-run >/dev/null 2>&1; then
-        echo "ℹ️  Detectado NixOS: relanzando dentro de steam-run para resolver dependencias de Qt..."
-        exec steam-run env PYTHON="$PYTHON" "$0" "$@"
-    else
-        echo "⚠️  Detectado NixOS sin steam-run en el PATH. Podrían faltar plugins de Qt en el ejecutable."
     fi
 fi
 
@@ -42,7 +42,11 @@ preflight() {
 build() {
     preflight
     echo "=== PyInstaller (onefile) ==="
-    "$PYTHON" -m PyInstaller --noconfirm --clean --onefile --windowed \
+    PYI=("$PYTHON" -m PyInstaller)
+    if ! "$PYTHON" -m PyInstaller --version >/dev/null 2>&1 && command -v pyinstaller >/dev/null 2>&1; then
+        PYI=(pyinstaller)
+    fi
+    "${PYI[@]}" --noconfirm --clean --onefile --windowed \
         --name "$NOMBRE" \
         --add-data "assets/Conv_Xhtml/template.xhtml:assets/Conv_Xhtml" \
         --add-data "assets/Plantillas:assets/Plantillas" \
