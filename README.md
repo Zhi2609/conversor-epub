@@ -54,7 +54,7 @@ flutter run -d linux
 
 ## Compilación (Versión Final de Producción)
 
-Para generar tu aplicación nativa e independiente:
+Para generar tu aplicación nativa e independiente para Linux:
 
 ```bash
 cd app_flutter
@@ -62,10 +62,29 @@ flutter build linux
 ```
 
 Una vez compilada, Flutter generará un ejecutable en:
-`build/linux/x64/release/bundle/app_flutter`
+`build/linux/x64/release/bundle/ConversorEpubs`
 
-> **NOTA DE RUTAS RELATIVAS:**  
-> La aplicación compilada utiliza rutas relativas para leer los directorios de `assets/` y el microservicio `convertidor_pdf.py`. Si decides empaquetar o mover el binario final fuera de su carpeta original, asegúrate de mantener `assets/` y `convertidor_pdf.py` a un nivel superior, conservando la estructura de carpetas esperada.
+### Compilar para Windows
+
+Si deseas compilar la aplicación para ejecutarla en un sistema Windows:
+
+1. Primero, asegúrate de estar en un entorno Windows o usar las herramientas adecuadas para generar la plantilla nativa:
+   ```bash
+   cd app_flutter
+   flutter create --platforms windows .
+   ```
+2. Compila el ejecutable (requiere tener Visual Studio build tools instalado en Windows):
+   ```bash
+   flutter build windows
+   ```
+El archivo `.exe` se generará en la carpeta `build/windows/runner/Release/`.
+
+> **NOTA IMPORTANTE SOBRE COMPARTIR LA APLICACIÓN:**  
+> Actualmente, la aplicación usa rutas relativas locales para leer los directorios de `assets/` y el microservicio `convertidor_pdf.py` (los espera encontrar un nivel por encima del ejecutable).  
+> **Si planeas compartir esta aplicación con otras personas o empaquetarla formalmente (como un instalador o AppImage):**
+> 1. Tendrás que modificar el código en Dart para que empaquete e importe estos archivos utilizando el sistema de assets nativo de Flutter (declarados en `pubspec.yaml` y leídos con `rootBundle.loadString`).
+> 2. Alternativamente, deberás distribuir un archivo `.zip` que incluya tanto tu binario compilado como la carpeta `assets/` y el archivo `convertidor_pdf.py` en la estructura exacta que el ejecutable espera.
+> 3. Quien reciba la aplicación también necesitará tener `pandoc` y `python` (con `pdf2docx`) instalados en su sistema operativo.
 
 ## Estructura del Proyecto
 
