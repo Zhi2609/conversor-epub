@@ -1,15 +1,14 @@
 # ConversorEpub — Limpieza y Maquetación de Manuscritos a ePub
 
-Aplicación de escritorio **Linux** (PySide6) que unifica los tres scripts legacy del
-proyecto (`Conversor.py`, `Migrador.py`, `MigradorMD.py`) en un solo motor central:
-automatiza la limpieza tipográfica y la maquetación de manuscritos para generar
-capítulos XHTML listos para ensamblar en un editor como Sigil.
+Aplicación de escritorio **Linux** (Flutter / Dart) que automatiza la limpieza tipográfica y la maquetación de manuscritos para generar capítulos XHTML listos para ensamblar en un editor como Sigil. 
+
+*Esta aplicación fue completamente reescrita desde Python a Dart nativo para mejorar el rendimiento, simplificar el empaquetado y disfrutar de una interfaz Flutter, usando Python solo como microservicio de extracción PDF.*
 
 ## Características
 
 - **4 modos de entrada** con detección automática:
   - **Word**: `.docx` → pandoc → HTML, con notas al pie reales de Word
-  - **PDF**: `.pdf` → pdf2docx → DOCX temporal → HTML
+  - **PDF**: `.pdf` → pdf2docx (vía microservicio Python) → DOCX temporal → HTML
   - **Calibre**: carpeta con `.xhtml`/`.html` exportados desde Calibre
   - **Markdown**: carpeta con `.md` (procesado directamente vía pandoc)
 - **Limpieza tipográfica canónica**: máquina de estados de comillas `«»` a todos los
@@ -21,138 +20,101 @@ capítulos XHTML listos para ensamblar en un editor como Sigil.
 - **Imágenes** (pandoc, `[IMAGEN N]`, `!\ImageN\`) → `<figure>` con `sigil_split_marker`.
 - **Separadores** `[HR]`/`[SEPARADOR]` → `※ ・ ※ ・ ※`.
 - **Auto-splitter** por `<h1>/<h2>/<h3>` con tabla editable de títulos en la GUI.
-- **Capítulos especiales sin numeración** (Prólogo, Epílogo, Palabras del autor) con plantillas independientes (`Plantillas/`).
-- **GUI con visor de diferencias** antes/después, dashboard con badges de color
+- **Capítulos especiales sin numeración** (Prólogo, Epílogo, Palabras del autor) con plantillas independientes (`assets/Plantillas/`).
+- **GUI moderna en Flutter** con visor de diferencias antes/después, dashboard con badges de color
   individuales (capítulos, notas, imágenes, separadores) y tema oscuro Catppuccin.
 - **Drop zone** con borde discontinuo para arrastrar archivos o carpetas.
-- **Tests golden e invariantes**: 88 tests que congelan el comportamiento de salida
-  y verifican propiedades estructurales de comillas sobre 10.000 manuscritos
-  generados (fuzzing con semilla fija).
+- **Suite de pruebas**: Tests (incluyendo Fuzzing con 5.000 iteraciones) traducidos completamente a Dart garantizan la pureza y fidelidad del comportamiento de limpieza heredado.
 
 ## Instalación
 
-Requiere **Python 3.10+**, **pandoc** (para los modos Word y Markdown) y un entorno virtual (recomendado):
+Requiere **Flutter**, **pandoc** (para los modos Word y Markdown) y **Python 3** (únicamente con `pdf2docx` instalado, para usar el convertidor PDF).
 
 ```bash
-# 1. Instalar pandoc en el sistema
-sudo apt install pandoc
+# 1. Instalar dependencias del sistema (ejemplo Ubuntu/Debian)
+sudo apt install pandoc python3 python3-pip
 
-# 2. Crear y activar entorno virtual
-python3 -m venv venv
-source venv/bin/activate
+# 2. Instalar el paquete pdf2docx (requerido para procesar PDF)
+pip3 install pdf2docx
 
-# 3. Instalar librerías
-pip install -r requirements.txt   # PySide6, pdf2docx, pytest, PyInstaller
+# 3. Descargar y obtener dependencias de Flutter
+cd conversor-epub/app_flutter
+flutter pub get
 ```
 
-## Uso
+## Uso y Ejecución en Desarrollo
 
-### Interfaz gráfica
+Para probar la interfaz durante el desarrollo:
 
 ```bash
-python3 app/app.py
+cd app_flutter
+flutter run -d linux
 ```
+*(Nota para usuarios de NixOS: `file_picker` requiere `zenity` para abrir los cuadros de diálogo. Si no lo tienes en tu sistema, usa: `nix-shell -p zenity --run "flutter run -d linux"`).*
 
-Arrastra el archivo/carpeta a la ventana, edita los títulos y
-pulsa **Generar Archivos**.
+## Compilación (Versión Final de Producción)
 
-### Línea de comandos (motor sin GUI)
+Para generar tu aplicación nativa e independiente para Linux:
 
 ```bash
-python3 motor-cli.py <entrada> -o <salida> [-t template.xhtml] [-c titulos.txt] [-p Plantillas] [-n 1] [--modo auto|word|calibre|markdown]
+cd app_flutter
+flutter build linux
 ```
 
-Ejemplos:
+Una vez compilada, Flutter generará un ejecutable en:
+`build/linux/x64/release/bundle/ConversorEpubs`
 
-```bash
-# DOCX (modo Word, requiere pandoc)
-python3 motor-cli.py novela.docx -o Capitulos
+### Compilar para Windows
 
-# Carpeta de Markdown
-python3 motor-cli.py carpeta_md/ -o Capitulos
+Si deseas compilar la aplicación para ejecutarla en un sistema Windows:
 
-# Carpeta de Calibre con títulos
-python3 motor-cli.py carpeta_calibre/ -o Capitulos -c caps.txt
-```
+1. Primero, asegúrate de estar en un entorno Windows o usar las herramientas adecuadas para generar la plantilla nativa:
+   ```bash
+   cd app_flutter
+   flutter create --platforms windows .
+   ```
+2. Compila el ejecutable (requiere tener Visual Studio build tools instalado en Windows):
+   ```bash
+   flutter build windows
+   ```
+El archivo `.exe` se generará en la carpeta `build/windows/runner/Release/`.
 
-### Salida
+> **NOTA IMPORTANTE SOBRE COMPARTIR LA APLICACIÓN:**  
+> Actualmente, la aplicación usa rutas relativas locales para leer los directorios de `assets/` y el microservicio `convertidor_pdf.py` (los espera encontrar un nivel por encima del ejecutable).  
+> **Si planeas compartir esta aplicación con otras personas o empaquetarla formalmente (como un instalador o AppImage):**
+> 1. Tendrás que modificar el código en Dart para que empaquete e importe estos archivos utilizando el sistema de assets nativo de Flutter (declarados en `pubspec.yaml` y leídos con `rootBundle.loadString`).
+> 2. Alternativamente, deberás distribuir un archivo `.zip` que incluya tanto tu binario compilado como la carpeta `assets/` y el archivo `convertidor_pdf.py` en la estructura exacta que el ejecutable espera.
+> 3. Quien reciba la aplicación también necesitará tener `pandoc` y `python` (con `pdf2docx`) instalados en su sistema operativo.
 
-- `Capitulos/C01.xhtml` … `C{NN:02d}.xhtml` por capítulo
-- `Capitulos/notas_Finales.xhtml` con las notas al pie
-- La carpeta de salida se limpia en cada ejecución
+## Estructura del Proyecto
 
-## Empaquetado (Binario / AppImage)
-
-> [!IMPORTANT]
-> Debes tener activado tu entorno virtual (`source .venv/bin/activate` o `venv`) antes de correr el script de empaquetado para asegurar que `PyInstaller` empaquete todas las dependencias correctamente (`pdf2docx`, `PySide6`, etc.).
-
-### En distribuciones estándar (Ubuntu, Debian, Fedora, Arch):
-
-```bash
-sudo apt install binutils        # PyInstaller lo necesita (objdump)
-# linuxdeploy: binario de https://github.com/linuxdeploy/linuxdeploy/releases
-
-# Asegúrate de estar dentro del venv
-source .venv/bin/activate
-
-./empaquetar.sh                  # PyInstaller onefile → dist/ConversorEpub
-./empaquetar.sh appimage         # → ConversorEpub-x86_64.AppImage
-./dist/ConversorEpub             # Ejecutar la aplicación
-```
-
-### En NixOS:
-
-En NixOS, `PySide6` requiere librerías FHS estándar (como `libstdc++.so`, `libxkbcommon.so`, librerías X11/Wayland) tanto al compilar (para que PyInstaller detecte e incluya los plugins `platforms/libqxcb.so`) como al ejecutar.
-
-`./empaquetar.sh` detecta NixOS automáticamente y se relanza dentro de `steam-run`.
-
-```bash
-# 1. Recompilar tras hacer cambios en el código:
-./empaquetar.sh
-# (o explícitamente: steam-run ./empaquetar.sh build)
-
-# 2. Ejecutar el binario generado:
-steam-run ./dist/ConversorEpub
-
-# 3. (Opcional) Ejecutar directamente en desarrollo sin empaquetar:
-steam-run .venv/bin/python app/app.py
-```
-
-Tras modificar el código en el futuro, basta con ejecutar `./empaquetar.sh` para regenerar el binario y luego abrirlo con `steam-run ./dist/ConversorEpub`.
-
-## Tests
-
-```bash
-python3 -m pytest tests/
-# o sin pytest:
-python3 -m unittest discover tests
-```
-
-Los tests golden (`tests/golden/`) congelan la salida esperada por modo y son la
-red de seguridad para cualquier cambio futuro del motor.
-
-## Estructura
-
-```
+```text
 conversor-epub/
-├── app/              # Interfaz gráfica de usuario (PySide6)
-├── motor/            # Lógica central pura de conversión
-├── assets/           # Recursos estáticos
-│   ├── Plantillas/   # plantillas para capítulos especiales (prologo.xhtml, epilogo.xhtml, autor.xhtml)
-│   └── Conv_Xhtml/   # template central
-├── tests/            # Tests golden y unitarios
-├── motor-cli.py      # entry point de consola
-└── empaquetar.sh     # build PyInstaller + AppImage
+├── app_flutter/              # Proyecto principal en Flutter/Dart
+│   ├── lib/                  # Código fuente (UI y motor core)
+│   ├── test/                 # Suite de pruebas unitarias
+│   ├── linux/                # Archivos de build nativo para Linux
+│   └── pubspec.yaml          # Dependencias de Dart
+├── assets/                   # Recursos estáticos
+│   ├── Plantillas/           # Plantillas para capítulos especiales (prologo, etc.)
+│   └── Conv_Xhtml/           # Template central (template.xhtml)
+├── convertidor_pdf.py        # Microservicio diminuto en Python (sólo para PDF)
+├── AGENTS.md                 # Especificación técnica y comportamiento canónico
+├── Requisitos.md             # Especificación funcional
+└── CHANGELOG.md              # Registro de cambios
 ```
 
-## Documentación
+## Pruebas (Tests)
 
-- **AGENTS.md**: especificación técnica y comportamiento canónico (fuente de verdad)
-- **Requisitos.md**: especificación funcional
-- **CHANGELOG.md**: registro de cambios por fecha
+Ejecuta todas las pruebas unitarias y de estrés de estado (fuzzing) del motor:
+
+```bash
+cd app_flutter
+flutter test
+```
 
 ## Limitaciones conocidas
 
-- El modo Word requiere `pandoc` en el PATH.
-- La ambigüedad entre títulos y citas anidadas NO se resuelve por heurísticas
-  (D5): la red de seguridad es el visor de diferencias de la GUI.
+- Los modos Word y Markdown requieren que `pandoc` esté en el PATH del sistema.
+- El modo PDF requiere que Python 3 y `pdf2docx` estén instalados en el sistema.
+- La ambigüedad entre títulos y citas anidadas NO se resuelve por heurísticas (D5): la red de seguridad es el visor de diferencias de la GUI.

@@ -5,18 +5,10 @@ __pycache__/
 venv/
 env/
 .env/
-.pytest_cache/
-
-# Empaquetado (PyInstaller / linuxdeploy)
-build/
-dist/
-AppDir/
-*.spec
-*.AppImage
 
 # Salidas generadas del conversor
 Capitulos/
 Conv_Xhtml/Capitulos/
-
-# Manuscrito personal de prueba (no es código del proyecto)
 Conv_Xhtml/NovelaMD/
+temp.docx
+temp_md.md

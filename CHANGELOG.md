@@ -303,3 +303,14 @@ Las nuevas entradas se añaden al final de cada sesión de trabajo.
   normaliza `&nbsp;`.
 - **Tests unitarios (`tests/test_division.py`)**:
   Añadido test `test_ignora_encabezados_vacios`.
+
+---
+## 22 de Septiembre de 2026
+
+      09:10 — Gran Migración a Flutter/Dart completada
+- **Fase 1-3 (Núcleo en Dart)**: Todo el código fuente de procesamiento Python (limpieza de basura, máquina de estados de comillas D1/D2/D9, notas, plantillas, separadores, auto-splitter) fue portado exitosamente a Dart nativo (`app_flutter/lib/motor/`).
+- **Microservicio PDF**: Como Dart no tiene un equivalente semántico directo a `pdf2docx`, se aisló un microservicio de 15 líneas en Python (`convertidor_pdf.py`) invocado automáticamente por Dart vía `Process.run`.
+- **Fase 4 (Suite de Pruebas Dart)**: La rigurosa batería de pruebas de comillas, incluyendo el fuzzing estructurado de 5.000 iteraciones (`test_comillas.dart`), fue porteada a Dart (`flutter test`), pasando exitosamente y confirmando que el nuevo motor de Dart reproduce el HTML exacto de Python byte a byte.
+- **Fase 5 (Interfaz UI Flutter)**: Desarrollada en `home_screen.dart` usando `desktop_drop` para arrastrar archivos, y `file_picker` (que internamente requiere `zenity` en Linux) para guardar. Incorpora la tabla interactiva de títulos y visor simultáneo de Diff (código HTML vs HTML Limpio) en un tema oscuro (Catppuccin).
+- **Fase 6 (Limpieza Profunda)**: Se eliminó todo el código legacy Python (`motor/`, `app/`, `tests/*.py`, `motor-cli.py`, `empaquetar.sh`, etc.), así como las carpetas irrelevantes de plataformas generadas por Flutter (`windows`, `macos`, `android`, `ios`, `web`), dejando un proyecto puramente enfocado en escritorio Linux moderno.
+- Documentación (`AGENTS.md`, `README.md`, `.gitignore`, `CHANGELOG.md`) reescrita para reflejar el nuevo stack tecnológico nativo y proceso de compilación `flutter build linux`.
