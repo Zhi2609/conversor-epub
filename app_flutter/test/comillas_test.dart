@@ -1,6 +1,6 @@
 import 'dart:math';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:app_flutter/motor/limpieza.dart';
+import 'package:conversor_epub/motor/limpieza.dart';
 
 void main() {
   group('TestComillasCanonicas', () {
