@@ -8,25 +8,12 @@ final _reInvisibles = RegExp(r'[\u200B-\u200D\uFEFF]');
 final _reImagen = RegExp(r'!\\Image(\d*)\\');
 final _reH1Principal = RegExp(r'<h1[^>]*>(.*?)</h1>', dotAll: true, caseSensitive: false);
 
-class AdaptadorResult {
-  final String html;
-  final String? titulo;
-  final List<String> imagenesPlaceholder;
-  
-  AdaptadorResult(this.html, this.titulo, this.imagenesPlaceholder);
-}
-
-class DocumentosResult {
-  final List<AdaptadorResult> documentos;
-  final List<String> avisos;
-  
-  DocumentosResult(this.documentos, this.avisos);
-}
+typedef AdaptadorResult = ({String html, String? titulo, List<String> imagenesPlaceholder});
+typedef DocumentosResult = ({List<AdaptadorResult> documentos, List<String> avisos});
 
 int _numKey(File file) {
   final matches = RegExp(r'\d+').allMatches(p.basenameWithoutExtension(file.path));
-  if (matches.isEmpty) return 0;
-  return int.parse(matches.last.group(0)!);
+  return matches.isEmpty ? 0 : int.parse(matches.last.group(0)!);
 }
 
 List<File> _ordenarArchivos(List<File> archivos) {
@@ -126,9 +113,9 @@ DocumentosResult documentosCalibre(String ruta) {
       titulo = textoPlano(matchTitulo.group(1)!);
       cuerpo = cuerpo.substring(0, matchTitulo.start) + cuerpo.substring(matchTitulo.end);
     }
-    docs.add(AdaptadorResult(cuerpo, titulo, []));
+    docs.add((html: cuerpo, titulo: titulo, imagenesPlaceholder: <String>[]));
   }
-  return DocumentosResult(docs, avisos);
+  return (documentos: docs, avisos: avisos);
 }
 
 Future<DocumentosResult> documentosMarkdown(String ruta) async {
@@ -186,9 +173,9 @@ Future<DocumentosResult> documentosMarkdown(String ruta) async {
       avisos.add('${p.basename(file.path)}: sin título detectado');
     }
 
-    docs.add(AdaptadorResult(html, titulo, imagenes));
+    docs.add((html: html, titulo: titulo, imagenesPlaceholder: imagenes));
   }
-  return DocumentosResult(docs, avisos);
+  return (documentos: docs, avisos: avisos);
 }
 
 String restaurarImagenesMarkdown(String texto, List<String> imagenes) {

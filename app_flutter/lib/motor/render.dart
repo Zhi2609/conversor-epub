@@ -16,13 +16,11 @@ String renderCapituloEspecial(String template, String titulo, int num, String cu
     throw Exception('La plantilla especial no tiene el marcador <!-- Aquí va el contenido -->');
   }
   
-  String html = template.substring(0, match.start) +
-                '<!-- Aquí va el contenido -->\n' +
-                cuerpo.trim() +
-                template.substring(match.end);
-                
-  html = html.replaceAll('Capítulo X', 'Capítulo $num');
-  return html.replaceAll('Título del capítulo', titulo);
+  String html = template
+      .replaceRange(match.start, match.end, '<!-- Aquí va el contenido -->\n${cuerpo.trim()}')
+      .replaceAll('Capítulo X', 'Capítulo $num')
+      .replaceAll('Título del capítulo', titulo);
+  return html;
 }
 
 String renderNotas(List<Nota> notas) {

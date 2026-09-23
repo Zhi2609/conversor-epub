@@ -133,13 +133,6 @@ class _HomeScreenState extends State<HomeScreen> {
       fila = _resultado!.capitulos.length - 1;
     }
 
-    // Sincronizar títulos actuales
-    for (int i = 0; i < _controladoresTitulos.length; i++) {
-      if (i < _resultado!.capitulos.length) {
-        _resultado!.capitulos[i].titulo = _controladoresTitulos[i].text;
-      }
-    }
-
     final cap = _resultado!.capitulos[fila];
 
     if (cap.htmlCuerpo.trim().isNotEmpty) {
@@ -222,18 +215,14 @@ class _HomeScreenState extends State<HomeScreen> {
     if (rutaDisco != null && File(rutaDisco).existsSync()) {
       return File(rutaDisco).readAsStringSync();
     }
-    if (nombreEspecial != null) {
-      final overrideFile = File(p.join('../assets/Plantillas', nombreEspecial));
-      if (overrideFile.existsSync()) {
-        return overrideFile.readAsStringSync();
-      }
-      return await rootBundle.loadString('assets/Plantillas/$nombreEspecial');
-    }
-    final overrideTemplate = File(rutaTemplateDefecto);
-    if (overrideTemplate.existsSync()) {
-      return overrideTemplate.readAsStringSync();
-    }
-    return await rootBundle.loadString('assets/Conv_Xhtml/template.xhtml');
+    final assetPath = nombreEspecial != null
+        ? 'assets/Plantillas/$nombreEspecial'
+        : 'assets/Conv_Xhtml/template.xhtml';
+    final discoPath = nombreEspecial != null
+        ? p.join(rutaPlantillasDefecto, nombreEspecial)
+        : rutaTemplateDefecto;
+    final disco = File(discoPath);
+    return disco.existsSync() ? disco.readAsStringSync() : await rootBundle.loadString(assetPath);
   }
 
   bool _puedeGenerar() => _resultado != null && _mensajeError == null;

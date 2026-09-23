@@ -7,27 +7,12 @@ final Map<String, String> tablaEspeciales = {
 final _reArchivoC = RegExp(r'^C(\d+)\.xhtml$');
 
 int numeroDeArchivo(String? archivo, int porDefecto) {
-  if (archivo != null) {
-    final match = _reArchivoC.firstMatch(archivo);
-    if (match != null) {
-      return int.parse(match.group(1)!);
-    }
-  }
-  return porDefecto;
-}
-
-String _removerTildes(String texto) {
-  // Simple accent removal for the specific keys
-  return texto.replaceAll('ó', 'o').replaceAll('í', 'i');
-}
-
-String _normalizarTitulo(String titulo) {
-  String texto = _removerTildes(titulo.toLowerCase().trim());
-  return texto;
+  if (archivo == null) return porDefecto;
+  return int.tryParse(_reArchivoC.firstMatch(archivo)?[1] ?? '') ?? porDefecto;
 }
 
 String? clasificarEspecial(String titulo) {
-  String normalizado = _normalizarTitulo(titulo);
+  final normalizado = titulo.toLowerCase().trim().replaceAll('ó', 'o').replaceAll('í', 'i');
   for (var entry in tablaEspeciales.entries) {
     if (normalizado.startsWith(entry.key)) {
       return entry.value;

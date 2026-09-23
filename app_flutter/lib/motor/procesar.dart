@@ -8,12 +8,7 @@ import 'division.dart';
 import 'adaptadores.dart';
 import 'plantillas.dart';
 
-class _ProcesarDocumentoResult {
-  final String html;
-  final int nImagenes;
-  final int nSeparadores;
-  _ProcesarDocumentoResult(this.html, this.nImagenes, this.nSeparadores);
-}
+typedef _ProcesarDocumentoResult = ({String html, int nImagenes, int nSeparadores});
 
 _ProcesarDocumentoResult _procesarDocumento(String html, List<Nota> notas, {List<String>? imagenesPlaceholder}) {
   final extraerResult = extraerNotas(html);
@@ -36,7 +31,7 @@ _ProcesarDocumentoResult _procesarDocumento(String html, List<Nota> notas, {List
   html = procesarSepResult.html;
   int nSeparadores = procesarSepResult.count;
 
-  return _ProcesarDocumentoResult(html, nImagenes, nSeparadores);
+  return (html: html, nImagenes: nImagenes, nSeparadores: nSeparadores);
 }
 
 Future<Resultado> procesar({

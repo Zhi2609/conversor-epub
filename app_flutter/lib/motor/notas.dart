@@ -46,11 +46,7 @@ String _procesarNotasMarkdown(String html, List<Nota> notas) {
   return html.replaceAllMapped(_reNotaMdLlamada, (m) => formatearLlamada(int.parse(m[1]!)));
 }
 
-class ExtraerNotasResult {
-  final String html;
-  final List<Nota> notas;
-  ExtraerNotasResult(this.html, this.notas);
-}
+typedef ExtraerNotasResult = ({String html, List<Nota> notas});
 
 ExtraerNotasResult extraerNotas(String html) {
   List<Nota> notas = [];
@@ -75,7 +71,7 @@ ExtraerNotasResult extraerNotas(String html) {
 
   html = _procesarNotasMarkdown(html, notas);
   html = _reemplazarNotasLegacy(html);
-  return ExtraerNotasResult(html, notas);
+  return (html: html, notas: notas);
 }
 
 void asignarCapitulos(List<Nota> notas, List<Chapter> capitulos, {int startNum = 1}) {

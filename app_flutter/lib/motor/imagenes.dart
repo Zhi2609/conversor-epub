@@ -15,11 +15,7 @@ String _reemplazoImagen(Match match) {
       '<hr class="sigil_split_marker" />';
 }
 
-class ProcesarResult {
-  final String html;
-  final int count;
-  ProcesarResult(this.html, this.count);
-}
+typedef ProcesarResult = ({String html, int count});
 
 ProcesarResult procesarImagenes(String html) {
   int contador = 0;
@@ -31,7 +27,7 @@ ProcesarResult procesarImagenes(String html) {
   html = html.replaceAllMapped(_reImgPandoc, reemplazo);
   html = html.replaceAllMapped(_reImagenTagP, reemplazo);
   html = html.replaceAllMapped(_reImagenTag, reemplazo);
-  return ProcesarResult(html, contador);
+  return (html: html, count: contador);
 }
 
 ProcesarResult procesarSeparadores(String html) {
@@ -42,5 +38,5 @@ ProcesarResult procesarSeparadores(String html) {
   }
   html = html.replaceAllMapped(_reSeparadorP, reemplazo);
   html = html.replaceAllMapped(_reSeparador, reemplazo);
-  return ProcesarResult(html, contador);
+  return (html: html, count: contador);
 }
