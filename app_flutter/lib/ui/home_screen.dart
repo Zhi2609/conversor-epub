@@ -8,6 +8,7 @@ import '../motor/procesar.dart';
 import '../motor/adaptadores.dart';
 import '../motor/render.dart';
 import '../motor/plantillas.dart';
+import '../motor/notas.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -20,14 +21,30 @@ class _HomeScreenState extends State<HomeScreen> {
   Resultado? _resultado;
   String? _rutaEntrada;
   int _startNumActual = 1;
+  late final TextEditingController _startNumController;
   String _mensajeEstado = 'Sin archivo cargado';
   bool _isDragging = false;
   int _indiceSeleccionado = -1;
-  List<TextEditingController> _controladoresTitulos = [];
+  final List<TextEditingController> _controladoresTitulos = [];
   String? _mensajeError;
 
   final String rutaTemplateDefecto = '../assets/Conv_Xhtml/template.xhtml';
   final String rutaPlantillasDefecto = '../assets/Plantillas';
+
+  @override
+  void initState() {
+    super.initState();
+    _startNumController = TextEditingController(text: _startNumActual.toString());
+  }
+
+  @override
+  void dispose() {
+    _startNumController.dispose();
+    for (var c in _controladoresTitulos) {
+      c.dispose();
+    }
+    super.dispose();
+  }
 
   void _mostrarError(String msg) {
     setState(() {
@@ -73,6 +90,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _actualizarControladores() {
+    for (var c in _controladoresTitulos) {
+      c.dispose();
+    }
     _controladoresTitulos.clear();
     if (_resultado != null) {
       for (var cap in _resultado!.capitulos) {
@@ -81,21 +101,107 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  void _renumerarCapitulos() {
+    if (_resultado == null) return;
+    int num = _startNumActual;
+    for (var c in _resultado!.capitulos) {
+      if (c.plantillaRuta == null) {
+        c.archivo = 'C${num.toString().padLeft(2, '0')}.xhtml';
+        num++;
+      }
+    }
+    asignarCapitulos(_resultado!.notas, _resultado!.capitulos, startNum: _startNumActual);
+    _resultado!.contadores.capitulos = _resultado!.capitulos.length;
+  }
+
   void _anadirFila() {
     if (_resultado == null) return;
     setState(() {
-      int num = _startNumActual + _resultado!.capitulos.length;
-      _resultado!.capitulos.add(Chapter(titulo: '', htmlCuerpo: ''));
-      _controladoresTitulos.add(TextEditingController(text: ''));
+      int insertIndex = (_indiceSeleccionado >= 0 && _indiceSeleccionado < _resultado!.capitulos.length)
+          ? _indiceSeleccionado + 1
+          : _resultado!.capitulos.length;
+      _resultado!.capitulos.insert(insertIndex, Chapter(titulo: '', htmlCuerpo: ''));
+      _controladoresTitulos.insert(insertIndex, TextEditingController(text: ''));
+      _indiceSeleccionado = insertIndex;
+      _renumerarCapitulos();
       _validarConteo();
     });
   }
 
-  void _quitarFila() {
+  Future<void> _quitarFila([int? indice]) async {
     if (_resultado == null || _resultado!.capitulos.isEmpty) return;
+    int fila = indice ?? _indiceSeleccionado;
+    if (fila < 0 || fila >= _resultado!.capitulos.length) {
+      fila = _resultado!.capitulos.length - 1;
+    }
+
+    // Sincronizar títulos actuales
+    for (int i = 0; i < _controladoresTitulos.length; i++) {
+      if (i < _resultado!.capitulos.length) {
+        _resultado!.capitulos[i].titulo = _controladoresTitulos[i].text;
+      }
+    }
+
+    final cap = _resultado!.capitulos[fila];
+
+    if (cap.htmlCuerpo.trim().isNotEmpty) {
+      final respuesta = await showDialog<String>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: const Color(0xFF1E1E2E),
+          title: const Text('Eliminar capítulo', style: TextStyle(color: Color(0xFFCDD6F4))),
+          content: Text(
+            'El capítulo "${cap.titulo.isEmpty ? "Capítulo ${fila + 1}" : cap.titulo}" contiene texto.\n\n¿Deseas unir su contenido con el capítulo anterior o descartarlo?',
+            style: const TextStyle(color: Color(0xFFA6ADC8)),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, 'cancelar'),
+              child: const Text('Cancelar', style: TextStyle(color: Color(0xFF6C7086))),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, 'descartar'),
+              child: const Text('Descartar texto', style: TextStyle(color: Color(0xFFF38BA8))),
+            ),
+            if (fila > 0 || _resultado!.capitulos.length > 1)
+              ElevatedButton(
+                onPressed: () => Navigator.pop(ctx, 'unir'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF89B4FA),
+                  foregroundColor: const Color(0xFF1E1E2E),
+                ),
+                child: const Text('Unir con adyacente'),
+              ),
+          ],
+        ),
+      );
+
+      if (respuesta == null || respuesta == 'cancelar') return;
+
+      if (respuesta == 'unir') {
+        if (fila > 0) {
+          _resultado!.capitulos[fila - 1].htmlCuerpo += '\n${cap.htmlCuerpo}';
+        } else if (_resultado!.capitulos.length > 1) {
+          _resultado!.capitulos[fila + 1].htmlCuerpo = '${cap.htmlCuerpo}\n${_resultado!.capitulos[fila + 1].htmlCuerpo}';
+        }
+      }
+    }
+
     setState(() {
-      _resultado!.capitulos.removeLast();
-      _controladoresTitulos.removeLast();
+      _resultado!.capitulos.removeAt(fila);
+      _controladoresTitulos[fila].dispose();
+      _controladoresTitulos.removeAt(fila);
+
+      _renumerarCapitulos();
+
+      if (_resultado!.capitulos.isEmpty) {
+        _indiceSeleccionado = -1;
+      } else if (_indiceSeleccionado >= _resultado!.capitulos.length) {
+        _indiceSeleccionado = _resultado!.capitulos.length - 1;
+      } else if (_indiceSeleccionado > fila) {
+        _indiceSeleccionado--;
+      }
+
       _validarConteo();
     });
   }
@@ -183,10 +289,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: TextField(
                     keyboardType: TextInputType.number,
                     decoration: const InputDecoration(isDense: true),
-                    controller: TextEditingController(text: _startNumActual.toString()),
+                    controller: _startNumController,
                     onChanged: (v) {
                       setState(() {
                         _startNumActual = int.tryParse(v) ?? 1;
+                        _renumerarCapitulos();
                       });
                     },
                   ),
@@ -257,19 +364,79 @@ class _HomeScreenState extends State<HomeScreen> {
                             child: ListView.builder(
                               itemCount: _controladoresTitulos.length,
                               itemBuilder: (context, index) {
+                                bool isSelected = index == _indiceSeleccionado;
                                 return Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                  child: Row(
-                                    children: [
-                                      SizedBox(width: 30, child: Text('${index + 1}')),
-                                      Expanded(
-                                        child: TextField(
-                                          controller: _controladoresTitulos[index],
-                                          onChanged: (v) => _validarConteo(),
-                                          decoration: const InputDecoration(isDense: true, border: OutlineInputBorder()),
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                                  child: InkWell(
+                                    onTap: () {
+                                      setState(() {
+                                        _indiceSeleccionado = index;
+                                      });
+                                    },
+                                    borderRadius: BorderRadius.circular(6),
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        color: isSelected ? const Color(0xFF45475A) : Colors.transparent,
+                                        borderRadius: BorderRadius.circular(6),
+                                        border: Border.all(
+                                          color: isSelected ? const Color(0xFF89B4FA) : const Color(0xFF3B3D52),
+                                          width: isSelected ? 1.5 : 1.0,
                                         ),
                                       ),
-                                    ],
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                                      child: Row(
+                                        children: [
+                                          SizedBox(
+                                            width: 24,
+                                            child: Text(
+                                              '${index + 1}',
+                                              style: TextStyle(
+                                                color: isSelected ? const Color(0xFF89B4FA) : const Color(0xFFA6ADC8),
+                                                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                              ),
+                                            ),
+                                          ),
+                                          Expanded(
+                                            child: TextField(
+                                              controller: _controladoresTitulos[index],
+                                              onTap: () {
+                                                if (_indiceSeleccionado != index) {
+                                                  setState(() {
+                                                    _indiceSeleccionado = index;
+                                                  });
+                                                }
+                                              },
+                                              onChanged: (v) {
+                                                if (_resultado != null && index < _resultado!.capitulos.length) {
+                                                  _resultado!.capitulos[index].titulo = v;
+                                                }
+                                                _validarConteo();
+                                              },
+                                              decoration: InputDecoration(
+                                                isDense: true,
+                                                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                                                border: OutlineInputBorder(
+                                                  borderRadius: BorderRadius.circular(4),
+                                                  borderSide: BorderSide(
+                                                    color: isSelected ? const Color(0xFF89B4FA) : const Color(0xFF585B70),
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          IconButton(
+                                            icon: const Icon(Icons.close, size: 16),
+                                            color: const Color(0xFFF38BA8),
+                                            tooltip: 'Eliminar este capítulo',
+                                            splashRadius: 14,
+                                            constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                                            padding: EdgeInsets.zero,
+                                            onPressed: () => _quitarFila(index),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
                                   ),
                                 );
                               },
@@ -279,9 +446,21 @@ class _HomeScreenState extends State<HomeScreen> {
                         const SizedBox(height: 8),
                         Row(
                           children: [
-                            ElevatedButton(onPressed: _anadirFila, child: const Text('＋ Añadir')),
+                            ElevatedButton.icon(
+                              onPressed: _anadirFila,
+                              icon: const Icon(Icons.add, size: 16),
+                              label: const Text('Añadir'),
+                            ),
                             const SizedBox(width: 8),
-                            ElevatedButton(onPressed: _quitarFila, child: const Text('－ Eliminar')),
+                            ElevatedButton.icon(
+                              onPressed: (_resultado != null && _resultado!.capitulos.isNotEmpty && _indiceSeleccionado >= 0)
+                                  ? () => _quitarFila()
+                                  : null,
+                              icon: const Icon(Icons.remove, size: 16),
+                              label: Text(_indiceSeleccionado >= 0 && _resultado != null && _indiceSeleccionado < _resultado!.capitulos.length
+                                  ? 'Eliminar (${_indiceSeleccionado + 1})'
+                                  : 'Eliminar'),
+                            ),
                           ],
                         ),
                       ],

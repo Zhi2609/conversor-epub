@@ -11,7 +11,7 @@ class ConversorApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Conversor ePub',
+      title: 'Conversor ePub — Limpieza y Maquetación',
       theme: ThemeData(
         brightness: Brightness.dark,
         scaffoldBackgroundColor: const Color(0xFF1E1E2E),
