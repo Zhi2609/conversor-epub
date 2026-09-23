@@ -42,13 +42,37 @@ Future<String> convertirDocx(String rutaDocx) async {
   return result.stdout.toString();
 }
 
+const _scriptPythonPdf = '''
+import sys
+from pdf2docx import Converter
+
+def convertir(ruta_pdf: str, ruta_salida_docx: str):
+    cv = Converter(ruta_pdf)
+    cv.convert(ruta_salida_docx)
+    cv.close()
+
+if __name__ == '__main__':
+    if len(sys.argv) != 3:
+        sys.exit(1)
+    try:
+        convertir(sys.argv[1], sys.argv[2])
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+''';
+
 Future<String> convertirPdf(String rutaPdf) async {
-  final result = await Process.run('python3', ['../convertidor_pdf.py', rutaPdf, 'temp.docx']);
+  final tempDocx = p.join(Directory.systemTemp.path, 'temp_pdf_${DateTime.now().millisecondsSinceEpoch}.docx');
+  final pythonCmd = Platform.isWindows ? 'python' : 'python3';
+  final result = await Process.run(pythonCmd, ['-c', _scriptPythonPdf, rutaPdf, tempDocx]);
   if (result.exitCode != 0) {
     throw Exception('Error al convertir PDF: ${result.stderr}');
   }
-  final html = await convertirDocx('temp.docx');
-  File('temp.docx').deleteSync();
+  final html = await convertirDocx(tempDocx);
+  final tempFile = File(tempDocx);
+  if (tempFile.existsSync()) {
+    tempFile.deleteSync();
+  }
   return html;
 }
 
@@ -141,10 +165,13 @@ Future<DocumentosResult> documentosMarkdown(String ruta) async {
     texto = texto.replaceAll('[blockquote]', '<blockquote class="mistico">')
                  .replaceAll('[/blockquote]', '</blockquote>');
 
-    final tempFile = File('temp_md.md');
+    final tempMdPath = p.join(Directory.systemTemp.path, 'temp_md_${DateTime.now().millisecondsSinceEpoch}.md');
+    final tempFile = File(tempMdPath);
     tempFile.writeAsStringSync(texto);
-    final result = await Process.run('pandoc', ['temp_md.md', '-t', 'html5', '--wrap=none']);
-    tempFile.deleteSync();
+    final result = await Process.run('pandoc', [tempMdPath, '-t', 'html5', '--wrap=none']);
+    if (tempFile.existsSync()) {
+      tempFile.deleteSync();
+    }
     if (result.exitCode != 0) {
       throw Exception('Error en pandoc para ${file.path}: ${result.stderr}');
     }

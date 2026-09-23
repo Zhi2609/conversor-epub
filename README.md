@@ -79,12 +79,9 @@ Si deseas compilar la aplicación para ejecutarla en un sistema Windows:
    ```
 El archivo `.exe` se generará en la carpeta `build/windows/runner/Release/`.
 
-> **NOTA IMPORTANTE SOBRE COMPARTIR LA APLICACIÓN:**  
-> Actualmente, la aplicación usa rutas relativas locales para leer los directorios de `assets/` y el microservicio `convertidor_pdf.py` (los espera encontrar un nivel por encima del ejecutable).  
-> **Si planeas compartir esta aplicación con otras personas o empaquetarla formalmente (como un instalador o AppImage):**
-> 1. Tendrás que modificar el código en Dart para que empaquete e importe estos archivos utilizando el sistema de assets nativo de Flutter (declarados en `pubspec.yaml` y leídos con `rootBundle.loadString`).
-> 2. Alternativamente, deberás distribuir un archivo `.zip` que incluya tanto tu binario compilado como la carpeta `assets/` y el archivo `convertidor_pdf.py` en la estructura exacta que el ejecutable espera.
-> 3. Quien reciba la aplicación también necesitará tener `pandoc` y `python` (con `pdf2docx`) instalados en su sistema operativo.
+> **DISTRIBUCIÓN Y PORTABILIDAD:**  
+> La aplicación es **100% autónoma y portable**. Todas las plantillas XHTML (`template.xhtml`, `prologo.xhtml`, etc.) están empaquetadas como assets nativos de Flutter dentro del bundle compilado, y el microservicio de conversión de PDF está embebido directamente en el binario de Dart.
+> Para compartir la aplicación, solo necesitas comprimir en un `.zip` la carpeta `build/linux/x64/release/bundle/` (o la carpeta `Release/` en Windows). El usuario final solo necesita tener `pandoc` y `python` con `pdf2docx` en su sistema.
 
 ## Estructura del Proyecto
 

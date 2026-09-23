@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as p;
@@ -19,7 +20,6 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   Resultado? _resultado;
-  String? _rutaEntrada;
   int _startNumActual = 1;
   late final TextEditingController _startNumController;
   String _mensajeEstado = 'Sin archivo cargado';
@@ -73,8 +73,6 @@ class _HomeScreenState extends State<HomeScreen> {
         startNum: _startNumActual,
         rutaPlantillas: plantillas,
       );
-
-      _rutaEntrada = ruta;
       _mensajeEstado = '✅ $modo — ${p.basename(ruta)}';
       _actualizarControladores();
       
@@ -220,6 +218,24 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<String> _cargarPlantilla({String? nombreEspecial, String? rutaDisco}) async {
+    if (rutaDisco != null && File(rutaDisco).existsSync()) {
+      return File(rutaDisco).readAsStringSync();
+    }
+    if (nombreEspecial != null) {
+      final overrideFile = File(p.join('../assets/Plantillas', nombreEspecial));
+      if (overrideFile.existsSync()) {
+        return overrideFile.readAsStringSync();
+      }
+      return await rootBundle.loadString('assets/Plantillas/$nombreEspecial');
+    }
+    final overrideTemplate = File(rutaTemplateDefecto);
+    if (overrideTemplate.existsSync()) {
+      return overrideTemplate.readAsStringSync();
+    }
+    return await rootBundle.loadString('assets/Conv_Xhtml/template.xhtml');
+  }
+
   bool _puedeGenerar() => _resultado != null && _mensajeError == null;
 
   Future<void> _generar() async {
@@ -228,7 +244,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     try {
       limpiarCarpeta(salida);
-      String plantilla = File(rutaTemplateDefecto).readAsStringSync();
+      String plantilla = await _cargarPlantilla();
       
       for (int i = 0; i < _resultado!.capitulos.length; i++) {
         var cap = _resultado!.capitulos[i];
@@ -238,8 +254,11 @@ class _HomeScreenState extends State<HomeScreen> {
         int numero = numeroDeArchivo(archivo, num);
         
         String htmlFinal;
-        if (cap.plantillaRuta != null) {
-          String plantillaEspecial = File(cap.plantillaRuta!).readAsStringSync();
+        if (cap.plantillaNombre != null || cap.plantillaRuta != null) {
+          String plantillaEspecial = await _cargarPlantilla(
+            nombreEspecial: cap.plantillaNombre,
+            rutaDisco: cap.plantillaRuta,
+          );
           htmlFinal = renderCapituloEspecial(plantillaEspecial, titulo, numero, cap.htmlCuerpo);
         } else {
           htmlFinal = renderCapitulo(plantilla, titulo, numero, cap.htmlCuerpo);

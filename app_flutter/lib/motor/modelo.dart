@@ -4,6 +4,7 @@ class Chapter {
   String htmlRaw;
   String? archivo;
   String? plantillaRuta;
+  String? plantillaNombre;
 
   Chapter({
     required this.titulo,
@@ -11,6 +12,7 @@ class Chapter {
     this.htmlRaw = "",
     this.archivo,
     this.plantillaRuta,
+    this.plantillaNombre,
   });
 }
 

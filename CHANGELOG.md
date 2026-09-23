@@ -314,3 +314,11 @@ Las nuevas entradas se añaden al final de cada sesión de trabajo.
 - **Fase 5 (Interfaz UI Flutter)**: Desarrollada en `home_screen.dart` usando `desktop_drop` para arrastrar archivos, y `file_picker` (que internamente requiere `zenity` en Linux) para guardar. Incorpora la tabla interactiva de títulos y visor simultáneo de Diff (código HTML vs HTML Limpio) en un tema oscuro (Catppuccin).
 - **Fase 6 (Limpieza Profunda)**: Se eliminó todo el código legacy Python (`motor/`, `app/`, `tests/*.py`, `motor-cli.py`, `empaquetar.sh`, etc.), así como las carpetas irrelevantes de plataformas generadas por Flutter (`windows`, `macos`, `android`, `ios`, `web`), dejando un proyecto puramente enfocado en escritorio Linux moderno.
 - Documentación (`AGENTS.md`, `README.md`, `.gitignore`, `CHANGELOG.md`) reescrita para reflejar el nuevo stack tecnológico nativo y proceso de compilación `flutter build linux`.
+
+---
+## 23 de Septiembre de 2026
+
+      08:40 — Assets Nativos de Flutter y Embebido de Microservicio Python
+- **Assets Nativos**: Copiadas las carpetas `assets/Conv_Xhtml` y `assets/Plantillas` al proyecto `app_flutter` y declaradas en `pubspec.yaml`. Se implementó carga asíncrona mediante `rootBundle.loadString` con fallback opcional a disco para sobreescrituras locales.
+- **Microservicio PDF Embebido**: El código de conversión de `pdf2docx` se embebió directamente como constante en `adaptadores.dart` y se ejecuta con `python3 -c "..."` sobre archivos temporales en `Directory.systemTemp`, eliminando la necesidad de distribuir un archivo `convertidor_pdf.py` externo.
+- **Bundle 100% Autónomo**: La compilación final (`build/linux/x64/release/bundle/`) ahora contiene todo lo necesario dentro de su propio directorio. Se puede comprimir y compartir directamente sin carpetas o scripts externos.

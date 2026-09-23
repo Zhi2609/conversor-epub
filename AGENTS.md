@@ -50,7 +50,7 @@ Reglas de arquitectura:
 - **D6: El pipeline es**: adaptador → extracción de notas → limpieza → procesado de imágenes/separadores → split → render.
 - Todos los modos convergen a `List<Chapter>`.
 - El núcleo en Dart es puro y se ubica en `lib/motor/`. La UI maneja los efectos (guardado, diálogos).
-- El binario final espera encontrar las rutas relativas `../assets/` y `../convertidor_pdf.py` a un nivel superior.
+- Las plantillas XHTML se empaquetan como assets nativos de Flutter (`rootBundle`) y el microservicio PDF de Python se encuentra embebido directamente en el binario de Dart, garantizando un bundle 100% autónomo y portable sin requerir archivos externos sueltos.
 
 ## 4. Comportamiento canónico (CRÍTICO — no cambiar sin validación)
 

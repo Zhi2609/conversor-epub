@@ -99,16 +99,15 @@ Future<Resultado> procesar({
     }
   }
 
-  if (rutaPlantillas != null) {
-    for (var capitulo in capitulos) {
-      String? archivo = clasificarEspecial(capitulo.titulo);
-      if (archivo != null) {
+  for (var capitulo in capitulos) {
+    String? archivo = clasificarEspecial(capitulo.titulo);
+    if (archivo != null) {
+      capitulo.archivo = archivo;
+      capitulo.plantillaNombre = archivo;
+      if (rutaPlantillas != null) {
         String plantillaRuta = p.join(rutaPlantillas, archivo);
         if (File(plantillaRuta).existsSync()) {
-          capitulo.archivo = archivo;
           capitulo.plantillaRuta = plantillaRuta;
-        } else {
-          avisos.add('"${capitulo.titulo}": plantilla especial no encontrada ($archivo), se usa la numeración normal');
         }
       }
     }
