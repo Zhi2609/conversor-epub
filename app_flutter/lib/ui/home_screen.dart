@@ -101,13 +101,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _renumerarCapitulos() {
     if (_resultado == null) return;
-    int num = _startNumActual;
-    for (var c in _resultado!.capitulos) {
-      if (c.plantillaRuta == null) {
-        c.archivo = 'C${num.toString().padLeft(2, '0')}.xhtml';
-        num++;
-      }
-    }
+    clasificarYRenumerarCapitulos(_resultado!.capitulos, startNum: _startNumActual);
     asignarCapitulos(_resultado!.notas, _resultado!.capitulos, startNum: _startNumActual);
     _resultado!.contadores.capitulos = _resultado!.capitulos.length;
   }

@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'package:path/path.dart' as p;
 import 'modelo.dart';
 import 'limpieza.dart';
 import 'notas.dart';
@@ -94,27 +93,7 @@ Future<Resultado> procesar({
     }
   }
 
-  for (var capitulo in capitulos) {
-    String? archivo = clasificarEspecial(capitulo.titulo);
-    if (archivo != null) {
-      capitulo.archivo = archivo;
-      capitulo.plantillaNombre = archivo;
-      if (rutaPlantillas != null) {
-        String plantillaRuta = p.join(rutaPlantillas, archivo);
-        if (File(plantillaRuta).existsSync()) {
-          capitulo.plantillaRuta = plantillaRuta;
-        }
-      }
-    }
-  }
-
-  int numero = startNum;
-  for (var capitulo in capitulos) {
-    if (capitulo.archivo == null) {
-      capitulo.archivo = 'C${numero.toString().padLeft(2, '0')}.xhtml';
-      numero++;
-    }
-  }
+  clasificarYRenumerarCapitulos(capitulos, startNum: startNum, rutaPlantillas: rutaPlantillas);
 
   asignarCapitulos(notas, capitulos, startNum: startNum);
 

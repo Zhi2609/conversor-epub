@@ -1,6 +1,9 @@
 import 'dart:math';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:conversor_epub/motor/limpieza.dart';
+import 'package:conversor_epub/motor/plantillas.dart';
+import 'package:conversor_epub/motor/render.dart';
+import 'package:conversor_epub/motor/modelo.dart';
 
 void main() {
   group('TestComillasCanonicas', () {
@@ -134,4 +137,97 @@ void main() {
       }
     });
   });
+
+  group('TestTitulosEspeciales', () {
+    test('descomponerTitulo separa prefijo y subtitulo', () {
+      final cap = descomponerTitulo('Capítulo 1: De Encantador a Espadachín', numeroPorDefecto: 1);
+      expect(cap.etiqueta, 'Capítulo 1');
+      expect(cap.subtitulo, 'De Encantador a Espadachín');
+
+      final prologo = descomponerTitulo('Prólogo I: Expulsión');
+      expect(prologo.esPrologo, isTrue);
+      expect(prologo.etiqueta, 'Prólogo I');
+      expect(prologo.subtitulo, 'Expulsión');
+
+      final interludio = descomponerTitulo('Interludio 1: El Nuevo Grupo del Héroe');
+      expect(interludio.esInterludio, isTrue);
+      expect(interludio.etiqueta, 'Interludio 1');
+      expect(interludio.subtitulo, 'El Nuevo Grupo del Héroe');
+
+      final autor = descomponerTitulo('Palabras Finales');
+      expect(autor.esAutor, isTrue);
+      expect(autor.etiqueta, 'Palabras Finales');
+    });
+
+    test('clasificarYRenumerarCapitulos maneja libro completo con multiples prologos e interludios', () {
+      final titulos = [
+        'Prólogo I: Expulsión',
+        'Prólogo II: El fin y el principio',
+        'Capítulo 1: De Encantador a Espadachín',
+        'Capítulo 2: Exploración Guiada',
+        'Interludio 1: El Nuevo Grupo del Héroe',
+        'Capítulo 3: El Juramento',
+        'Interludio 2: Retorno Obligatorio',
+        'Interludio 3: Impresiones',
+        'Capítulo 4: Guía',
+        'Epílogo I: En el centro del mundo',
+        'Epílogo II: Para hacer realidad el mundo con el que soñaba el chico',
+        'Palabras Finales',
+        'Historia corta adicional de la edición digital “Un mundo de plata”',
+      ];
+
+      final capitulos = titulos.map((t) => Chapter(titulo: t, htmlCuerpo: '<p>texto</p>')).toList();
+
+      clasificarYRenumerarCapitulos(capitulos, startNum: 1);
+
+      expect(capitulos[0].archivo, 'prologo_01.xhtml');
+      expect(capitulos[1].archivo, 'prologo_02.xhtml');
+      expect(capitulos[2].archivo, 'C01.xhtml');
+      expect(capitulos[3].archivo, 'C02.xhtml');
+      expect(capitulos[4].archivo, 'interludio_01.xhtml');
+      expect(capitulos[5].archivo, 'C03.xhtml'); // Sigue a C02 sin saltar!
+      expect(capitulos[6].archivo, 'interludio_02.xhtml');
+      expect(capitulos[7].archivo, 'interludio_03.xhtml');
+      expect(capitulos[8].archivo, 'C04.xhtml');
+      expect(capitulos[9].archivo, 'epilogo_01.xhtml');
+      expect(capitulos[10].archivo, 'epilogo_02.xhtml');
+      expect(capitulos[11].archivo, 'autor.xhtml');
+      expect(capitulos[12].archivo, 'C05.xhtml'); // Historia corta es C05!
+    });
+
+    test('renderCapitulo no duplica el titulo', () {
+      const template = '''
+<header>
+  <h1 title="Capítulo X: Título del capítulo"><i>Capítulo X</i>
+    <br/><span class="versalita"><i>Título del capítulo</i></span>
+  </h1>
+</header>
+{{CONTENIDO}}
+''';
+
+      final res = renderCapitulo(template, 'Capítulo 1: De Encantador a Espadachín', 1, '<p>Hola</p>');
+
+      expect(res.contains('Capítulo 1: Capítulo 1:'), isFalse);
+      expect(res.contains('<h1 title="Capítulo 1: De Encantador a Espadachín"><i>Capítulo 1</i>'), isTrue);
+      expect(res.contains('<span class="versalita"><i>De Encantador a Espadachín</i></span>'), isTrue);
+    });
+
+    test('renderCapitulo formatea interludio sin la palabra Capitulo', () {
+      const template = '''
+<header>
+  <h1 title="Capítulo X: Título del capítulo"><i>Capítulo X</i>
+    <br/><span class="versalita"><i>Título del capítulo</i></span>
+  </h1>
+</header>
+{{CONTENIDO}}
+''';
+
+      final res = renderCapitulo(template, 'Interludio 1: El Nuevo Grupo del Héroe', 3, '<p>Hola</p>');
+
+      expect(res.contains('Capítulo'), isFalse);
+      expect(res.contains('<h1 title="Interludio 1: El Nuevo Grupo del Héroe"><i>Interludio 1</i>'), isTrue);
+      expect(res.contains('<span class="versalita"><i>El Nuevo Grupo del Héroe</i></span>'), isTrue);
+    });
+  });
 }
+
