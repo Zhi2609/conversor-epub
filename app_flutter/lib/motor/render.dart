@@ -1,5 +1,5 @@
 import 'dart:io';
-import 'modelo.dart' show Nota;
+import 'modelo.dart' show Nota, Chapter;
 import 'notas.dart' show formatearNota;
 import 'plantillas.dart' show descomponerTitulo;
 
@@ -81,4 +81,36 @@ void limpiarCarpeta(String ruta) {
     dir.deleteSync(recursive: true);
   }
   dir.createSync(recursive: true);
+}
+
+String renderTablaContenidos(List<Chapter> capitulos, List<String> titulos) {
+  final buffer = StringBuffer();
+  buffer.writeln('<?xml version="1.0" encoding="utf-8"?>');
+  buffer.writeln('<!DOCTYPE html>');
+  buffer.writeln('');
+  buffer.writeln('<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" lang="es" xml:lang="es">');
+  buffer.writeln('<head>');
+  buffer.writeln('  <title>Contenido</title>');
+  buffer.writeln('  <link rel="stylesheet" type="text/css" href="../Styles/style.css"/>');
+  buffer.writeln('  ');
+  buffer.writeln('</head>');
+  buffer.writeln('');
+  buffer.writeln('<body xml:lang="es" lang="es" epub:type="frontmatter">');
+  buffer.writeln('<section epub:type="toc" role="doc-toc" id="toc" aria-label="Contenido">');
+  buffer.writeln('  <h1 class="oculto sigil_not_in_toc" title="Contenido"></h1>');
+
+  for (int i = 0; i < capitulos.length; i++) {
+    final archivo = capitulos[i].archivo ?? 'C${(i + 1).toString().padLeft(2, '0')}.xhtml';
+    final titulo = (i < titulos.length && titulos[i].trim().isNotEmpty)
+        ? titulos[i].trim()
+        : capitulos[i].titulo;
+    buffer.writeln('    <div class="nivel-1">');
+    buffer.writeln('      <a href="$archivo">$titulo</a>');
+    buffer.writeln('    </div>');
+  }
+
+  buffer.writeln('  </section>');
+  buffer.writeln('</body>');
+  buffer.writeln('</html>');
+  return buffer.toString();
 }

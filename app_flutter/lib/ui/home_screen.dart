@@ -254,6 +254,11 @@ class _HomeScreenState extends State<HomeScreen> {
         File(p.join(salida, 'notas_Finales.xhtml')).writeAsStringSync(renderNotas(_resultado!.notas));
       }
       
+      final titulos = _controladoresTitulos.map((c) => c.text.trim()).toList();
+      File(p.join(salida, 'contenido-2.xhtml')).writeAsStringSync(
+        renderTablaContenidos(_resultado!.capitulos, titulos),
+      );
+      
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('✅ Archivos generados en $salida')));
     } catch (e) {

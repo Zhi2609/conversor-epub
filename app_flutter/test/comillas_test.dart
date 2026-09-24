@@ -228,6 +228,28 @@ void main() {
       expect(res.contains('<h1 title="Interludio 1: El Nuevo Grupo del Héroe"><i>Interludio 1</i>'), isTrue);
       expect(res.contains('<span class="versalita"><i>El Nuevo Grupo del Héroe</i></span>'), isTrue);
     });
+
+    test('renderTablaContenidos genera contenido-2.xhtml estructurado', () {
+      final capitulos = [
+        Chapter(titulo: 'Prólogo I: Expulsión', htmlCuerpo: '', archivo: 'prologo_01.xhtml'),
+        Chapter(titulo: 'Capítulo 1: De Encantador a Espadachín', htmlCuerpo: '', archivo: 'C01.xhtml'),
+        Chapter(titulo: 'Interludio 1: El Nuevo Grupo del Héroe', htmlCuerpo: '', archivo: 'interludio_01.xhtml'),
+      ];
+      final titulos = [
+        'Prólogo I: Expulsión',
+        'Capítulo 1: De Encantador a Espadachín',
+        'Interludio 1: El Nuevo Grupo del Héroe',
+      ];
+
+      final toc = renderTablaContenidos(capitulos, titulos);
+
+      expect(toc.contains('<body xml:lang="es" lang="es" epub:type="frontmatter">'), isTrue);
+      expect(toc.contains('<section epub:type="toc" role="doc-toc" id="toc" aria-label="Contenido">'), isTrue);
+      expect(toc.contains('<h1 class="oculto sigil_not_in_toc" title="Contenido"></h1>'), isTrue);
+      expect(toc.contains('<div class="nivel-1">\n      <a href="prologo_01.xhtml">Prólogo I: Expulsión</a>\n    </div>'), isTrue);
+      expect(toc.contains('<div class="nivel-1">\n      <a href="C01.xhtml">Capítulo 1: De Encantador a Espadachín</a>\n    </div>'), isTrue);
+      expect(toc.contains('<div class="nivel-1">\n      <a href="interludio_01.xhtml">Interludio 1: El Nuevo Grupo del Héroe</a>\n    </div>'), isTrue);
+    });
   });
 }
 

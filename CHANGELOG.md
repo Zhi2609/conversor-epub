@@ -329,3 +329,12 @@ Las nuevas entradas se añaden al final de cada sesión de trabajo.
 - **Interludios Semánticos**: Los interludios se nombran automáticamente como `interludio_01.xhtml`, `interludio_02.xhtml`, etc., y no descuentan la numeración de los capítulos regulares (`C01`, `C02`, `C03`...). Su renderizado se adapta para mostrar `Interludio N` en lugar de forzar la palabra `Capítulo`.
 - **Sinónimos de Autor y Capítulos Extras**: Reconocimiento de `"Palabras Finales"` como equivalente a `autor.xhtml`. Las historias cortas, extras o adicionales se mantienen como capítulos estándar con numeración continua `C0X.xhtml`.
 - **Tests**: Añadido grupo de pruebas `TestTitulosEspeciales` en `test/comillas_test.dart` verificando la separación de títulos, el libro complejo con múltiples especiales y el renderizado no redundante (20/20 tests pasando).
+
+---
+## 24 de Septiembre de 2026
+
+      16:55 — Generación Automática de Tabla de Contenidos HTML (contenido-2.xhtml)
+- **TOC HTML Automático**: Se implementó `renderTablaContenidos` en `render.dart` para construir automáticamente el archivo `contenido-2.xhtml` siguiendo la estructura semántica de ePub (`epub:type="frontmatter"`, `<section epub:type="toc" role="doc-toc">`).
+- **Sincronización con GUI**: Enlaza cada capítulo con su nombre de archivo real (`prologo_01.xhtml`, `C01.xhtml`, `interludio_01.xhtml`, etc.) y el título correspondiente editado en la tabla de la interfaz.
+- **Exportación Continua**: Ahora el botón "Generar Archivos" produce automáticamente `contenido-2.xhtml` en la carpeta de destino junto a los capítulos y las notas finales.
+- **Tests**: Añadido test unitario en `comillas_test.dart` verificando la generación estructurada de `contenido-2.xhtml` (21/21 tests pasando).
