@@ -415,6 +415,60 @@ void main() {
       // No hay hr dobles pegados
       expect(res.contains('<hr class="sigil_split_marker" />\n<hr class="sigil_split_marker" />'), isFalse);
       expect(res.contains('<hr class="sigil_split_marker" />\n<!--Aqui va el contenido-->\n<hr class="sigil_split_marker" />'), isFalse);
+      expect(res.contains(r'$1'), isFalse);
+    });
+
+    test('renderCapitulo con titulo imagen y contenido con imagenes consecutivas no deja \$1 ni split tras header', () {
+      const template = '''
+<section epub:type="chapter" role="doc-chapter" id="chapter">
+<!--Si usa figure, colocar un título oculto antes del figure
+    <h1 class="oculto" title="Capítulo X: Título del capítulo"></h1>
+    <figure class="dimg"><img src="../Images/02.jpg" alt="" /></figure>
+<hr class="sigil_split_marker" />
+    <header>
+      <h1 class="sigil_not_in_toc"><i>Capítulo X</i>
+        <br/><span class="versalita"><i>Título del capítulo</i></span>
+      </h1>
+    </header>
+ -->
+    <header>
+      <h1 title="Capítulo X: Título del capítulo"><i>Capítulo X</i>
+        <br/><span class="versalita"><i>Título del capítulo</i></span>
+      </h1>
+    </header>
+    <!--Aqui va el contenido-->
+    {{CONTENIDO}}
+</section>
+''';
+
+      const cuerpoConImagenes = '''
+<hr class="sigil_split_marker" />
+<figure class="dimg"><img src="../Images/05.jpg" alt=""/></figure>
+<hr class="sigil_split_marker" />
+<figure class="dimg"><img src="../Images/06.jpg" alt=""/></figure>
+<hr class="sigil_split_marker" />
+<p><i><b>(0/6)</b></i></p>
+''';
+
+      final res = renderCapitulo(
+        template,
+        'Capítulo 0: Las Llamas sobre la Vela',
+        0,
+        cuerpoConImagenes,
+        tituloEsImagen: true,
+        numeroImagenTitulo: '04',
+      );
+
+      // No debe contener el literal \$1
+      expect(res.contains(r'$1'), isFalse);
+      // No debe haber split marker inmediatamente tras el header / <!--Aqui va el contenido-->
+      expect(RegExp(r'<!--Aqui va el contenido-->\s*<hr class="sigil_split_marker"', caseSensitive: false).hasMatch(res), isFalse);
+      // Debe conservar la imagen 05 directamente bajo el contenido
+      expect(res.contains('<figure class="dimg"><img src="../Images/05.jpg" alt=""/></figure>'), isTrue);
+      // Debe conservar exactamente un split marker entre la imagen 05 y 06
+      expect(RegExp(r'05\.jpg".*?</figure>\s*<hr class="sigil_split_marker"\s*/>\s*<figure', dotAll: true).hasMatch(res), isTrue);
+      // La imagen 04 debe tener su split marker
+      expect(RegExp(r'04\.jpg".*?</figure>\s*<hr class="sigil_split_marker"\s*/>\s*<header', dotAll: true).hasMatch(res), isTrue);
     });
   });
 }

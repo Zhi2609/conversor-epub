@@ -374,4 +374,16 @@ Las nuevas entradas se añaden al final de cada sesión de trabajo.
 - **Modelo y Motor**: Incorporado `TipoEspecial.cuerpo` y propiedad `tipoForzado` en `Chapter` para permitir sobreescritura manual del tipo desde la interfaz sin perder la coherencia del motor.
 - **Calidad y Verificación**: `flutter test` con 26/26 tests pasando, `flutter analyze` con 0 advertencias/errores y compilación de release exitosa para Linux.
 
+      12:00 — Corrección de `$1` en Reemplazo Regex y Limpieza de Split en Frontera de Contenido
+- **Corrección de `$1` (`imagenes.dart`)**:
+  - `limpiarHrDuplicados` utilizaba `replaceAll(_reHrDuplicados, r'$1')`. En Dart, `replaceAll` toma una cadena literal y no expande grupos de captura, por lo que insertaba la cadena `"$1"` de forma textual y eliminaba ambos `<hr>` entre imágenes consecutivas.
+  - Se corrigió a `replaceAllMapped(_reHrDuplicados, (match) => match[1]!)`, garantizando que entre imágenes consecutivas quede preservado exactamente un solo `<hr class="sigil_split_marker" />` y desaparezca por completo cualquier residuo de `$1`.
+- **Eliminación del Split en la Frontera de Cabecera y Contenido (`render.dart`)**:
+  - Cuando el contenido de un capítulo empieza con una o más imágenes, el primer elemento generaba un split marker inicial redundante que aislaba al `<header>` del resto del capítulo.
+  - Se añadieron las expresiones `_reLeadingHr` y `_reSplitTrasHeader` para despojar cualquier split marker en la frontera inicial del contenido y directamente tras `</header>` o `<!--Aqui va el contenido-->`.
+  - Ahora la primera imagen o párrafo del cuerpo permanece en la misma página de visualización del título, conservando únicamente los split markers posteriores legítimos.
+- **Tests y Compilación**:
+  - Añadido test unitario de regresión en `comillas_test.dart` reproduciendo el caso exacto (27/27 tests pasando).
+  - `flutter analyze` reporta 0 incidencias y compilación de release exitosa en `build/linux/x64/release/bundle/ConversorEpubs`.
+
 

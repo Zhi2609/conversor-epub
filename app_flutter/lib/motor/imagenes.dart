@@ -21,7 +21,7 @@ final _reHrDuplicados = RegExp(
 );
 
 String limpiarHrDuplicados(String html) {
-  return html.replaceAll(_reHrDuplicados, r'$1');
+  return html.replaceAllMapped(_reHrDuplicados, (match) => match[1]!);
 }
 
 final _reFiguraImg = RegExp(

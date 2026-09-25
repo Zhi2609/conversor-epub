@@ -34,13 +34,23 @@ String _aplicarCabeceraFigura(String html, bool tituloEsImagen, String? numeroIm
   return html;
 }
 
+final _reSplitTrasHeader = RegExp(
+  r'(</header>\s*(?:<!--.*?-->\s*)*)<hr\s+class="sigil_split_marker"\s*/?>\s*',
+  caseSensitive: false,
+);
+
+final _reLeadingHr = RegExp(
+  r'^\s*(?:<hr\s+class="sigil_split_marker"\s*/?>\s*)+',
+  caseSensitive: false,
+);
+
 String _absorberPrimeraFigura(String cuerpo, bool tituloEsImagen, String? numeroImagenTitulo) {
   if (!tituloEsImagen) return cuerpo;
   final numImg = numeroImagenTitulo ?? r'\d+';
   final rePrimeraFigura = RegExp(
-    '^\\s*(?:<hr\\s+class="sigil_split_marker"\\s*/?>\\s*)?'
+    '^\\s*(?:<hr\\s+class="sigil_split_marker"\\s*/?>\\s*)*'
     '<figure class="dimg"><img\\b[^>]*src="[^"]*?(?:Images/|image0*)$numImg\\.[^"]*"[^>]*></figure>'
-    '\\s*(?:<hr\\s+class="sigil_split_marker"\\s*/?>)?',
+    '\\s*(?:<hr\\s+class="sigil_split_marker"\\s*/?>\\s*)*',
     caseSensitive: false,
   );
   return cuerpo.replaceFirst(rePrimeraFigura, '');
@@ -61,6 +71,7 @@ String renderCapitulo(
 
   String html = _aplicarCabeceraFigura(template, tituloEsImagen, numeroImagenTitulo);
   cuerpo = _absorberPrimeraFigura(cuerpo, tituloEsImagen, numeroImagenTitulo);
+  cuerpo = cuerpo.replaceFirst(_reLeadingHr, '');
 
   html = html.replaceAll('Capítulo X: Título del capítulo', tituloCompleto);
   html = html.replaceAll('Capítulo X', partes.etiqueta);
@@ -73,6 +84,7 @@ String renderCapitulo(
   }
 
   html = html.replaceAll('{{CONTENIDO}}', cuerpo.trim());
+  html = html.replaceAllMapped(_reSplitTrasHeader, (m) => m[1]!);
   return limpiarHrDuplicados(html);
 }
 
@@ -96,6 +108,7 @@ String renderCapituloEspecial(
 
   String html = _aplicarCabeceraFigura(template, tituloEsImagen, numeroImagenTitulo);
   cuerpo = _absorberPrimeraFigura(cuerpo, tituloEsImagen, numeroImagenTitulo);
+  cuerpo = cuerpo.replaceFirst(_reLeadingHr, '');
 
   final matchActualizado = _reMarcadorContenido.firstMatch(html) ?? match;
   html = html.replaceRange(
@@ -139,7 +152,8 @@ String renderCapituloEspecial(
     html = html.replaceAll('Título del capítulo', partes.subtitulo ?? titulo);
   }
 
-  return html;
+  html = html.replaceAllMapped(_reSplitTrasHeader, (m) => m[1]!);
+  return limpiarHrDuplicados(html);
 }
 
 String renderNotas(List<Nota> notas) {
