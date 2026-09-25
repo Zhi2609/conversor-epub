@@ -349,7 +349,7 @@ Las nuevas entradas se añaden al final de cada sesión de trabajo.
 ---
 ## 25 de Septiembre de 2026
 
-      11:05 — Deduplicación Canónica de `<hr>` (sigil_split_marker) y Título con Imagen
+       11:05 — Deduplicación Canónica de `<hr>` (sigil_split_marker) y Título con Imagen
 - **Deduplicación de `<hr>`**: Se implementó `limpiarHrDuplicados` en `imagenes.dart` y `render.dart`, colapsando de forma canónica cualquier secuencia de `<hr class="sigil_split_marker" />` contiguos (tanto entre figuras consecutivas como en la frontera de inyección entre plantilla y contenido).
 - **Soporte de Título con Imagen (`tituloEsImagen`)**:
   - En capítulos normales (`tituloEsImagen == false`), se elimina automáticamente el bloque de comentarios `<!--Si usa figure...-->` de la plantilla, produciendo archivos XHTML limpios y sin comentarios residuales.
@@ -357,5 +357,21 @@ Las nuevas entradas se añaden al final de cada sesión de trabajo.
   - Absorbe la figura inicial del cuerpo si coincide con la imagen del título para evitar su repetición.
 - **Integración en la GUI (`home_screen.dart`)**: Añadido un botón interactivo con ícono de imagen en cada fila de la lista de capítulos para alternar "Título con imagen", sugiriendo automáticamente el número de la primera imagen encontrada en el capítulo y permitiendo editarlo con un diálogo modal.
 - **Tests y Calidad**: Añadidas pruebas unitarias en `comillas_test.dart` verificando la deduplicación de `<hr>` y la transformación de la cabecera (26/26 tests pasando). `flutter analyze` limpio sin advertencias y compilación nativa exitosa en `build/linux/x64/release/bundle/ConversorEpubs`.
+
+      11:25 — Rediseño Integral de la Interfaz a 3 Paneles Profesionales
+- **Estructura a 3 Columnas**:
+  - **Panel Izquierdo (Configuración y Carga)**:
+    - Entradas de rango y lote: *Inicio (#)*, *Prefijo* (`Cap. `) y *Sufijo* (` - `) con botón de aplicación masiva a los capítulos cargados.
+    - Zona Dropzone moderna con borde punteado (`DashedRectPainter`), soporte de arrastrar y soltar con `desktop_drop`, selección con clic y resumen de archivo cargado (`[Listo]`, nombre y peso formateado).
+    - Botones de acción inferior: *+ Añadir*, *— Eliminar*, *Ajustes* y *Ayuda*.
+  - **Panel Central (Estructura y Tabla de Capítulos)**:
+    - Cápsulas superiores de estadísticas instantáneas: *Capítulos*, *Notas al pie*, *Imágenes detectadas* y *Separadores*.
+    - Tabla enriquecida de capítulos con numeración de dos dígitos (`01`, `02`...), campo de texto editable para el título, botón de configuración de imagen en título, y botón interactivo de tipo con badge de color (Cuerpo, Prólogo, Epílogo, Interludio, Palabras del Autor, Palabras del Traductor) que despliega un menú emergente para reclasificar manualmente cualquier capítulo en tiempo real.
+  - **Panel Derecho (Resumen y Vista Previa)**:
+    - Ficha de metadatos del manuscrito: conteo de palabras, páginas estimadas (~300 palabras/pág), nombre de archivo y estado del limpiador tipográfico (`[ON]`).
+    - Visor de vista previa unificado: muestra el código XHTML final generado y limpio del capítulo seleccionado, eliminando el visor de diferencias raw innecesario para una experiencia más clara.
+    - Botón de exportación destacado: *Compilar ePub Final [✓]*, con selección de carpeta vía explorador nativo.
+- **Modelo y Motor**: Incorporado `TipoEspecial.cuerpo` y propiedad `tipoForzado` en `Chapter` para permitir sobreescritura manual del tipo desde la interfaz sin perder la coherencia del motor.
+- **Calidad y Verificación**: `flutter test` con 26/26 tests pasando, `flutter analyze` con 0 advertencias/errores y compilación de release exitosa para Linux.
 
 

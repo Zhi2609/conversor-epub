@@ -22,6 +22,7 @@ int numeroDeArchivo(String? archivo, int porDefecto) {
 }
 
 enum TipoEspecial {
+  cuerpo,
   prologo,
   epilogo,
   autor,
@@ -62,7 +63,7 @@ String? clasificarEspecial(String titulo) {
     case TipoEspecial.traductor:
       return 'traductor.xhtml';
     case TipoEspecial.interludio:
-      return null;
+    case TipoEspecial.cuerpo:
     case null:
       return null;
   }
@@ -228,7 +229,9 @@ void clasificarYRenumerarCapitulos(List<Chapter> capitulos, {int startNum = 1, S
   int totalInterludios = 0;
 
   for (var cap in capitulos) {
-    final tipo = detectarTipoEspecial(cap.titulo);
+    final tipo = cap.tipoForzado == TipoEspecial.cuerpo
+        ? null
+        : (cap.tipoForzado ?? detectarTipoEspecial(cap.titulo));
     if (tipo == TipoEspecial.prologo) totalPrologos++;
     if (tipo == TipoEspecial.epilogo) totalEpilogos++;
     if (tipo == TipoEspecial.autor) totalAutores++;
@@ -244,7 +247,9 @@ void clasificarYRenumerarCapitulos(List<Chapter> capitulos, {int startNum = 1, S
   int numeroCapitulo = startNum;
 
   for (var cap in capitulos) {
-    final tipo = detectarTipoEspecial(cap.titulo);
+    final tipo = cap.tipoForzado == TipoEspecial.cuerpo
+        ? null
+        : (cap.tipoForzado ?? detectarTipoEspecial(cap.titulo));
     if (tipo == TipoEspecial.prologo) {
       countPrologo++;
       cap.plantillaNombre = 'prologo.xhtml';

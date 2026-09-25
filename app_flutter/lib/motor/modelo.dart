@@ -1,3 +1,5 @@
+import 'plantillas.dart' show TipoEspecial;
+
 class Chapter {
   String titulo;
   String htmlCuerpo;
@@ -7,6 +9,7 @@ class Chapter {
   String? plantillaNombre;
   bool tituloEsImagen;
   String? numeroImagenTitulo;
+  TipoEspecial? tipoForzado;
 
   Chapter({
     required this.titulo,
@@ -17,6 +20,7 @@ class Chapter {
     this.plantillaNombre,
     this.tituloEsImagen = false,
     this.numeroImagenTitulo,
+    this.tipoForzado,
   });
 }
 
