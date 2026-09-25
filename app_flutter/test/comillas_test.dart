@@ -79,45 +79,45 @@ void main() {
     final reTags = RegExp(r'<[^>]+>');
     final palabras = ['hola', 'mundo', 'dijo', 'susurró', 'Dazai', 'noche', 'luz', '¿qué?', '¡no!', 'y', 'pero', 'fin.'];
 
-    String _palabra() => palabras[rng.nextInt(palabras.length)];
+    String genPalabra() => palabras[rng.nextInt(palabras.length)];
     
-    String _frase() {
+    String genFrase() {
       int count = rng.nextInt(6) + 1;
-      return List.generate(count, (_) => _palabra()).join(' ');
+      return List.generate(count, (_) => genPalabra()).join(' ');
     }
     
-    String _patron() {
+    String genPatron() {
       int choice = rng.nextInt(7);
       switch (choice) {
-        case 0: return '"${_frase()}"';
-        case 1: return 'dijo: "${_frase()}"';
-        case 2: return '"${_frase()}" —${_palabra()}';
-        case 3: return '${_palabra()} "${_frase()}" ${_palabra()}';
-        case 4: return '"${_frase()} "${_frase()}", dijo"';
-        case 5: return "'${_frase()}'";
-        default: return _palabra();
+        case 0: return '"${genFrase()}"';
+        case 1: return 'dijo: "${genFrase()}"';
+        case 2: return '"${genFrase()}" —${genPalabra()}';
+        case 3: return '${genPalabra()} "${genFrase()}" ${genPalabra()}';
+        case 4: return '"${genFrase()} "${genFrase()}", dijo"';
+        case 5: return "'${genFrase()}'";
+        default: return genPalabra();
       }
     }
     
-    String _documento() {
+    String genDocumento() {
       int n = rng.nextInt(6) + 1;
       String sep = ['</p>', '\n', '<br/>'][rng.nextInt(3)];
       List<String> docs = [];
       for (int i = 0; i < n; i++) {
         int m = rng.nextInt(4) + 1;
-        docs.add(List.generate(m, (_) => _patron()).join(' '));
+        docs.add(List.generate(m, (_) => genPatron()).join(' '));
       }
       return docs.join(sep);
     }
 
-    List<String> _segmentos(String html) {
+    List<String> extraerSegmentos(String html) {
       List<String> partes = html.split(reCortafuegos);
       return partes.where((p) => p.isNotEmpty && !reCortafuegos.hasMatch(p)).toList();
     }
 
     test('sin comillas rectas sobrevivientes', () {
       for (int i = 0; i < 5000; i++) {
-        String out = limpiarTextoHtml(_documento());
+        String out = limpiarTextoHtml(genDocumento());
         String plano = out.replaceAll(reTags, '');
         expect(plano.contains('"'), isFalse);
         expect(plano.contains("'"), isFalse);
@@ -126,8 +126,8 @@ void main() {
 
     test('balance por segmento', () {
       for (int i = 0; i < 5000; i++) {
-        String out = limpiarTextoHtml(_documento());
-        for (String seg in _segmentos(out)) {
+        String out = limpiarTextoHtml(genDocumento());
+        for (String seg in extraerSegmentos(out)) {
           String p = seg.replaceAll(reTags, '');
           int doblesBalance = p.split('»').length - p.split('«').length;
           int simplesBalance = p.split('’').length - p.split('‘').length;
@@ -249,6 +249,66 @@ void main() {
       expect(toc.contains('<div class="nivel-1">\n      <a href="prologo_01.xhtml">Prólogo I: Expulsión</a>\n    </div>'), isTrue);
       expect(toc.contains('<div class="nivel-1">\n      <a href="C01.xhtml">Capítulo 1: De Encantador a Espadachín</a>\n    </div>'), isTrue);
       expect(toc.contains('<div class="nivel-1">\n      <a href="interludio_01.xhtml">Interludio 1: El Nuevo Grupo del Héroe</a>\n    </div>'), isTrue);
+    });
+
+    test('descomponerTitulo y clasificar reconocen traductor y numeración con punto', () {
+      final partes0 = descomponerTitulo('0. Una Oferta Dudosa');
+      expect(partes0.etiqueta, 'Capítulo 0');
+      expect(partes0.subtitulo, 'Una Oferta Dudosa');
+      expect(partes0.tituloCompleto, 'Capítulo 0: Una Oferta Dudosa');
+
+      final partes2 = descomponerTitulo('2: Palacio Real');
+      expect(partes2.etiqueta, 'Capítulo 2');
+      expect(partes2.subtitulo, 'Palacio Real');
+
+      final traductor = descomponerTitulo('Palabras del Traductor');
+      expect(traductor.esTraductor, isTrue);
+      expect(traductor.etiqueta, 'Palabras del Traductor');
+
+      final titulos = [
+        '0. Una Oferta Dudosa',
+        '1. La Melancolía del Espadachín Mágico',
+        '2: Palacio Real',
+        'Palabras del autor',
+        'Palabras del Traductor',
+      ];
+      final capitulos = titulos.map((t) => Chapter(titulo: t, htmlCuerpo: '<p>texto</p>')).toList();
+      clasificarYRenumerarCapitulos(capitulos, startNum: 1);
+
+      expect(capitulos[0].archivo, 'C01.xhtml');
+      expect(capitulos[1].archivo, 'C02.xhtml');
+      expect(capitulos[2].archivo, 'C03.xhtml');
+      expect(capitulos[3].archivo, 'autor.xhtml');
+      expect(capitulos[3].plantillaNombre, 'autor.xhtml');
+      expect(capitulos[4].archivo, 'traductor.xhtml');
+      expect(capitulos[4].plantillaNombre, 'traductor.xhtml');
+    });
+
+    test('renderCapituloEspecial formatea traductor.xhtml correctamente', () {
+      const template = '''
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <title>Palabras del traductor</title>
+</head>
+<body>
+  <section epub:type="conclusion" role="doc-conclusion" id="conclusion" aria-label="Palabras del traductor">
+    <header>
+      <h1>Palabras del traductor</h1>
+    </header>
+    <!-- Aquí va el contenido -->
+  </section>
+</body>
+</html>
+''';
+
+      final res = renderCapituloEspecial(template, 'Palabras del Traductor: Notas Finales', 5, '<p>Gracias por leer.</p>');
+
+      expect(res.contains('<h1>Palabras del Traductor</h1>'), isTrue);
+      expect(res.contains('<title>Palabras del Traductor</title>'), isTrue);
+      expect(res.contains('<p>Gracias por leer.</p>'), isTrue);
+      expect(res.contains('</section>'), isTrue);
     });
   });
 }

@@ -338,3 +338,11 @@ Las nuevas entradas se añaden al final de cada sesión de trabajo.
 - **Sincronización con GUI**: Enlaza cada capítulo con su nombre de archivo real (`prologo_01.xhtml`, `C01.xhtml`, `interludio_01.xhtml`, etc.) y el título correspondiente editado en la tabla de la interfaz.
 - **Exportación Continua**: Ahora el botón "Generar Archivos" produce automáticamente `contenido-2.xhtml` en la carpeta de destino junto a los capítulos y las notas finales.
 - **Tests**: Añadido test unitario en `comillas_test.dart` verificando la generación estructurada de `contenido-2.xhtml` (21/21 tests pasando).
+
+      19:45 — Plantilla de Palabras del Traductor (traductor.xhtml) y Títulos Numéricos
+- **Plantilla Especial `traductor.xhtml`**: Creada la plantilla oficial `traductor.xhtml` con encabezados y sección semántica de ePub (`epub:type="backmatter"`, `<section epub:type="conclusion" role="doc-conclusion">`). Empaquetada tanto en assets del binario como en assets del proyecto.
+- **Detección y Clasificación**: Añadido `TipoEspecial.traductor` reconociendo `"Palabras del traductor"`, `"Palabras de traductor"` y `"Notas del traductor"`. Se asigna automáticamente como `traductor.xhtml` (o `traductor_01.xhtml` en caso de haber varios) sin consumir la numeración de los capítulos ordinarios `C0X`.
+- **Renderizado Dedicado**: En `render.dart`, `renderCapituloEspecial` ahora reemplaza los títulos y encabezados de la plantilla `traductor.xhtml` manteniendo intacta la etiqueta de cierre `</section>`.
+- **Soporte de Prefijos Numéricos**: Añadida la expresión regular `_reNumeroPunto` en `descomponerTitulo` para reconocer títulos como `0. Una Oferta Dudosa` o `2: Palacio Real`, separando el número del subtítulo de forma limpia y evitando duplicaciones.
+- **Tests y Análisis**: Añadidos tests unitarios para `traductor.xhtml` y numeración por puntos en `comillas_test.dart` (23/23 tests pasando). `flutter analyze` 0 warnings/errores y compilación nativa en `build/linux/x64/release/bundle/ConversorEpubs` exitosa.
+

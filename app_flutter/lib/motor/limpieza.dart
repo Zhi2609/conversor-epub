@@ -49,9 +49,13 @@ bool _esApertura(String texto, int idx) {
 
 bool _cadenaConDoble(String texto, int idx, bool esApertura) {
   int j = idx;
-  while (j > 0 && texto[j - 1] == "'") j--;
+  while (j > 0 && texto[j - 1] == "'") {
+    j--;
+  }
   int k = idx;
-  while (k < texto.length - 1 && texto[k + 1] == "'") k++;
+  while (k < texto.length - 1 && texto[k + 1] == "'") {
+    k++;
+  }
   if (k - j + 1 >= 3) return true;
   
   if (esApertura) {

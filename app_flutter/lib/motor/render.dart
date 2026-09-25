@@ -36,7 +36,7 @@ String renderCapituloEspecial(String template, String titulo, int num, String cu
       ? '${partes.etiqueta}: ${partes.subtitulo}'
       : partes.etiqueta;
 
-  String html = template.replaceRange(match.start, match.end, '<!-- Aquí va el contenido -->\n${cuerpo.trim()}');
+  String html = template.replaceRange(match.start, match.end, '<!-- Aquí va el contenido -->\n${cuerpo.trim()}\n  </section>');
 
   if (partes.esPrologo) {
     html = html.replaceAll('Prólogo: Título del capítulo', tituloCompleto);
@@ -62,6 +62,11 @@ String renderCapituloEspecial(String template, String titulo, int num, String cu
     html = html.replaceAll('<h1>Palabras del autor</h1>', '<h1>${partes.etiqueta}</h1>');
     html = html.replaceAll('<title>Palabras finales</title>', '<title>${partes.etiqueta}</title>');
     html = html.replaceAll('Palabras del autor: Título del capítulo', tituloCompleto);
+    html = html.replaceAll('Título del capítulo', partes.subtitulo ?? '');
+  } else if (partes.esTraductor) {
+    html = html.replaceAll('<h1>Palabras del traductor</h1>', '<h1>${partes.etiqueta}</h1>');
+    html = html.replaceAll('<title>Palabras del traductor</title>', '<title>${partes.etiqueta}</title>');
+    html = html.replaceAll('Palabras del traductor: Título del capítulo', tituloCompleto);
     html = html.replaceAll('Título del capítulo', partes.subtitulo ?? '');
   } else {
     html = html.replaceAll('Capítulo X', partes.etiqueta);

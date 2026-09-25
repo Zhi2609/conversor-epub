@@ -8,6 +8,10 @@ final Map<String, String> tablaEspeciales = {
   'postfacio': 'autor.xhtml',
   'epilogo del autor': 'autor.xhtml',
   'nota del autor': 'autor.xhtml',
+  'palabras del traductor': 'traductor.xhtml',
+  'palabras de traductor': 'traductor.xhtml',
+  'nota del traductor': 'traductor.xhtml',
+  'notas del traductor': 'traductor.xhtml',
 };
 
 final _reArchivoC = RegExp(r'^C(\d+)\.xhtml$');
@@ -21,6 +25,7 @@ enum TipoEspecial {
   prologo,
   epilogo,
   autor,
+  traductor,
   interludio,
 }
 
@@ -30,6 +35,12 @@ TipoEspecial? detectarTipoEspecial(String titulo) {
   if (norm.startsWith('epilogo del autor')) return TipoEspecial.autor;
   if (norm.startsWith('epilogo')) return TipoEspecial.epilogo;
   if (norm.startsWith('interludio')) return TipoEspecial.interludio;
+  if (norm.startsWith('palabras del traductor') ||
+      norm.startsWith('palabras de traductor') ||
+      norm.startsWith('nota del traductor') ||
+      norm.startsWith('notas del traductor')) {
+    return TipoEspecial.traductor;
+  }
   if (norm.startsWith('palabras del autor') ||
       norm.startsWith('palabras finales') ||
       norm.startsWith('postfacio') ||
@@ -48,6 +59,8 @@ String? clasificarEspecial(String titulo) {
       return 'epilogo.xhtml';
     case TipoEspecial.autor:
       return 'autor.xhtml';
+    case TipoEspecial.traductor:
+      return 'traductor.xhtml';
     case TipoEspecial.interludio:
       return null;
     case null:
@@ -63,6 +76,7 @@ class PartesTitulo {
   final bool esPrologo;
   final bool esEpilogo;
   final bool esAutor;
+  final bool esTraductor;
 
   PartesTitulo({
     required this.etiqueta,
@@ -72,6 +86,7 @@ class PartesTitulo {
     this.esPrologo = false,
     this.esEpilogo = false,
     this.esAutor = false,
+    this.esTraductor = false,
   });
 }
 
@@ -90,6 +105,11 @@ final _reInterludio = RegExp(
   caseSensitive: false,
 );
 
+final _reTraductor = RegExp(
+  r'^\s*(palabras\s+del?\s+traductor|notas?\s+del\s+traductor)\b\s*[:—–\-.]*\s*(.*)$',
+  caseSensitive: false,
+);
+
 final _reAutor = RegExp(
   r'^\s*(palabras\s+finales|palabras\s+del\s+autor|postfacio|nota\s+del\s+autor|ep[ií]logo\s+del\s+autor)\b\s*[:—–\-.]*\s*(.*)$',
   caseSensitive: false,
@@ -97,6 +117,11 @@ final _reAutor = RegExp(
 
 final _reCapitulo = RegExp(
   r'^\s*(cap[ií]tulo\s*(?:[ivxlcdm]+|\d+))\s*[:—–\-.]*\s*(.*)$',
+  caseSensitive: false,
+);
+
+final _reNumeroPunto = RegExp(
+  r'^\s*(\d+)\s*[:.—–\-]\s*(.*)$',
   caseSensitive: false,
 );
 
@@ -139,6 +164,18 @@ PartesTitulo descomponerTitulo(String titulo, {int? numeroPorDefecto}) {
     );
   }
 
+  m = _reTraductor.firstMatch(t);
+  if (m != null) {
+    String etiqueta = m.group(1)!.trim();
+    String sub = m.group(2)!.trim();
+    return PartesTitulo(
+      etiqueta: etiqueta,
+      subtitulo: sub.isNotEmpty ? sub : null,
+      tituloCompleto: t,
+      esTraductor: true,
+    );
+  }
+
   m = _reAutor.firstMatch(t);
   if (m != null) {
     String etiqueta = m.group(1)!.trim();
@@ -162,6 +199,18 @@ PartesTitulo descomponerTitulo(String titulo, {int? numeroPorDefecto}) {
     );
   }
 
+  // Título que empieza con número seguido de punto/dos puntos (ej: "0. Una Oferta Dudosa", "2: Palacio Real")
+  m = _reNumeroPunto.firstMatch(t);
+  if (m != null) {
+    int numDetectado = int.tryParse(m.group(1)!) ?? (numeroPorDefecto ?? 0);
+    String sub = m.group(2)!.trim();
+    return PartesTitulo(
+      etiqueta: 'Capítulo $numDetectado',
+      subtitulo: sub.isNotEmpty ? sub : null,
+      tituloCompleto: sub.isNotEmpty ? 'Capítulo $numDetectado: $sub' : 'Capítulo $numDetectado',
+    );
+  }
+
   // Título sin prefijo de capítulo (ej. "El Juramento" o "Historia corta...")
   String etiqueta = numeroPorDefecto != null ? 'Capítulo $numeroPorDefecto' : t;
   return PartesTitulo(
@@ -175,6 +224,7 @@ void clasificarYRenumerarCapitulos(List<Chapter> capitulos, {int startNum = 1, S
   int totalPrologos = 0;
   int totalEpilogos = 0;
   int totalAutores = 0;
+  int totalTraductores = 0;
   int totalInterludios = 0;
 
   for (var cap in capitulos) {
@@ -182,12 +232,14 @@ void clasificarYRenumerarCapitulos(List<Chapter> capitulos, {int startNum = 1, S
     if (tipo == TipoEspecial.prologo) totalPrologos++;
     if (tipo == TipoEspecial.epilogo) totalEpilogos++;
     if (tipo == TipoEspecial.autor) totalAutores++;
+    if (tipo == TipoEspecial.traductor) totalTraductores++;
     if (tipo == TipoEspecial.interludio) totalInterludios++;
   }
 
   int countPrologo = 0;
   int countEpilogo = 0;
   int countAutor = 0;
+  int countTraductor = 0;
   int countInterludio = 0;
   int numeroCapitulo = startNum;
 
@@ -211,6 +263,12 @@ void clasificarYRenumerarCapitulos(List<Chapter> capitulos, {int startNum = 1, S
       cap.archivo = (totalAutores > 1)
           ? 'autor_${countAutor.toString().padLeft(2, '0')}.xhtml'
           : 'autor.xhtml';
+    } else if (tipo == TipoEspecial.traductor) {
+      countTraductor++;
+      cap.plantillaNombre = 'traductor.xhtml';
+      cap.archivo = (totalTraductores > 1)
+          ? 'traductor_${countTraductor.toString().padLeft(2, '0')}.xhtml'
+          : 'traductor.xhtml';
     } else if (tipo == TipoEspecial.interludio) {
       countInterludio++;
       cap.plantillaNombre = null; // usa template.xhtml

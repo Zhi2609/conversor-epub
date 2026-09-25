@@ -8,7 +8,7 @@ Aplicación de escritorio **Linux** (Flutter / Dart) que automatiza la limpieza 
 
 - **4 modos de entrada** con detección automática:
   - **Word**: `.docx` → pandoc → HTML, con notas al pie reales de Word
-  - **PDF**: `.pdf` → pdf2docx (vía microservicio Python) → DOCX temporal → HTML
+  - **PDF**: `.pdf` → pdf2docx (vía microservicio embebido en Dart) → DOCX temporal → HTML
   - **Calibre**: carpeta con `.xhtml`/`.html` exportados desde Calibre
   - **Markdown**: carpeta con `.md` (procesado directamente vía pandoc)
 - **Limpieza tipográfica canónica**: máquina de estados de comillas `«»` a todos los
@@ -17,14 +17,23 @@ Aplicación de escritorio **Linux** (Flutter / Dart) que automatiza la limpieza 
   unificación de etiquetas `<strong>`→`<b>`, `<em>`→`<i>`.
 - **Notas al pie** de pandoc y legacy `(NT##)` → `notas_Finales.xhtml` con llamadas
   enlazadas a su capítulo.
+- **Generación automática de Tabla de Contenidos (`contenido-2.xhtml`)**: archivo TOC estructurado en XHTML para ePub (`<section epub:type="toc" role="doc-toc">`), enlazando automáticamente todos los capítulos procesados con sus títulos sincronizados.
+- **Capítulos especiales avanzados y plantillas dedicadas (`assets/Plantillas/`)**:
+  - **Prólogos y Epílogos múltiples**: numerados automáticamente (`prologo_01.xhtml`, `prologo_02.xhtml`, etc.) sin descontar numeración de capítulos normales.
+  - **Interludios**: nombrados semánticamente (`interludio_01.xhtml`, etc.) y renderizados como tales sin forzar la palabra "Capítulo".
+  - **Palabras del Autor**: plantilla `autor.xhtml` (`<section epub:type="afterword">`) reconociendo también "Palabras Finales".
+  - **Palabras del Traductor**: plantilla `traductor.xhtml` (`<section epub:type="conclusion">`) reconociendo "Palabras del traductor" y "Notas del traductor".
+  - **Capítulos e Historias Extras**: integrados de forma continua con numeración regular `C0X.xhtml`.
+- **Desduplicación y parsing inteligente de títulos**:
+  - Elimina prefijos repetidos en el cuerpo (evita `"Capítulo 1: Capítulo 1: Subtítulo"`).
+  - Soporte para formatos numéricos directos como `0. Una Oferta Dudosa` o `2: Palacio Real`.
 - **Imágenes** (pandoc, `[IMAGEN N]`, `!\ImageN\`) → `<figure>` con `sigil_split_marker`.
 - **Separadores** `[HR]`/`[SEPARADOR]` → `※ ・ ※ ・ ※`.
-- **Auto-splitter** por `<h1>/<h2>/<h3>` con tabla editable de títulos en la GUI.
-- **Capítulos especiales sin numeración** (Prólogo, Epílogo, Palabras del autor) con plantillas independientes (`assets/Plantillas/`).
+- **Auto-splitter** por `<h1>/<h2>/<h3>` con tabla interactiva de títulos en la GUI (permite editar títulos y eliminar capítulos puntuales por fila).
 - **GUI moderna en Flutter** con visor de diferencias antes/después, dashboard con badges de color
   individuales (capítulos, notas, imágenes, separadores) y tema oscuro Catppuccin.
 - **Drop zone** con borde discontinuo para arrastrar archivos o carpetas.
-- **Suite de pruebas**: Tests (incluyendo Fuzzing con 5.000 iteraciones) traducidos completamente a Dart garantizan la pureza y fidelidad del comportamiento de limpieza heredado.
+- **Suite de pruebas**: Batería exhaustiva de tests unitarios y fuzzing de 5.000 documentos aleatorios en Dart (`flutter test`) que garantizan 100% de paridad y robustez.
 
 ## Instalación
 
@@ -61,7 +70,7 @@ cd app_flutter
 flutter build linux
 ```
 
-Una vez compilada, Flutter generará un ejecutable en:
+Una vez compilada, Flutter generará el bundle ejecutable en:
 `build/linux/x64/release/bundle/ConversorEpubs`
 
 ### Compilar para Windows
@@ -80,7 +89,7 @@ Si deseas compilar la aplicación para ejecutarla en un sistema Windows:
 El archivo `.exe` se generará en la carpeta `build/windows/runner/Release/`.
 
 > **DISTRIBUCIÓN Y PORTABILIDAD:**  
-> La aplicación es **100% autónoma y portable**. Todas las plantillas XHTML (`template.xhtml`, `prologo.xhtml`, etc.) están empaquetadas como assets nativos de Flutter dentro del bundle compilado, y el microservicio de conversión de PDF está embebido directamente en el binario de Dart.
+> La aplicación es **100% autónoma y portable**. Todas las plantillas XHTML (`template.xhtml`, `prologo.xhtml`, `epilogo.xhtml`, `autor.xhtml`, `traductor.xhtml`) están empaquetadas como assets nativos de Flutter dentro del binario compilado, y el microservicio de conversión de PDF está embebido directamente en el código de Dart.  
 > Para compartir la aplicación, solo necesitas comprimir en un `.zip` la carpeta `build/linux/x64/release/bundle/` (o la carpeta `Release/` en Windows). El usuario final solo necesita tener `pandoc` y `python` con `pdf2docx` en su sistema.
 
 ## Estructura del Proyecto
@@ -88,17 +97,20 @@ El archivo `.exe` se generará en la carpeta `build/windows/runner/Release/`.
 ```text
 conversor-epub/
 ├── app_flutter/              # Proyecto principal en Flutter/Dart
-│   ├── lib/                  # Código fuente (UI y motor core)
-│   ├── test/                 # Suite de pruebas unitarias
-│   ├── linux/                # Archivos de build nativo para Linux
-│   └── pubspec.yaml          # Dependencias de Dart
-├── assets/                   # Recursos estáticos
-│   ├── Plantillas/           # Plantillas para capítulos especiales (prologo, etc.)
-│   └── Conv_Xhtml/           # Template central (template.xhtml)
-├── convertidor_pdf.py        # Microservicio diminuto en Python (sólo para PDF)
+│   ├── lib/                  # Código fuente (UI y motor core en Dart puro)
+│   │   ├── main.dart         # Punto de entrada de la aplicación
+│   │   ├── ui/               # Interfaz gráfica (home_screen.dart)
+│   │   └── motor/            # Lógica pura (limpieza, plantillas, render, etc.)
+│   ├── assets/               # Plantillas empaquetadas nativamente en el ejecutable
+│   │   ├── Plantillas/       # prologo.xhtml, epilogo.xhtml, autor.xhtml, traductor.xhtml
+│   │   └── Conv_Xhtml/       # template.xhtml
+│   ├── test/                 # Suite de pruebas unitarias y fuzzing de comillas
+│   ├── linux/                # Configuración de compilación nativa Linux
+│   └── pubspec.yaml          # Metadatos y dependencias de la aplicación
+├── assets/                   # Recursos estáticos de referencia
 ├── AGENTS.md                 # Especificación técnica y comportamiento canónico
 ├── Requisitos.md             # Especificación funcional
-└── CHANGELOG.md              # Registro de cambios
+└── CHANGELOG.md              # Registro cronológico detallado de cambios
 ```
 
 ## Pruebas (Tests)
