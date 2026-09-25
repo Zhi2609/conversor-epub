@@ -15,6 +15,39 @@ String _reemplazoImagen(Match match) {
       '<hr class="sigil_split_marker" />';
 }
 
+final _reHrDuplicados = RegExp(
+  r'(<hr\s+class="sigil_split_marker"\s*/?>)(\s*(?:<!--.*?-->\s*)*<hr\s+class="sigil_split_marker"\s*/?>)+',
+  caseSensitive: false,
+);
+
+String limpiarHrDuplicados(String html) {
+  return html.replaceAll(_reHrDuplicados, r'$1');
+}
+
+final _reFiguraImg = RegExp(
+  r'<figure[^>]*>\s*<img\b[^>]*src="[^"]*?(?:Images/|image0*)(\d+)\.[a-zA-Z]+"[^>]*>\s*</figure>',
+  caseSensitive: false,
+);
+
+String? extraerPrimeraImagen(String html) {
+  final match = _reFiguraImg.firstMatch(html);
+  if (match != null) {
+    int num = int.tryParse(match.group(1)!) ?? 1;
+    return num.toString().padLeft(2, '0');
+  }
+  final matchTag = _reImagenTag.firstMatch(html);
+  if (matchTag != null) {
+    int num = int.tryParse(matchTag.group(1)!) ?? 1;
+    return num.toString().padLeft(2, '0');
+  }
+  final matchPandoc = _reImgPandoc.firstMatch(html);
+  if (matchPandoc != null) {
+    int num = int.tryParse(matchPandoc.group(1)!) ?? 1;
+    return num.toString().padLeft(2, '0');
+  }
+  return null;
+}
+
 typedef ProcesarResult = ({String html, int count});
 
 ProcesarResult procesarImagenes(String html) {
@@ -27,6 +60,7 @@ ProcesarResult procesarImagenes(String html) {
   html = html.replaceAllMapped(_reImgPandoc, reemplazo);
   html = html.replaceAllMapped(_reImagenTagP, reemplazo);
   html = html.replaceAllMapped(_reImagenTag, reemplazo);
+  html = limpiarHrDuplicados(html);
   return (html: html, count: contador);
 }
 

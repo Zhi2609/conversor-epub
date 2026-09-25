@@ -2,16 +2,66 @@ import 'dart:io';
 import 'modelo.dart' show Nota, Chapter;
 import 'notas.dart' show formatearNota;
 import 'plantillas.dart' show descomponerTitulo;
+import 'imagenes.dart' show limpiarHrDuplicados;
 
 final _reMarcadorContenido = RegExp(r'<!--\s*Aquí va el contenido\s*-->(.*?)</section>', dotAll: true, caseSensitive: false);
 
-String renderCapitulo(String template, String titulo, int num, String cuerpo) {
+final _reComentarioFigureConHeader = RegExp(
+  r'<!--Si usa figure,.*?'
+  r'(<h1 class="oculto".*?</header>)'
+  r'\s*-->\s*'
+  r'(<header>.*?</header>)',
+  dotAll: true,
+  caseSensitive: false,
+);
+
+final _reCualquierComentarioFigure = RegExp(
+  r'<!--Si usa figure,.*?-->\s*',
+  dotAll: true,
+  caseSensitive: false,
+);
+
+String _aplicarCabeceraFigura(String html, bool tituloEsImagen, String? numeroImagenTitulo) {
+  if (tituloEsImagen) {
+    final numImg = numeroImagenTitulo ?? '02';
+    html = html.replaceAllMapped(_reComentarioFigureConHeader, (m) {
+      String bloque = m.group(1)!;
+      return bloque.replaceAll(RegExp(r'\.\./Images/\d+\.jpg', caseSensitive: false), '../Images/$numImg.jpg');
+    });
+  } else {
+    html = html.replaceAll(_reCualquierComentarioFigure, '');
+  }
+  return html;
+}
+
+String _absorberPrimeraFigura(String cuerpo, bool tituloEsImagen, String? numeroImagenTitulo) {
+  if (!tituloEsImagen) return cuerpo;
+  final numImg = numeroImagenTitulo ?? r'\d+';
+  final rePrimeraFigura = RegExp(
+    '^\\s*(?:<hr\\s+class="sigil_split_marker"\\s*/?>\\s*)?'
+    '<figure class="dimg"><img\\b[^>]*src="[^"]*?(?:Images/|image0*)$numImg\\.[^"]*"[^>]*></figure>'
+    '\\s*(?:<hr\\s+class="sigil_split_marker"\\s*/?>)?',
+    caseSensitive: false,
+  );
+  return cuerpo.replaceFirst(rePrimeraFigura, '');
+}
+
+String renderCapitulo(
+  String template,
+  String titulo,
+  int num,
+  String cuerpo, {
+  bool tituloEsImagen = false,
+  String? numeroImagenTitulo,
+}) {
   final partes = descomponerTitulo(titulo, numeroPorDefecto: num);
   final tituloCompleto = (partes.subtitulo != null && partes.subtitulo!.isNotEmpty)
       ? '${partes.etiqueta}: ${partes.subtitulo}'
       : partes.etiqueta;
 
-  String html = template;
+  String html = _aplicarCabeceraFigura(template, tituloEsImagen, numeroImagenTitulo);
+  cuerpo = _absorberPrimeraFigura(cuerpo, tituloEsImagen, numeroImagenTitulo);
+
   html = html.replaceAll('Capítulo X: Título del capítulo', tituloCompleto);
   html = html.replaceAll('Capítulo X', partes.etiqueta);
 
@@ -22,10 +72,18 @@ String renderCapitulo(String template, String titulo, int num, String cuerpo) {
     html = html.replaceAll('Título del capítulo', '');
   }
 
-  return html.replaceAll('{{CONTENIDO}}', cuerpo.trim());
+  html = html.replaceAll('{{CONTENIDO}}', cuerpo.trim());
+  return limpiarHrDuplicados(html);
 }
 
-String renderCapituloEspecial(String template, String titulo, int num, String cuerpo) {
+String renderCapituloEspecial(
+  String template,
+  String titulo,
+  int num,
+  String cuerpo, {
+  bool tituloEsImagen = false,
+  String? numeroImagenTitulo,
+}) {
   final match = _reMarcadorContenido.firstMatch(template);
   if (match == null) {
     throw Exception('La plantilla especial no tiene el marcador <!-- Aquí va el contenido -->');
@@ -36,7 +94,15 @@ String renderCapituloEspecial(String template, String titulo, int num, String cu
       ? '${partes.etiqueta}: ${partes.subtitulo}'
       : partes.etiqueta;
 
-  String html = template.replaceRange(match.start, match.end, '<!-- Aquí va el contenido -->\n${cuerpo.trim()}\n  </section>');
+  String html = _aplicarCabeceraFigura(template, tituloEsImagen, numeroImagenTitulo);
+  cuerpo = _absorberPrimeraFigura(cuerpo, tituloEsImagen, numeroImagenTitulo);
+
+  final matchActualizado = _reMarcadorContenido.firstMatch(html) ?? match;
+  html = html.replaceRange(
+    matchActualizado.start,
+    matchActualizado.end,
+    '<!-- Aquí va el contenido -->\n${cuerpo.trim()}\n  </section>',
+  );
 
   if (partes.esPrologo) {
     html = html.replaceAll('Prólogo: Título del capítulo', tituloCompleto);

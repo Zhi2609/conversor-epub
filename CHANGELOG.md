@@ -346,3 +346,16 @@ Las nuevas entradas se añaden al final de cada sesión de trabajo.
 - **Soporte de Prefijos Numéricos**: Añadida la expresión regular `_reNumeroPunto` en `descomponerTitulo` para reconocer títulos como `0. Una Oferta Dudosa` o `2: Palacio Real`, separando el número del subtítulo de forma limpia y evitando duplicaciones.
 - **Tests y Análisis**: Añadidos tests unitarios para `traductor.xhtml` y numeración por puntos en `comillas_test.dart` (23/23 tests pasando). `flutter analyze` 0 warnings/errores y compilación nativa en `build/linux/x64/release/bundle/ConversorEpubs` exitosa.
 
+---
+## 25 de Septiembre de 2026
+
+      11:05 — Deduplicación Canónica de `<hr>` (sigil_split_marker) y Título con Imagen
+- **Deduplicación de `<hr>`**: Se implementó `limpiarHrDuplicados` en `imagenes.dart` y `render.dart`, colapsando de forma canónica cualquier secuencia de `<hr class="sigil_split_marker" />` contiguos (tanto entre figuras consecutivas como en la frontera de inyección entre plantilla y contenido).
+- **Soporte de Título con Imagen (`tituloEsImagen`)**:
+  - En capítulos normales (`tituloEsImagen == false`), se elimina automáticamente el bloque de comentarios `<!--Si usa figure...-->` de la plantilla, produciendo archivos XHTML limpios y sin comentarios residuales.
+  - En capítulos con título en imagen (`tituloEsImagen == true`), se descomenta y activa el encabezado con `<h1 class="oculto">` y `<figure class="dimg"><img src="../Images/{NUM}.jpg" alt="" /></figure>`, preservando el `<header>` con clase `sigil_not_in_toc`.
+  - Absorbe la figura inicial del cuerpo si coincide con la imagen del título para evitar su repetición.
+- **Integración en la GUI (`home_screen.dart`)**: Añadido un botón interactivo con ícono de imagen en cada fila de la lista de capítulos para alternar "Título con imagen", sugiriendo automáticamente el número de la primera imagen encontrada en el capítulo y permitiendo editarlo con un diálogo modal.
+- **Tests y Calidad**: Añadidas pruebas unitarias en `comillas_test.dart` verificando la deduplicación de `<hr>` y la transformación de la cabecera (26/26 tests pasando). `flutter analyze` limpio sin advertencias y compilación nativa exitosa en `build/linux/x64/release/bundle/ConversorEpubs`.
+
+

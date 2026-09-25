@@ -5,6 +5,8 @@ class Chapter {
   String? archivo;
   String? plantillaRuta;
   String? plantillaNombre;
+  bool tituloEsImagen;
+  String? numeroImagenTitulo;
 
   Chapter({
     required this.titulo,
@@ -13,6 +15,8 @@ class Chapter {
     this.archivo,
     this.plantillaRuta,
     this.plantillaNombre,
+    this.tituloEsImagen = false,
+    this.numeroImagenTitulo,
   });
 }
 

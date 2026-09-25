@@ -4,6 +4,7 @@ import 'package:conversor_epub/motor/limpieza.dart';
 import 'package:conversor_epub/motor/plantillas.dart';
 import 'package:conversor_epub/motor/render.dart';
 import 'package:conversor_epub/motor/modelo.dart';
+import 'package:conversor_epub/motor/imagenes.dart';
 
 void main() {
   group('TestComillasCanonicas', () {
@@ -309,6 +310,111 @@ void main() {
       expect(res.contains('<title>Palabras del Traductor</title>'), isTrue);
       expect(res.contains('<p>Gracias por leer.</p>'), isTrue);
       expect(res.contains('</section>'), isTrue);
+    });
+
+    test('limpiarHrDuplicados y procesarImagenes no generan hr repetidos', () {
+      const htmlConDuplicados = '''
+<figure class="dimg"><img src="../Images/05.jpg" alt=""/></figure>
+<hr class="sigil_split_marker" />
+<hr class="sigil_split_marker" />
+<figure class="dimg"><img src="../Images/06.jpg" alt=""/></figure>
+<hr class="sigil_split_marker" />
+<!--Aqui va el contenido-->
+<hr class="sigil_split_marker" />
+''';
+      final limpio = limpiarHrDuplicados(htmlConDuplicados);
+      expect(limpio.contains('<hr class="sigil_split_marker" />\n<hr class="sigil_split_marker" />'), isFalse);
+      expect(limpio.contains('<hr class="sigil_split_marker" />\n<!--Aqui va el contenido-->\n<hr class="sigil_split_marker" />'), isFalse);
+
+      final imgProc = procesarImagenes('<p>[IMAGEN 5]</p>\n<p>[IMAGEN 6]</p>');
+      expect(imgProc.html.contains('<hr class="sigil_split_marker" />\n<hr class="sigil_split_marker" />'), isFalse);
+      expect(imgProc.count, 2);
+    });
+
+    test('renderCapitulo con tituloEsImagen false limpia comentario de figure', () {
+      const template = '''
+<section epub:type="chapter" role="doc-chapter" id="chapter">
+<!--Si usa figure, colocar un título oculto antes del figure
+    <h1 class="oculto" title="Capítulo X: Título del capítulo"></h1>
+    <figure class="dimg"><img src="../Images/02.jpg" alt="" /></figure>
+<hr class="sigil_split_marker" />
+    <header>
+      <h1 class="sigil_not_in_toc"><i>Capítulo X</i>
+        <br/><span class="versalita"><i>Título del capítulo</i></span>
+      </h1>
+    </header>
+ -->
+    <header>
+      <h1 title="Capítulo X: Título del capítulo"><i>Capítulo X</i>
+        <br/><span class="versalita"><i>Título del capítulo</i></span>
+      </h1>
+    </header>
+    <!--Aqui va el contenido-->
+    {{CONTENIDO}}
+</section>
+''';
+
+      final res = renderCapitulo(template, 'Capítulo 1: De Encantador a Espadachín', 1, '<p>Hola</p>', tituloEsImagen: false);
+
+      expect(res.contains('<!--Si usa figure'), isFalse);
+      expect(res.contains('<h1 title="Capítulo 1: De Encantador a Espadachín"><i>Capítulo 1</i>'), isTrue);
+      expect(res.contains('<h1 class="oculto"'), isFalse);
+    });
+
+    test('renderCapitulo con tituloEsImagen true descomenta cabecera, preserva header y absorbe figura', () {
+      const template = '''
+<section epub:type="chapter" role="doc-chapter" id="chapter">
+<!--Si usa figure, colocar un título oculto antes del figure
+    <h1 class="oculto" title="Capítulo X: Título del capítulo"></h1>
+    <figure class="dimg"><img src="../Images/02.jpg" alt="" /></figure>
+<hr class="sigil_split_marker" />
+    <header>
+      <h1 class="sigil_not_in_toc"><i>Capítulo X</i>
+        <br/><span class="versalita"><i>Título del capítulo</i></span>
+      </h1>
+    </header>
+ -->
+    <header>
+      <h1 title="Capítulo X: Título del capítulo"><i>Capítulo X</i>
+        <br/><span class="versalita"><i>Título del capítulo</i></span>
+      </h1>
+    </header>
+    <!--Aqui va el contenido-->
+    {{CONTENIDO}}
+</section>
+''';
+
+      const cuerpoConImagenes = '''
+<hr class="sigil_split_marker" />
+<figure class="dimg"><img src="../Images/07.jpg" alt=""/></figure>
+<hr class="sigil_split_marker" />
+<figure class="dimg"><img src="../Images/08.jpg" alt=""/></figure>
+<hr class="sigil_split_marker" />
+<p>Texto</p>
+''';
+
+      final res = renderCapitulo(
+        template,
+        'Capítulo 1: La Melancolía de una Maestra (#47.5)',
+        1,
+        cuerpoConImagenes,
+        tituloEsImagen: true,
+        numeroImagenTitulo: '07',
+      );
+
+      // Tiene h1 oculto con el título completo
+      expect(res.contains('<h1 class="oculto" title="Capítulo 1: La Melancolía de una Maestra (#47.5)"></h1>'), isTrue);
+      // Tiene la figura del título con la imagen 07.jpg
+      expect(res.contains('<figure class="dimg"><img src="../Images/07.jpg" alt="" /></figure>'), isTrue);
+      // Conserva el header visible con sigil_not_in_toc
+      expect(res.contains('<h1 class="sigil_not_in_toc"><i>Capítulo 1</i>'), isTrue);
+      expect(res.contains('<span class="versalita"><i>La Melancolía de una Maestra (#47.5)</i></span>'), isTrue);
+      // 07.jpg fue absorbida de la cabecera del cuerpo y no se repite dos veces
+      final count07 = RegExp(r'07\.jpg').allMatches(res).length;
+      expect(count07, 1);
+      // No hay hr dobles pegados
+      expect(res.contains('<hr class="sigil_split_marker" />\n<hr class="sigil_split_marker" />'), isFalse);
+      expect(res.contains('<hr class="sigil_split_marker" />\n<!--Aqui va el contenido-->\n<hr class="sigil_split_marker" />'), isFalse);
     });
   });
 }

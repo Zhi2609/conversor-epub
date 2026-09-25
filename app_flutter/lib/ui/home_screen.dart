@@ -10,6 +10,7 @@ import '../motor/adaptadores.dart';
 import '../motor/render.dart';
 import '../motor/plantillas.dart';
 import '../motor/notas.dart';
+import '../motor/imagenes.dart' show extraerPrimeraImagen;
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -191,6 +192,147 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  Future<void> _toggleTituloImagen(int index) async {
+    if (_resultado == null || index >= _resultado!.capitulos.length) return;
+    final cap = _resultado!.capitulos[index];
+
+    if (!cap.tituloEsImagen) {
+      String sugerencia = cap.numeroImagenTitulo ??
+          extraerPrimeraImagen(cap.htmlCuerpo) ??
+          extraerPrimeraImagen(cap.htmlRaw) ??
+          '02';
+
+      final controlador = TextEditingController(text: sugerencia);
+      final resultado = await showDialog<String>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: const Color(0xFF1E1E2E),
+          title: const Text('Título con Imagen', style: TextStyle(color: Color(0xFFCDD6F4), fontSize: 16)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Capítulo: ${cap.titulo}',
+                style: const TextStyle(color: Color(0xFFA6ADC8), fontSize: 13),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Número de la imagen (ej: 02, 07):',
+                style: TextStyle(color: Color(0xFFCDD6F4), fontSize: 13),
+              ),
+              const SizedBox(height: 6),
+              TextField(
+                controller: controlador,
+                autofocus: true,
+                style: const TextStyle(color: Color(0xFFCDD6F4)),
+                decoration: InputDecoration(
+                  hintText: '02',
+                  prefixText: '../Images/',
+                  suffixText: '.jpg',
+                  isDense: true,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, null),
+              child: const Text('Cancelar', style: TextStyle(color: Color(0xFF6C7086))),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, controlador.text.trim()),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF89B4FA),
+                foregroundColor: const Color(0xFF1E1E2E),
+              ),
+              child: const Text('Aceptar'),
+            ),
+          ],
+        ),
+      );
+
+      if (resultado != null && resultado.isNotEmpty) {
+        setState(() {
+          cap.tituloEsImagen = true;
+          cap.numeroImagenTitulo = resultado.padLeft(2, '0');
+        });
+      }
+    } else {
+      final accion = await showDialog<String>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: const Color(0xFF1E1E2E),
+          title: const Text('Título con Imagen', style: TextStyle(color: Color(0xFFCDD6F4), fontSize: 16)),
+          content: Text(
+            'Actualmente usa "../Images/${cap.numeroImagenTitulo ?? "02"}.jpg" como título.',
+            style: const TextStyle(color: Color(0xFFA6ADC8), fontSize: 13),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, 'desactivar'),
+              child: const Text('Desactivar imagen', style: TextStyle(color: Color(0xFFF38BA8))),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, 'editar'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF89B4FA),
+                foregroundColor: const Color(0xFF1E1E2E),
+              ),
+              child: const Text('Cambiar número'),
+            ),
+          ],
+        ),
+      );
+
+      if (accion == 'desactivar') {
+        setState(() {
+          cap.tituloEsImagen = false;
+        });
+      } else if (accion == 'editar' && mounted) {
+        final controlador = TextEditingController(text: cap.numeroImagenTitulo ?? '02');
+        final nuevoNum = await showDialog<String>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            backgroundColor: const Color(0xFF1E1E2E),
+            title: const Text('Cambiar Número de Imagen', style: TextStyle(color: Color(0xFFCDD6F4), fontSize: 16)),
+            content: TextField(
+              controller: controlador,
+              autofocus: true,
+              style: const TextStyle(color: Color(0xFFCDD6F4)),
+              decoration: InputDecoration(
+                prefixText: '../Images/',
+                suffixText: '.jpg',
+                isDense: true,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, null),
+                child: const Text('Cancelar', style: TextStyle(color: Color(0xFF6C7086))),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(ctx, controlador.text.trim()),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF89B4FA),
+                  foregroundColor: const Color(0xFF1E1E2E),
+                ),
+                child: const Text('Guardar'),
+              ),
+            ],
+          ),
+        );
+        if (nuevoNum != null && nuevoNum.isNotEmpty) {
+          setState(() {
+            cap.numeroImagenTitulo = nuevoNum.padLeft(2, '0');
+          });
+        }
+      }
+    }
+  }
+
   void _validarConteo() {
     if (_resultado == null) return;
     int esperados = _resultado!.capitulos.length;
@@ -242,9 +384,23 @@ class _HomeScreenState extends State<HomeScreen> {
             nombreEspecial: cap.plantillaNombre,
             rutaDisco: cap.plantillaRuta,
           );
-          htmlFinal = renderCapituloEspecial(plantillaEspecial, titulo, numero, cap.htmlCuerpo);
+          htmlFinal = renderCapituloEspecial(
+            plantillaEspecial,
+            titulo,
+            numero,
+            cap.htmlCuerpo,
+            tituloEsImagen: cap.tituloEsImagen,
+            numeroImagenTitulo: cap.numeroImagenTitulo,
+          );
         } else {
-          htmlFinal = renderCapitulo(plantilla, titulo, numero, cap.htmlCuerpo);
+          htmlFinal = renderCapitulo(
+            plantilla,
+            titulo,
+            numero,
+            cap.htmlCuerpo,
+            tituloEsImagen: cap.tituloEsImagen,
+            numeroImagenTitulo: cap.numeroImagenTitulo,
+          );
         }
         
         File(p.join(salida, archivo)).writeAsStringSync(htmlFinal);
@@ -431,6 +587,23 @@ class _HomeScreenState extends State<HomeScreen> {
                                               ),
                                             ),
                                           ),
+                                          if (_resultado != null && index < _resultado!.capitulos.length) ...[
+                                            const SizedBox(width: 4),
+                                            IconButton(
+                                              icon: Icon(
+                                                _resultado!.capitulos[index].tituloEsImagen ? Icons.image : Icons.image_outlined,
+                                                size: 16,
+                                              ),
+                                              color: _resultado!.capitulos[index].tituloEsImagen ? const Color(0xFF89B4FA) : const Color(0xFF6C7086),
+                                              tooltip: _resultado!.capitulos[index].tituloEsImagen
+                                                  ? 'Título con imagen (${_resultado!.capitulos[index].numeroImagenTitulo ?? "02"})\nClick para cambiar número o desactivar'
+                                                  : 'El título es una imagen (click para activar)',
+                                              splashRadius: 14,
+                                              constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                                              padding: EdgeInsets.zero,
+                                              onPressed: () => _toggleTituloImagen(index),
+                                            ),
+                                          ],
                                           const SizedBox(width: 4),
                                           IconButton(
                                             icon: const Icon(Icons.close, size: 16),
