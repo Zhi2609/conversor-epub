@@ -1,0 +1,13 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Conversor ePub
+GenericName=Conversor de ePub
+Comment=Limpieza tipográfica y maquetación de manuscritos para ePubs
+Exec=/home/zhi/Documentos/conversor-epub/app_flutter/build/linux/x64/release/bundle/ConversorEpubs %u
+Icon=com.conversorepub.app
+Terminal=false
+StartupWMClass=com.conversorepub.app
+Categories=Office;Publishing;Utility;
+Keywords=epub;conversor;maquetacion;libros;
+MimeType=application/vnd.openxmlformats-officedocument.wordprocessingml.document;application/pdf;text/markdown;application/xhtml+xml;

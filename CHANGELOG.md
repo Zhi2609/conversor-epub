@@ -386,4 +386,24 @@ Las nuevas entradas se añaden al final de cada sesión de trabajo.
   - Añadido test unitario de regresión en `comillas_test.dart` reproduciendo el caso exacto (27/27 tests pasando).
   - `flutter analyze` reporta 0 incidencias y compilación de release exitosa en `build/linux/x64/release/bundle/ConversorEpubs`.
 
+---
+## 29 de Septiembre de 2026
+
+      09:55 — Detección Inteligente de PDF (`pdf2docx`), Fallback NixOS e Integración de Ícono en Wayland
+- **Detección Inteligente y Fallback de PDF (`adaptadores.dart`)**:
+  - Implementada la función `_ejecutarConversionPython` que busca dinámicamente intérpretes candidatos (`.venv/bin/python3`, `.venv/bin/python`, `python3`, `python`).
+  - Si el `python3` global no contiene `pdf2docx` y el sistema operativo es NixOS (`which nix-shell`), delega automáticamente la conversión a `nix-shell -p python3Packages.pdf2docx`, resolviendo la dependencia de forma transparente sin requerir instalación manual.
+  - Si no se encuentra ningún entorno compatible, arroja una excepción amigable con las instrucciones exactas de instalación según la plataforma (Windows, Linux o NixOS) en lugar de una traza técnica bruta.
+- **Entorno Declarativo Nix (`shell.nix`)**:
+  - Creado `shell.nix` en la raíz del proyecto configurado con `flutter`, `pandoc`, `pkg-config`, `gtk3` y `python3Packages.pdf2docx`.
+- **Integración de Ícono para Wayland y GTK (`my_application.cc`, `com.conversorepub.app.desktop`)**:
+  - Modificado el runner nativo de Linux para asignar explícitamente el ícono de ventana mediante `gtk_window_set_icon_from_file`, resolviendo la ruta del asset `ConversorEpub.png` tanto en el bundle compilado como en desarrollo.
+  - Registrado `assets/ConversorEpub.png` en `pubspec.yaml` para asegurar su empaquetado en el bundle de release.
+  - Creado e instalado el archivo de escritorio `com.conversorepub.app.desktop` con `StartupWMClass=com.conversorepub.app` en `~/.local/share/applications/` y su ícono en el tema de íconos del usuario, permitiendo que KDE Plasma Wayland y otros compositores muestren el ícono y nombre oficial en la barra de tareas y el selector de ventanas.
+- **Verificación**:
+  - `flutter analyze` con 0 advertencias o errores.
+  - `flutter test` con 27/27 pruebas pasando.
+  - Compilación nativa completada exitosamente en `build/linux/x64/release/bundle/ConversorEpubs`.
+
+
 

@@ -1,14 +1,40 @@
 # Entorno Python
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
 .venv/
 venv/
 env/
 .env/
 
-# Salidas generadas del conversor
+# Entorno Nix
+result
+result-*
+
+# Flutter y Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+build/
+
+# Salidas generadas y temporales del conversor
 Capitulos/
 Conv_Xhtml/Capitulos/
 Conv_Xhtml/NovelaMD/
 temp.docx
+temp_*.docx
+temp_*.py
+temp_*.md
 temp_md.md
+*.tmp
+
+# Editores y Sistemas Operativos
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db

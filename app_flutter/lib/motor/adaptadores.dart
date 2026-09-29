@@ -48,10 +48,67 @@ if __name__ == '__main__':
         sys.exit(1)
 ''';
 
+Future<ProcessResult> _ejecutarConversionPython(String rutaPdf, String rutaSalidaDocx) async {
+  final tempScript = File(p.join(Directory.systemTemp.path, 'temp_pdf2docx_${DateTime.now().millisecondsSinceEpoch}.py'));
+  tempScript.writeAsStringSync(_scriptPythonPdf);
+
+  try {
+    // 1. Probar intérpretes candidatos directos (.venv o python del sistema)
+    final candidatos = <String>[];
+    if (Platform.isWindows) {
+      candidatos.addAll(['.venv\\Scripts\\python.exe', 'python']);
+    } else {
+      candidatos.addAll(['.venv/bin/python3', '.venv/bin/python', 'python3', 'python']);
+    }
+
+    for (final cmd in candidatos) {
+      try {
+        final resTest = await Process.run(cmd, ['-c', 'import pdf2docx']);
+        if (resTest.exitCode == 0) {
+          final res = await Process.run(cmd, [tempScript.path, rutaPdf, rutaSalidaDocx]);
+          if (res.exitCode == 0) return res;
+        }
+      } catch (_) {
+        // Continuar al siguiente candidato
+      }
+    }
+
+    // 2. Si es Linux/NixOS, probar nix-shell con python3Packages.pdf2docx
+    if (!Platform.isWindows) {
+      try {
+        final resWhich = await Process.run('which', ['nix-shell']);
+        if (resWhich.exitCode == 0) {
+          final resNix = await Process.run('nix-shell', [
+            '-p',
+            'python3Packages.pdf2docx',
+            '--run',
+            'python3 "${tempScript.path}" "$rutaPdf" "$rutaSalidaDocx"',
+          ]);
+          if (resNix.exitCode == 0) return resNix;
+        }
+      } catch (_) {
+        // Ignorar fallo de nix-shell
+      }
+    }
+
+    // 3. Si ninguno tuvo éxito, lanzar mensaje de error claro y explicativo
+    throw Exception(
+      'Para convertir archivos PDF se requiere la librería "pdf2docx".\n\n'
+      'Solución según tu sistema operativo:\n'
+      '• En Linux (Ubuntu/Debian/Fedora): ejecuta `pip install pdf2docx`\n'
+      '• En NixOS: ejecuta la app con `nix-shell -p python3Packages.pdf2docx` o añade el paquete a tu configuración\n'
+      '• En Windows: ejecuta `pip install pdf2docx`',
+    );
+  } finally {
+    if (tempScript.existsSync()) {
+      tempScript.deleteSync();
+    }
+  }
+}
+
 Future<String> convertirPdf(String rutaPdf) async {
   final tempDocx = p.join(Directory.systemTemp.path, 'temp_pdf_${DateTime.now().millisecondsSinceEpoch}.docx');
-  final pythonCmd = Platform.isWindows ? 'python' : 'python3';
-  final result = await Process.run(pythonCmd, ['-c', _scriptPythonPdf, rutaPdf, tempDocx]);
+  final result = await _ejecutarConversionPython(rutaPdf, tempDocx);
   if (result.exitCode != 0) {
     throw Exception('Error al convertir PDF: ${result.stderr}');
   }
