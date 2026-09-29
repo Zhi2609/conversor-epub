@@ -143,7 +143,9 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       String modo = detectarModo(ruta);
       setState(() {
-        _mensajeEstado = '🔄 Procesando ($modo)...';
+        _mensajeEstado = modo == 'pdf'
+            ? '🔄 Convirtiendo páginas del PDF...'
+            : '🔄 Procesando ($modo)...';
       });
 
       String? plantillas = Directory(rutaPlantillasDefecto).existsSync() ? rutaPlantillasDefecto : null;
@@ -820,15 +822,37 @@ class _HomeScreenState extends State<HomeScreen> {
                                       ),
                                     ),
                                     const SizedBox(height: 4),
-                                    Text(
-                                      _mensajeEstado.startsWith('✅') ? '[Listo]' : _mensajeEstado,
-                                      style: TextStyle(
-                                        color: _mensajeEstado.startsWith('❌')
-                                            ? const Color(0xFFF38BA8)
-                                            : const Color(0xFFA6E3A1),
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.bold,
-                                      ),
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        if (_mensajeEstado.startsWith('🔄')) ...[
+                                          const SizedBox(
+                                            width: 10,
+                                            height: 10,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 1.5,
+                                              color: Color(0xFF89B4FA),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 6),
+                                        ],
+                                        Flexible(
+                                          child: Text(
+                                            _mensajeEstado.startsWith('✅') ? '[Listo]' : _mensajeEstado,
+                                            textAlign: TextAlign.center,
+                                            style: TextStyle(
+                                              color: _mensajeEstado.startsWith('❌')
+                                                  ? const Color(0xFFF38BA8)
+                                                  : _mensajeEstado.startsWith('🔄')
+                                                      ? const Color(0xFF89B4FA)
+                                                      : const Color(0xFFA6E3A1),
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ],
                                 ],

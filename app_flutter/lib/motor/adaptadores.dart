@@ -65,8 +65,7 @@ Future<ProcessResult> _ejecutarConversionPython(String rutaPdf, String rutaSalid
       try {
         final resTest = await Process.run(cmd, ['-c', 'import pdf2docx']);
         if (resTest.exitCode == 0) {
-          final res = await Process.run(cmd, [tempScript.path, rutaPdf, rutaSalidaDocx]);
-          if (res.exitCode == 0) return res;
+          return await Process.run(cmd, [tempScript.path, rutaPdf, rutaSalidaDocx]);
         }
       } catch (_) {
         // Continuar al siguiente candidato

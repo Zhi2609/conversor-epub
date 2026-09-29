@@ -405,5 +405,14 @@ Las nuevas entradas se añaden al final de cada sesión de trabajo.
   - `flutter test` con 27/27 pruebas pasando.
   - Compilación nativa completada exitosamente en `build/linux/x64/release/bundle/ConversorEpubs`.
 
-
+      14:35 — Indicador de Progreso Visual y Optimización de Ejecución Directa de Python
+- **Optimización de Ejecución Directa (`adaptadores.dart`)**:
+  - `_ejecutarConversionPython` ahora retorna el `ProcessResult` directamente al ejecutar `pdf2docx` con el intérprete `python3` del sistema configurado por el usuario, evitando caídas silenciosas y asegurando que cualquier mensaje de error o stderr se reporte con precisión.
+- **Feedback Visual en la Interfaz (`home_screen.dart`)**:
+  - Añadido un `CircularProgressIndicator` animado dentro del badge de estado de la Dropzone cuando el archivo está en proceso (`🔄`).
+  - Actualizado el mensaje de estado específicamente para archivos PDF a `'🔄 Convirtiendo páginas del PDF...'`, brindando retroalimentación clara durante la conversión de documentos extensos (de más de 200 páginas).
+- **Verificación**:
+  - `flutter test` con 27/27 pruebas pasando.
+  - `flutter analyze` con 0 incidencias.
+  - Compilación nativa completada exitosamente en `build/linux/x64/release/bundle/ConversorEpubs`.
 
