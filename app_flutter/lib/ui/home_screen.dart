@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:desktop_drop/desktop_drop.dart';
@@ -11,6 +12,8 @@ import '../motor/render.dart';
 import '../motor/plantillas.dart';
 import '../motor/notas.dart';
 import '../motor/imagenes.dart' show extraerPrimeraImagen;
+import '../motor/empaquetado.dart';
+import '../motor/ajustes.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -33,6 +36,9 @@ class _HomeScreenState extends State<HomeScreen> {
   final List<TextEditingController> _controladoresTitulos = [];
   final List<FocusNode> _focusNodesTitulos = [];
   String? _mensajeError;
+
+  String _rutaBaseEpub = AjustesApp.obtenerRutaBaseEpub();
+  String? _rutaCarpetaImagenes;
 
   final String rutaTemplateDefecto = '../assets/Conv_Xhtml/template.xhtml';
   final String rutaPlantillasDefecto = '../assets/Plantillas';
@@ -480,91 +486,446 @@ class _HomeScreenState extends State<HomeScreen> {
 
   bool _puedeGenerar() => _resultado != null && _mensajeError == null;
 
-  Future<void> _generar() async {
-    String? salida = await FilePicker.platform.getDirectoryPath(dialogTitle: 'Elige la carpeta de salida');
+  Future<List<ArchivoEpubEntrada>> _prepararArchivosXhtml() async {
+    final plantilla = await _cargarPlantilla();
+    final lista = <ArchivoEpubEntrada>[];
+
+    for (int i = 0; i < _resultado!.capitulos.length; i++) {
+      var cap = _resultado!.capitulos[i];
+      String titulo = _controladoresTitulos[i].text.trim();
+      int num = _startNumActual + i;
+      String archivo = cap.archivo ?? 'C${num.toString().padLeft(2, '0')}.xhtml';
+      int numero = numeroDeArchivo(archivo, num);
+
+      String htmlFinal;
+      if (cap.plantillaNombre != null || cap.plantillaRuta != null) {
+        String plantillaEspecial = await _cargarPlantilla(
+          nombreEspecial: cap.plantillaNombre,
+          rutaDisco: cap.plantillaRuta,
+        );
+        htmlFinal = renderCapituloEspecial(
+          plantillaEspecial,
+          titulo,
+          numero,
+          cap.htmlCuerpo,
+          tituloEsImagen: cap.tituloEsImagen,
+          numeroImagenTitulo: cap.numeroImagenTitulo,
+        );
+      } else {
+        htmlFinal = renderCapitulo(
+          plantilla,
+          titulo,
+          numero,
+          cap.htmlCuerpo,
+          tituloEsImagen: cap.tituloEsImagen,
+          numeroImagenTitulo: cap.numeroImagenTitulo,
+        );
+      }
+
+      lista.add(ArchivoEpubEntrada(nombre: archivo, contenidoHtml: htmlFinal));
+    }
+
+    final titulos = _controladoresTitulos.map((c) => c.text.trim()).toList();
+    final tocHtml = renderTablaContenidos(_resultado!.capitulos, titulos);
+    lista.add(ArchivoEpubEntrada(nombre: 'contenido-2.xhtml', contenidoHtml: tocHtml));
+
+    return lista;
+  }
+
+  Future<void> _generarSoloXhtml() async {
+    String? salida = await FilePicker.platform.getDirectoryPath(dialogTitle: 'Elige la carpeta de salida para los XHTML');
     if (salida == null) return;
 
     try {
       limpiarCarpeta(salida);
-      String plantilla = await _cargarPlantilla();
+      final archivos = await _prepararArchivosXhtml();
 
-      for (int i = 0; i < _resultado!.capitulos.length; i++) {
-        var cap = _resultado!.capitulos[i];
-        String titulo = _controladoresTitulos[i].text.trim();
-        int num = _startNumActual + i;
-        String archivo = cap.archivo ?? 'C${num.toString().padLeft(2, '0')}.xhtml';
-        int numero = numeroDeArchivo(archivo, num);
-
-        String htmlFinal;
-        if (cap.plantillaNombre != null || cap.plantillaRuta != null) {
-          String plantillaEspecial = await _cargarPlantilla(
-            nombreEspecial: cap.plantillaNombre,
-            rutaDisco: cap.plantillaRuta,
-          );
-          htmlFinal = renderCapituloEspecial(
-            plantillaEspecial,
-            titulo,
-            numero,
-            cap.htmlCuerpo,
-            tituloEsImagen: cap.tituloEsImagen,
-            numeroImagenTitulo: cap.numeroImagenTitulo,
-          );
-        } else {
-          htmlFinal = renderCapitulo(
-            plantilla,
-            titulo,
-            numero,
-            cap.htmlCuerpo,
-            tituloEsImagen: cap.tituloEsImagen,
-            numeroImagenTitulo: cap.numeroImagenTitulo,
-          );
-        }
-
-        File(p.join(salida, archivo)).writeAsStringSync(htmlFinal);
+      for (final arch in archivos) {
+        File(p.join(salida, arch.nombre)).writeAsStringSync(arch.contenidoHtml);
       }
 
       if (_resultado!.notas.isNotEmpty) {
-        File(p.join(salida, 'notas_Finales.xhtml')).writeAsStringSync(renderNotas(_resultado!.notas));
+        String plantillaNotas = await _cargarPlantilla(nombreEspecial: 'notas.xhtml');
+        File(p.join(salida, 'notas.xhtml')).writeAsStringSync(renderArchivoNotas(plantillaNotas, _resultado!.notas));
       }
 
-      final titulos = _controladoresTitulos.map((c) => c.text.trim()).toList();
-      File(p.join(salida, 'contenido-2.xhtml')).writeAsStringSync(
-        renderTablaContenidos(_resultado!.capitulos, titulos),
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('✅ Archivos XHTML generados en $salida')));
+    } catch (e) {
+      _mostrarError('Error al generar XHTML: $e');
+    }
+  }
+
+  Future<void> _compilarEpub() async {
+    final nombreBase = _rutaArchivoCargado != null
+        ? '${p.basenameWithoutExtension(_rutaArchivoCargado!)}.epub'
+        : 'Novela.epub';
+
+    String? destino = await FilePicker.platform.saveFile(
+      dialogTitle: 'Guardar ePub compilado',
+      fileName: nombreBase,
+      type: FileType.custom,
+      allowedExtensions: ['epub'],
+    );
+    if (destino == null) return;
+    if (!destino.toLowerCase().endsWith('.epub')) {
+      destino = '$destino.epub';
+    }
+
+    try {
+      final archivosXhtml = await _prepararArchivosXhtml();
+
+      Uint8List bytesBase;
+      if (_rutaBaseEpub.isNotEmpty && File(_rutaBaseEpub).existsSync()) {
+        bytesBase = File(_rutaBaseEpub).readAsBytesSync();
+      } else {
+        final byteData = await rootBundle.load('assets/Base3_v1.15.0.epub');
+        bytesBase = byteData.buffer.asUint8List(byteData.offsetInBytes, byteData.lengthInBytes);
+      }
+
+      final imagenes = <EntradaImagenEpub>[];
+      if (_rutaCarpetaImagenes != null && Directory(_rutaCarpetaImagenes!).existsSync()) {
+        for (final entity in Directory(_rutaCarpetaImagenes!).listSync()) {
+          if (entity is File) {
+            final ext = p.extension(entity.path).toLowerCase();
+            if (['.jpg', '.jpeg', '.png', '.webp', '.gif', '.svg'].contains(ext)) {
+              imagenes.add(EntradaImagenEpub(
+                nombreArchivo: p.basename(entity.path),
+                bytes: entity.readAsBytesSync(),
+              ));
+            }
+          }
+        }
+      }
+
+      final ordenSpine = _resultado!.capitulos.map((c) => c.archivo ?? 'C01.xhtml').toList();
+      final entradasToc = [
+        for (int i = 0; i < _resultado!.capitulos.length; i++)
+          (
+            archivo: _resultado!.capitulos[i].archivo ?? 'C01.xhtml',
+            titulo: _controladoresTitulos[i].text.trim().isNotEmpty
+                ? _controladoresTitulos[i].text.trim()
+                : _resultado!.capitulos[i].titulo,
+          )
+      ];
+
+      final contenidoNotas = _resultado!.notas.isNotEmpty ? renderNotas(_resultado!.notas) : null;
+
+      final res = empaquetarEpub(
+        bytesBaseEpub: bytesBase,
+        capitulosYEspeciales: archivosXhtml,
+        ordenSpine: ordenSpine,
+        entradasToc: entradasToc,
+        contenidoNotas: contenidoNotas,
+        imagenes: imagenes,
       );
 
+      File(destino).writeAsBytesSync(res.bytesEpub);
+
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('✅ Archivos generados en $salida')));
+
+      if (res.avisos.isNotEmpty) {
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            backgroundColor: const Color(0xFF1E1E2E),
+            title: const Text('ePub Compilado con Avisos', style: TextStyle(color: Color(0xFFF9E2AF))),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Archivo guardado en:\n$destino\n', style: const TextStyle(color: Color(0xFFA6ADC8), fontSize: 12)),
+                  const Text('Avisos detectados:', style: TextStyle(color: Color(0xFFF38BA8), fontWeight: FontWeight.bold, fontSize: 13)),
+                  const SizedBox(height: 6),
+                  ...res.avisos.map((a) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2),
+                    child: Text('• $a', style: const TextStyle(color: Color(0xFFCDD6F4), fontSize: 11)),
+                  )),
+                ],
+              ),
+            ),
+            actions: [
+              ElevatedButton(
+                onPressed: () => Navigator.pop(ctx),
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF89B4FA), foregroundColor: const Color(0xFF1E1E2E)),
+                child: const Text('Aceptar'),
+              ),
+            ],
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('✅ ePub compilado exitosamente: ${p.basename(destino)}')));
+      }
     } catch (e) {
-      _mostrarError('Error al generar: $e');
+      _mostrarError('Error al compilar ePub: $e');
     }
+  }
+
+  void _mostrarDialogoCompilacion() {
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setModalState) {
+          final hayBase = _rutaBaseEpub.isNotEmpty && File(_rutaBaseEpub).existsSync();
+          return AlertDialog(
+            backgroundColor: const Color(0xFF1E1E2E),
+            title: const Row(
+              children: [
+                Icon(Icons.auto_stories, color: Color(0xFF89B4FA), size: 22),
+                SizedBox(width: 8),
+                Text('Compilar Manuscrito', style: TextStyle(color: Color(0xFFCDD6F4), fontSize: 16)),
+              ],
+            ),
+            content: SizedBox(
+              width: 520,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('1. Archivo Base ePub (Plantilla estructural):', style: TextStyle(color: Color(0xFFA6ADC8), fontSize: 12, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF181825),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: const Color(0xFFA6E3A1).withValues(alpha: 0.4)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.check_circle, color: Color(0xFFA6E3A1), size: 16),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            hayBase
+                                ? '${p.basename(_rutaBaseEpub)} (Personalizado)'
+                                : 'Base3_v1.15.0.epub (Integrado en la App)',
+                            style: const TextStyle(color: Color(0xFFCDD6F4), fontSize: 11, fontFamily: 'monospace'),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (hayBase)
+                          IconButton(
+                            icon: const Icon(Icons.restart_alt, size: 16, color: Color(0xFFFAB387)),
+                            tooltip: 'Restaurar base integrada',
+                            onPressed: () {
+                              AjustesApp.guardarRutaBaseEpub('');
+                              setModalState(() {
+                                _rutaBaseEpub = '';
+                              });
+                              setState(() {
+                                _rutaBaseEpub = '';
+                              });
+                            },
+                          ),
+                        TextButton(
+                          onPressed: () async {
+                            final res = await FilePicker.platform.pickFiles(
+                              type: FileType.custom,
+                              allowedExtensions: ['epub'],
+                              dialogTitle: 'Seleccionar archivo Base ePub',
+                            );
+                            if (res != null && res.files.single.path != null) {
+                              final path = res.files.single.path!;
+                              AjustesApp.guardarRutaBaseEpub(path);
+                              setModalState(() {
+                                _rutaBaseEpub = path;
+                              });
+                              setState(() {
+                                _rutaBaseEpub = path;
+                              });
+                            }
+                          },
+                          child: const Text('Cambiar', style: TextStyle(fontSize: 11, color: Color(0xFF89B4FA))),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text('2. Carpeta de Ilustraciones e Imágenes (Opcional):', style: TextStyle(color: Color(0xFFA6ADC8), fontSize: 12, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF181825),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: const Color(0xFF45475A)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.folder_open, color: Color(0xFFFAB387), size: 16),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _rutaCarpetaImagenes != null ? p.basename(_rutaCarpetaImagenes!) : 'Ninguna carpeta seleccionada (usará las del base)',
+                            style: const TextStyle(color: Color(0xFFA6ADC8), fontSize: 11),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (_rutaCarpetaImagenes != null)
+                          IconButton(
+                            icon: const Icon(Icons.close, size: 16, color: Color(0xFFF38BA8)),
+                            tooltip: 'Quitar carpeta',
+                            onPressed: () {
+                              setModalState(() {
+                                _rutaCarpetaImagenes = null;
+                              });
+                              setState(() {
+                                _rutaCarpetaImagenes = null;
+                              });
+                            },
+                          ),
+                        TextButton(
+                          onPressed: () async {
+                            final dir = await FilePicker.platform.getDirectoryPath(dialogTitle: 'Seleccionar carpeta de imágenes');
+                            if (dir != null) {
+                              setModalState(() {
+                                _rutaCarpetaImagenes = dir;
+                              });
+                              setState(() {
+                                _rutaCarpetaImagenes = dir;
+                              });
+                            }
+                          },
+                          child: const Text('Elegir', style: TextStyle(fontSize: 11, color: Color(0xFF89B4FA))),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancelar', style: TextStyle(color: Color(0xFFA6ADC8))),
+              ),
+              OutlinedButton(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  _generarSoloXhtml();
+                },
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFFCDD6F4),
+                  side: const BorderSide(color: Color(0xFF45475A)),
+                ),
+                child: const Text('Exportar solo XHTML', style: TextStyle(fontSize: 12)),
+              ),
+              ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  _compilarEpub();
+                },
+                icon: const Icon(Icons.task_alt, size: 16),
+                label: const Text('Generar ePub (.epub)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF89B4FA),
+                  foregroundColor: const Color(0xFF181825),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
   }
 
   void _mostrarAjustes() {
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1E1E2E),
-        title: const Text('Ajustes y Rutas', style: TextStyle(color: Color(0xFFCDD6F4))),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Plantilla base (template.xhtml):', style: TextStyle(color: Color(0xFFA6ADC8), fontSize: 12)),
-            const SizedBox(height: 4),
-            Text(rutaTemplateDefecto, style: const TextStyle(color: Color(0xFF89B4FA), fontSize: 11, fontFamily: 'monospace')),
-            const SizedBox(height: 12),
-            const Text('Carpeta de plantillas especiales:', style: TextStyle(color: Color(0xFFA6ADC8), fontSize: 12)),
-            const SizedBox(height: 4),
-            Text(rutaPlantillasDefecto, style: const TextStyle(color: Color(0xFF89B4FA), fontSize: 11, fontFamily: 'monospace')),
-          ],
-        ),
-        actions: [
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx),
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF89B4FA), foregroundColor: const Color(0xFF1E1E2E)),
-            child: const Text('Cerrar'),
-          ),
-        ],
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setModalState) {
+          final hayBase = _rutaBaseEpub.isNotEmpty && File(_rutaBaseEpub).existsSync();
+          return AlertDialog(
+            backgroundColor: const Color(0xFF1E1E2E),
+            title: const Text('Ajustes y Rutas', style: TextStyle(color: Color(0xFFCDD6F4))),
+            content: SizedBox(
+              width: 500,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Base ePub Estructural (Base3.epub):', style: TextStyle(color: Color(0xFFA6ADC8), fontSize: 12, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          hayBase ? _rutaBaseEpub : 'Base3_v1.15.0.epub (Integrado en la App)',
+                          style: TextStyle(
+                            color: hayBase ? const Color(0xFF89B4FA) : const Color(0xFFA6E3A1),
+                            fontSize: 11,
+                            fontFamily: 'monospace',
+                            fontWeight: hayBase ? FontWeight.normal : FontWeight.bold,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (hayBase) ...[
+                        const SizedBox(width: 6),
+                        IconButton(
+                          icon: const Icon(Icons.restart_alt, size: 16, color: Color(0xFFFAB387)),
+                          tooltip: 'Restaurar base integrada',
+                          onPressed: () {
+                            AjustesApp.guardarRutaBaseEpub('');
+                            setModalState(() {
+                              _rutaBaseEpub = '';
+                            });
+                            setState(() {
+                              _rutaBaseEpub = '';
+                            });
+                          },
+                        ),
+                      ],
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        onPressed: () async {
+                          final res = await FilePicker.platform.pickFiles(
+                            type: FileType.custom,
+                            allowedExtensions: ['epub'],
+                            dialogTitle: 'Seleccionar archivo Base ePub',
+                          );
+                          if (res != null && res.files.single.path != null) {
+                            final path = res.files.single.path!;
+                            AjustesApp.guardarRutaBaseEpub(path);
+                            setModalState(() {
+                              _rutaBaseEpub = path;
+                            });
+                            setState(() {
+                              _rutaBaseEpub = path;
+                            });
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF313244),
+                          foregroundColor: const Color(0xFFCDD6F4),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        ),
+                        child: const Text('Examinar...', style: TextStyle(fontSize: 11)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  const Text('Plantilla base (template.xhtml):', style: TextStyle(color: Color(0xFFA6ADC8), fontSize: 12)),
+                  const SizedBox(height: 4),
+                  Text(rutaTemplateDefecto, style: const TextStyle(color: Color(0xFF89B4FA), fontSize: 11, fontFamily: 'monospace')),
+                  const SizedBox(height: 12),
+                  const Text('Carpeta de plantillas especiales:', style: TextStyle(color: Color(0xFFA6ADC8), fontSize: 12)),
+                  const SizedBox(height: 4),
+                  Text(rutaPlantillasDefecto, style: const TextStyle(color: Color(0xFF89B4FA), fontSize: 11, fontFamily: 'monospace')),
+                ],
+              ),
+            ),
+            actions: [
+              ElevatedButton(
+                onPressed: () => Navigator.pop(ctx),
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF89B4FA), foregroundColor: const Color(0xFF1E1E2E)),
+                child: const Text('Cerrar'),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -1325,7 +1686,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                     // Botón Principal de Compilación
                     ElevatedButton.icon(
-                      onPressed: _puedeGenerar() ? _generar : null,
+                      onPressed: _puedeGenerar() ? _mostrarDialogoCompilacion : null,
                       icon: const Icon(Icons.task_alt, size: 18),
                       label: const Text('Compilar ePub Final [✓]', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                       style: ElevatedButton.styleFrom(

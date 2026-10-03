@@ -1,12 +1,21 @@
-# ConversorEpub — Limpieza y Maquetación de Manuscritos a ePub
+# ConversorEpub — Limpieza, Maquetación y Compilación de ePubs
 
-Aplicación de escritorio nativa para **Linux** y **Windows** (escrita en Flutter / Dart) que automatiza la limpieza tipográfica y la maquetación de manuscritos para generar capítulos XHTML profesionales listos para ensamblar en un editor de ePubs como Sigil.
+Aplicación de escritorio nativa para **Linux** (escrita en Flutter / Dart) que automatiza la limpieza tipográfica, maquetación de manuscritos y la **compilación directa de archivos `.epub` completos** listos para lectura o retoque final en Sigil.
 
 ---
 
 ## Características Principales
 
-### 1. Interfaz Moderna a 3 Paneles (Flutter Desktop)
+### 1. Compilación Integral a `.epub` (Basada en Plantilla Estructural)
+- **Empaquetado directo a `.epub`**: Genera un archivo `.epub` 100% estándar (ePub 3) con `mimetype` sin comprimir al inicio del contenedor ZIP.
+- **Plantilla base integrada (`Base3_v1.15.0.epub`)**: Embebida como asset nativo dentro de la aplicación. Conserva todas las tipografías incrustadas (`times.ttf`, `Castellar`, `Oswald`, etc.), hojas de estilo CSS (`style.css`, `nav-style.css`), páginas fijas (`cubierta`, `sinopsis`, `resumen`, `perfil`, `titulo`, `creditos`, `logos`, etc.) y contenedor `META-INF`.
+- **Sustitución de narrativa y purga limpia**: Elimina los capítulos de muestra (`Section0001.xhtml`, `Section0002.xhtml`) e inserta los capítulos del libro (`C01.xhtml`, `C02.xhtml`, interludios). Si el libro no cuenta con prólogo, epílogo, palabras del autor, traductor o notas al pie, se eliminan completamente del `.epub`, del manifiesto `<manifest>`, de la secuencia `<spine>` y del índice `toc.xhtml` (incluyendo sus *landmarks*).
+- **Identificador único (`BookId`)**: Genera un UUID v4 criptográfico (`urn:uuid:<v4>`) único en cada compilación y actualiza la marca temporal `dcterms:modified`.
+- **Inyección opcional de ilustraciones**: Permite elegir una carpeta local con las imágenes de la novela (`02.jpg`, `cover.jpg`, etc.) para incluirlas automáticamente en `OEBPS/Images/`.
+- **Detección de imágenes faltantes**: Examina todas las referencias `<img src="../Images/...">` del manuscrito y avisa si alguna imagen no existe en el archivo generado.
+- **Exportación alternativa de XHTML sueltos**: Opción de exportar únicamente la carpeta con los archivos `.xhtml` limpios y maquetados.
+
+### 2. Interfaz Moderna a 3 Paneles (Flutter Desktop)
 - **Panel Izquierdo (Configuración y Carga)**:
   - **Edición en lote**: Configura el número de inicio (`Start`), prefijo (`Cap. `) y sufijo (` - `) y aplícalos a todos los capítulos con un solo clic.
   - **Dropzone interactiva**: Zona de arrastrar y soltar con borde punteado dinámico, compatible con selección manual por clic y feedback de archivo cargado (nombre, tamaño formateado y estado).
@@ -19,17 +28,17 @@ Aplicación de escritorio nativa para **Linux** y **Windows** (escrita en Flutte
     - **Badge interactivo de Tipo de Capítulo**: Muestra la clasificación semántica con colores dedicados (*Cuerpo*, *Prólogo*, *Epílogo*, *Interludio*, *Autor*, *Traductor*) y permite reclasificar manualmente cualquier capítulo desplegando un menú contextual.
     - **Acciones por fila**: Botón de alternancia de *Título con Imagen* (permite asignar y editar el número de imagen de portada de capítulo) y eliminación individual con confirmación.
 - **Panel Derecho (Resumen y Vista Previa)**:
-  - **Métricas del manuscrito**: Conteo total de palabras del libro (*word count*) y estimación de páginas de lectura (~300 palabras por página).
-  - **Vista previa limpia**: Muestra el código XHTML final generado del capítulo seleccionado (reemplaza el visor de diferencias raw para un flujo de trabajo más limpio y rápido).
-  - **Compilación final**: Botón destacado `Compilar ePub Final [✓]` para exportar todo el lote a la carpeta deseada mediante el selector nativo del sistema.
+  - **Métricas del manuscrito**: Conteo total de palabras del libro (*word count*) y estimación de páginas de lectura (~250-300 palabras por página).
+  - **Vista previa limpia**: Muestra el código XHTML final generado del capítulo seleccionado.
+  - **Compilación final**: Botón destacado `Compilar ePub Final [✓]` que abre el asistente de compilación (elección de base, carpeta de imágenes y guardado de `.epub` o exportación de XHTML).
 
-### 2. Modos de Entrada con Detección Automática
+### 3. Modos de Entrada con Detección Automática
 - **Word (`.docx`)**: Procesado mediante `pandoc` → HTML5, extrayendo notas al pie reales de Word.
-- **PDF (`.pdf`)**: Conversión estructurada con `pdf2docx` a DOCX temporal → HTML5 con soporte de detección inteligente de entornos (`.venv`, `python3` y `nix-shell` automático en NixOS).
+- **PDF (`.pdf`)**: Conversión estructurada con `pdf2docx` a DOCX temporal → HTML5 con soporte de detección inteligente de entornos (`.venv`, `python3` global y fallback automático a `nix-shell` en NixOS).
 - **Calibre (`.xhtml` / `.html`)**: Limpieza profunda de etiquetas residuales y basura de maquetación proveniente de Calibre.
 - **Markdown (`.md`)**: Soporte para archivos individuales o lotes de carpetas procesados directamente.
 
-### 3. Limpieza Tipográfica Canónica
+### 4. Limpieza Tipográfica Canónica
 - **Comillas canónicas**:
   - **D1**: Todos los niveles de comillas dobles se convierten a comillas angulares latinas `«` y `»`.
   - **D2**: Comillas simples explícitas convertidas a tipográficas inglesas `‘` y `’`.
@@ -39,7 +48,8 @@ Aplicación de escritorio nativa para **Linux** y **Windows** (escrita en Flutte
 - **Limpieza de código basura**: Remoción de atributos y estilos residuales de Microsoft Word y Calibre, preservando clases semánticas autorizadas como `class="mistico"`.
 - **Unificación de etiquetas**: `<strong>` → `<b>`, `<em>` → `<i>`.
 
-### 4. Capítulos Especiales, Plantillas y Tabla de Contenidos
+### 5. Capítulos Especiales, Plantillas y Notas al Pie
+- **Notas al Pie Canónicas (`notas.xhtml`)**: Las llamadas numéricas en el cuerpo apuntan a `<a href="notas.xhtml#ntNN">` y se insertan directamente en la plantilla `notas.xhtml` bajo su marcador canónico.
 - **Tabla de Contenidos Automática (`contenido-2.xhtml`)**: Genera el archivo TOC estructurado en XHTML para ePub (`<section epub:type="toc" role="doc-toc">`) enlazando todos los capítulos con sus nombres reales de archivo y títulos actualizados.
 - **Plantillas especiales dedicadas (`assets/Plantillas/`)**:
   - **Prólogos y Epílogos múltiples**: Clasificados y numerados automáticamente (`prologo_01.xhtml`, `prologo_02.xhtml`, etc.) sin consumir números de capítulos regulares.
@@ -73,7 +83,7 @@ pip3 install --user pdf2docx
 
 ### Instalación en NixOS
 
-El repositorio incluye un archivo [`shell.nix`](shell.nix) listo para usar con todas las dependencias (Flutter, Pandoc, GTK3 y Python con `pdf2docx`):
+El repositorio incluye un archivo [`shell.nix`](shell.nix) listo para usar con todas las dependencias (Flutter, Pandoc, Ninja, CMake, Pkg-config, GTK3 y Python con `pdf2docx`):
 
 ```bash
 # Entrar al entorno con todas las dependencias
@@ -135,14 +145,16 @@ conversor-epub/
 │   ├── lib/                  # Código fuente
 │   │   ├── main.dart         # Punto de entrada de la aplicación
 │   │   ├── ui/               # Interfaz gráfica (home_screen.dart, widgets, pintores)
-│   │   └── motor/            # Núcleo puro (limpieza, plantillas, render, adaptadores)
-│   ├── assets/               # Plantillas XHTML empaquetadas nativamente en el ejecutable
+│   │   └── motor/            # Núcleo puro (limpieza, plantillas, render, empaquetado, adaptadores, ajustes)
+│   ├── assets/               # Recursos empaquetados nativamente en el ejecutable
+│   │   ├── Base3_v1.15.0.epub# Plantilla ePub base con estilos, fuentes y metadatos
 │   │   ├── Conv_Xhtml/       # template.xhtml
-│   │   └── Plantillas/       # prologo.xhtml, epilogo.xhtml, autor.xhtml, traductor.xhtml
-│   ├── test/                 # Suite de pruebas unitarias y fuzzing de comillas (27 tests)
+│   │   ├── Plantillas/       # prologo.xhtml, epilogo.xhtml, autor.xhtml, traductor.xhtml, notas.xhtml
+│   │   └── ConversorEpub.png # Ícono oficial de la aplicación
+│   ├── test/                 # Suite de pruebas unitarias, fuzzing y empaquetado (31 tests)
 │   ├── linux/                # Configuración de compilación nativa en C++/GTK
 │   └── pubspec.yaml          # Metadatos, dependencias y assets declarados
-├── assets/                   # Recursos estáticos (ícono oficial PNG, archivo .desktop)
+├── assets/                   # Recursos estáticos raíz (.desktop, ícono, plantillas)
 ├── shell.nix                 # Entorno reproducible para NixOS (Flutter, Pandoc, Python pdf2docx)
 ├── AGENTS.md                 # Especificación técnica canónica y reglas del motor
 ├── CHANGELOG.md              # Registro cronológico detallado de cambios
@@ -153,7 +165,7 @@ conversor-epub/
 
 ## Pruebas Automatizadas
 
-La aplicación cuenta con una batería de pruebas de invariantes tipográficas, deduplicación de marcadores, títulos y plantillas especiales:
+La aplicación cuenta con una batería de pruebas de invariantes tipográficas, deduplicación de marcadores, títulos, plantillas especiales y empaquetado ePub:
 
 ```bash
 cd app_flutter

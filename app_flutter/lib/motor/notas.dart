@@ -23,7 +23,7 @@ final _reNotaMdLlamada = RegExp(r'\[\^(\d+)\]');
 final _reAnclaRegreso = RegExp(r'↩︎?');
 final _reImg = RegExp(r'<img\b[^>]*?/?>', dotAll: true, caseSensitive: false);
 
-const archivoNotas = 'notas_Finales.xhtml';
+const archivoNotas = 'notas.xhtml';
 
 String formatearLlamada(int num) {
   String numFmt = num.toString().padLeft(2, '0');

@@ -160,6 +160,16 @@ String renderNotas(List<Nota> notas) {
   return notas.map((n) => formatearNota(n)).join('\n');
 }
 
+String renderArchivoNotas(String plantilla, List<Nota> notas) {
+  if (notas.isEmpty) return plantilla;
+  final contenidoNotas = renderNotas(notas);
+  const marcador = '<!-- Agregar notas con el siguiente formato -->';
+  if (plantilla.contains(marcador)) {
+    return plantilla.replaceFirst(marcador, '$marcador\n$contenidoNotas');
+  }
+  return plantilla.replaceFirst('</section>', '$contenidoNotas\n  </section>');
+}
+
 void limpiarCarpeta(String ruta) {
   final dir = Directory(ruta);
   if (dir.existsSync()) {

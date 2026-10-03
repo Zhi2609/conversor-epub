@@ -416,3 +416,30 @@ Las nuevas entradas se añaden al final de cada sesión de trabajo.
   - `flutter analyze` con 0 incidencias.
   - Compilación nativa completada exitosamente en `build/linux/x64/release/bundle/ConversorEpubs`.
 
+---
+## 3 de Octubre de 2026
+
+      15:20 — Compilación Completa de ePub desde Plantilla Base3 y Gestión de Ilustraciones
+- **Compilación Integral de ePub (`motor/empaquetado.dart`)**:
+  - Implementada la función pura `empaquetarEpub` que toma el archivo `Base3_v1.15.0.epub` (o cualquier ePub base compatible) y conserva su estructura completa de fuentes tipográficas, hojas de estilo CSS (`style.css`, `nav-style.css`), páginas fijas (`cubierta`, `sinopsis`, `resumen`, `creditos`, `logos`, etc.) y contenedor `META-INF`.
+  - Reemplazo automático de capítulos de muestra (`Section0001.xhtml`, `Section0002.xhtml`) por los capítulos reales del manuscrito (`C01.xhtml`, `C02.xhtml`... e interludios).
+  - Purgado automático de secciones especiales no presentes en el libro (`prologo`, `epilogo`, `autor`, `traductor`) del archivo físico, del manifiesto `<manifest>`, de la secuencia de lectura `<spine>` y del índice semántico `toc.xhtml` (incluyendo guías de `<nav epub:type="landmarks">`).
+  - Formato canónico de `mimetype`: empaquetado como primer archivo del archivo ZIP de forma no comprimida (`CompressionType.none`) garantizando compatibilidad 100% con el estándar ePub 3 y validadores ePubCheck.
+  - Generación de identificador único `urn:uuid:<v4>` criptográficamente seguro en cada compilación para `BookId` y actualización del sello temporal `dcterms:modified`.
+- **Estandarización de Notas (`motor/notas.dart`, `motor/render.dart`)**:
+  - Actualizada la constante `archivoNotas` a `notas.xhtml` y las llamadas `<a href="notas.xhtml#ntNN">`.
+  - Inyección de notas dentro de la estructura canónica de `notas.xhtml` directamente debajo del marcador `<!-- Agregar notas con el siguiente formato -->`.
+  - Si el libro no contiene notas, `notas.xhtml` se remueve completamente del ePub, del `<manifest>`, del `<spine>` y de `toc.xhtml`.
+- **Gestión e Inyección de Ilustraciones**:
+  - Permite seleccionar opcionalmente una carpeta de imágenes locales (`.jpg`, `.png`, `.webp`, etc.).
+  - Las imágenes suministradas se empaquetan en `OEBPS/Images/`, sobrescribiendo las correspondientes del base si comparten nombre (`02.jpg`, `cover.jpg`, etc.) y registrándose en `<manifest>` con prefijo `x` para nombres que inician con dígitos (`x04.jpg`).
+  - Detección y advertencia de imágenes faltantes: analiza todas las etiquetas `<img src="../Images/...">` en los archivos XHTML y avisa al usuario si alguna imagen no existe en el archivo compilado.
+- **Flujo de Usuario y Persistencia (`home_screen.dart`, `motor/ajustes.dart`)**:
+  - Diálogo modal interactivo al pulsar *Compilar ePub Final [✓]* con selección/cambio de la base ePub, selector de carpeta de ilustraciones, botón para exportar solo XHTML sueltos y botón para compilar el `.epub` completo con diálogo nativo de guardado de archivo.
+  - Persistencia de la ruta del ePub base en `~/.config/conversor-epub/config.json`.
+- **Batería de Pruebas y Análisis**:
+  - Creado `test/empaquetado_test.dart` verificando generación de UUID v4, colocación no comprimida de `mimetype`, purga de especiales y notas ausentes, inyección de notas y detección de imágenes faltantes.
+  - Suite completa: **31/31 pruebas pasando**.
+  - `flutter analyze`: **0 incidencias**.
+  - Binario nativo compilado exitosamente en `build/linux/x64/release/bundle/ConversorEpubs`.
+
