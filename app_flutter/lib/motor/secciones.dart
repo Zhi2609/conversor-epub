@@ -15,7 +15,7 @@ enum SectionKind {
   cover('Cubierta', BookMatter.front, 'cubierta.xhtml'),
   synopsis('Sinopsis', BookMatter.front, 'sinopsis.xhtml'),
   illustrations('Ilustraciones a color', BookMatter.front, 'resumen.xhtml'),
-  characterProfile('Perfil de personajes', BookMatter.front, 'perfil.xhtml'),
+  authorProfile('Perfil del autor', BookMatter.front, 'perfil.xhtml'),
   titlePage('Página de título', BookMatter.front, 'titulo.xhtml'),
   credits('Créditos', BookMatter.front, 'creditos.xhtml'),
   logos('Logos editoriales', BookMatter.front, 'logos.xhtml'),
@@ -144,6 +144,17 @@ List<SectionItem> convertirResultadoASecciones(
 
   // Posición 2: Sinopsis
   final tieneSinopsis = sinopsisTexto != null && sinopsisTexto.trim().isNotEmpty;
+  final htmlSinopsisDefault = '''<blockquote class="aviso">
+  <p class="grande centrado"><b>Advertencia:</b></p>
+  <p class="salto0">Esta novela contiene material y/o lenguaje que para algunos podría resultar ofensivo, explícito y vulgar, si usted es una persona sensible, se recomienda abstenerse de leerlo.</p>
+</blockquote>
+<hr class="sigil_split_marker"/>
+<!-- Borrar todo lo anterior si no se requiere -->
+<header>
+  <h1 class="sigil_not_in_toc">Sinopsis</h1>
+</header>
+<p>${tieneSinopsis ? sinopsisTexto : 'Aquí va el contenido de la sinopsis...'}</p>''';
+
   secciones.add(SectionItem(
     id: 'sec_synopsis',
     kind: SectionKind.synopsis,
@@ -152,7 +163,7 @@ List<SectionItem> convertirResultadoASecciones(
     fileName: 'sinopsis.xhtml',
     inToc: tieneSinopsis,
     enabled: tieneSinopsis,
-    htmlContent: tieneSinopsis ? sinopsisTexto : '',
+    htmlContent: htmlSinopsisDefault,
   ));
 
   // Posición 3: Ilustraciones a color (resumen.xhtml en Base3)
@@ -166,12 +177,13 @@ List<SectionItem> convertirResultadoASecciones(
     enabled: false,
   ));
 
-  // Posición 4: Perfil de personajes (perfil.xhtml)
+  // Posición 4: Perfil del autor (perfil.xhtml)
   secciones.add(SectionItem(
     id: 'sec_profile',
-    kind: SectionKind.characterProfile,
+    kind: SectionKind.authorProfile,
     matter: BookMatter.front,
-    title: 'Perfil de personajes',
+    title: 'Perfil del autor',
+    subtitle: 'Acerca del autor(a)',
     fileName: 'perfil.xhtml',
     inToc: true,
     enabled: false,
@@ -485,7 +497,7 @@ List<Chapter> seccionesACapitulos(List<SectionItem> secciones) {
     if (s.kind == SectionKind.cover ||
         s.kind == SectionKind.synopsis ||
         s.kind == SectionKind.illustrations ||
-        s.kind == SectionKind.characterProfile ||
+        s.kind == SectionKind.authorProfile ||
         s.kind == SectionKind.titlePage ||
         s.kind == SectionKind.credits ||
         s.kind == SectionKind.logos ||

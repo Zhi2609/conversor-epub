@@ -39,7 +39,7 @@ void main() {
       expect(front[1].kind, SectionKind.synopsis);
       expect(front[1].enabled, isTrue);
       expect(front[2].kind, SectionKind.illustrations);
-      expect(front[3].kind, SectionKind.characterProfile);
+      expect(front[3].kind, SectionKind.authorProfile);
       expect(front[4].kind, SectionKind.titlePage);
       expect(front[5].kind, SectionKind.credits);
       expect(front[6].kind, SectionKind.logos);

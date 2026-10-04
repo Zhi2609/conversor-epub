@@ -32,7 +32,7 @@ class PanelSecciones extends StatelessWidget {
       case SectionKind.notice:
       case SectionKind.epigraph:
       case SectionKind.preface:
-      case SectionKind.characterProfile:
+      case SectionKind.authorProfile:
         return const Color(0xFF89DCEB);
       case SectionKind.credits:
       case SectionKind.logos:
@@ -95,7 +95,7 @@ class PanelSecciones extends StatelessWidget {
                   _menuItem(SectionKind.cover),
                   _menuItem(SectionKind.synopsis),
                   _menuItem(SectionKind.illustrations),
-                  _menuItem(SectionKind.characterProfile),
+                  _menuItem(SectionKind.authorProfile),
                   _menuItem(SectionKind.titlePage),
                   _menuItem(SectionKind.credits),
                   _menuItem(SectionKind.logos),

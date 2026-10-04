@@ -603,9 +603,17 @@ ResultadoEmpaquetado empaquetarEpub({
   <link rel="stylesheet" type="text/css" href="../Styles/style.css"/>
   <meta charset="utf-8"/>
 </head>
-<body xml:lang="es" lang="es" epub:type="frontmatter">
-  <section epub:type="synopsis" aria-label="Sinopsis">
-    <h1 class="sigil_not_in_toc">Sinopsis</h1>
+<body xml:lang="es" lang="es" epub:type="bodymatter">
+  <section epub:type="abstract" id="abstract" aria-label="Sinopsis">
+    <blockquote class="aviso">
+      <p class="grande centrado"><b>Advertencia:</b></p>
+      <p class="salto0">Esta novela contiene material y/o lenguaje que para algunos podría resultar ofensivo, explícito y vulgar, si usted es una persona sensible, se recomienda abstenerse de leerlo.</p>
+    </blockquote>
+    <hr class="sigil_split_marker"/>
+    <!-- Borrar todo lo anterior si no se requiere -->
+    <header>
+      <h1 class="sigil_not_in_toc">Sinopsis</h1>
+    </header>
 $pTags
   </section>
 </body>
