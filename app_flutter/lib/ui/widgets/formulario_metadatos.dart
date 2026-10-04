@@ -43,27 +43,39 @@ class _FormularioMetadatosState extends State<FormularioMetadatos> {
 
   String _currentBookId = '';
 
-  static const List<String> _demografiasSugeridas = [
-    'Shounen',
-    'Seinen',
-    'Shoujo',
-    'Josei',
+  static const List<String> _demografiasEdad = [
+    'Maduro',
+    'Juvenil',
+  ];
+
+  static const List<String> _demografiasAudiencia = [
+    'Adultas/Josei',
+    'Adultos/Seinen',
+    'Chicas/Shoujo',
+    'Chicos/Shounen',
   ];
 
   static const List<String> _generosSugeridos = [
     'Acción',
     'Aventura',
+    'Bélico',
+    'Ciencia ficción',
     'Comedia',
+    'Deporte',
     'Drama',
+    'Erótico',
+    'Escolar',
     'Fantasía',
-    'Isekai',
-    'Magia',
+    'Histórico',
+    'LGBTQI+',
     'Misterio',
+    'Parodia',
+    'Policial',
     'Psicológico',
-    'Romance',
-    'Sci-Fi',
     'Recuentos de la vida',
+    'Romance',
     'Sobrenatural',
+    'Terror',
   ];
 
   static const List<String> _tiposLibro = [
@@ -161,6 +173,28 @@ class _FormularioMetadatosState extends State<FormularioMetadatos> {
 
   void _actualizar(BookMetadata m) {
     widget.onChanged(m);
+  }
+
+  void _seleccionarDemografiaEdad(String demo) {
+    final list = List<String>.from(widget.metadatos.subjects);
+    if (list.contains(demo)) {
+      list.remove(demo);
+    } else {
+      list.removeWhere((s) => _demografiasEdad.contains(s));
+      list.add(demo);
+    }
+    _actualizar(widget.metadatos.copyWith(subjects: list));
+  }
+
+  void _seleccionarDemografiaAudiencia(String demo) {
+    final list = List<String>.from(widget.metadatos.subjects);
+    if (list.contains(demo)) {
+      list.remove(demo);
+    } else {
+      list.removeWhere((s) => _demografiasAudiencia.contains(s));
+      list.add(demo);
+    }
+    _actualizar(widget.metadatos.copyWith(subjects: list));
   }
 
   void _toggleSubject(String s) {
@@ -552,46 +586,143 @@ class _FormularioMetadatosState extends State<FormularioMetadatos> {
                 ),
               ],
             ),
+            const SizedBox(height: 16),
+
+            // Demografías canónicas de ZeePubs (Edad + Audiencia)
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: const Color(0xFF181825),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFF313244)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.people_alt_outlined, size: 16, color: Color(0xFF89B4FA)),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'Demografías en ZeePubs',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFFCDD6F4)),
+                      ),
+                      const SizedBox(width: 10),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF89B4FA).withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Text(
+                          'Siempre dos: Edad + Audiencia',
+                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF89B4FA)),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Grupo 1: Edad / Madurez
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      const SizedBox(
+                        width: 130,
+                        child: Text(
+                          '• Edad / Madurez:',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFFA6ADC8)),
+                        ),
+                      ),
+                      Wrap(
+                        spacing: 8,
+                        children: _demografiasEdad.map((demo) {
+                          final activa = meta.subjects.contains(demo);
+                          return FilterChip(
+                            label: Text(demo),
+                            selected: activa,
+                            onSelected: (_) => _seleccionarDemografiaEdad(demo),
+                            selectedColor: const Color(0xFF89B4FA).withValues(alpha: 0.25),
+                            checkmarkColor: const Color(0xFF89B4FA),
+                            labelStyle: TextStyle(
+                              fontSize: 12,
+                              color: activa ? const Color(0xFF89B4FA) : const Color(0xFFCDD6F4),
+                              fontWeight: activa ? FontWeight.bold : FontWeight.normal,
+                            ),
+                            backgroundColor: const Color(0xFF1E1E2E),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              side: BorderSide(
+                                color: activa ? const Color(0xFF89B4FA) : const Color(0xFF45475A),
+                                width: activa ? 1.5 : 1,
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+
+                  // Grupo 2: Audiencia / Público
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      const SizedBox(
+                        width: 130,
+                        child: Text(
+                          '• Audiencia / Público:',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFFA6ADC8)),
+                        ),
+                      ),
+                      Expanded(
+                        child: Wrap(
+                          spacing: 8,
+                          runSpacing: 6,
+                          children: _demografiasAudiencia.map((demo) {
+                            final activa = meta.subjects.contains(demo);
+                            return FilterChip(
+                              label: Text(demo),
+                              selected: activa,
+                              onSelected: (_) => _seleccionarDemografiaAudiencia(demo),
+                              selectedColor: const Color(0xFFA6E3A1).withValues(alpha: 0.25),
+                              checkmarkColor: const Color(0xFFA6E3A1),
+                              labelStyle: TextStyle(
+                                fontSize: 12,
+                                color: activa ? const Color(0xFFA6E3A1) : const Color(0xFFCDD6F4),
+                                fontWeight: activa ? FontWeight.bold : FontWeight.normal,
+                              ),
+                              backgroundColor: const Color(0xFF1E1E2E),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                side: BorderSide(
+                                  color: activa ? const Color(0xFFA6E3A1) : const Color(0xFF45475A),
+                                  width: activa ? 1.5 : 1,
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
             const SizedBox(height: 14),
 
-            // Chips de demografías sugeridas
-            const Text(
-              'Demografías sugeridas:',
-              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFFA6ADC8)),
+            // Chips de géneros en ZeePubs
+            Row(
+              children: [
+                const Icon(Icons.style_outlined, size: 16, color: Color(0xFFCBA6F7)),
+                const SizedBox(width: 8),
+                const Text(
+                  'Géneros en ZeePubs (20 canónicos):',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFFA6ADC8)),
+                ),
+              ],
             ),
-            const SizedBox(height: 6),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: _demografiasSugeridas.map((demo) {
-                final activa = meta.subjects.contains(demo);
-                return FilterChip(
-                  label: Text(demo),
-                  selected: activa,
-                  onSelected: (_) => _toggleSubject(demo),
-                  selectedColor: const Color(0xFF89B4FA).withValues(alpha: 0.3),
-                  checkmarkColor: const Color(0xFF89B4FA),
-                  labelStyle: TextStyle(
-                    fontSize: 11,
-                    color: activa ? const Color(0xFF89B4FA) : const Color(0xFFCDD6F4),
-                    fontWeight: activa ? FontWeight.bold : FontWeight.normal,
-                  ),
-                  backgroundColor: const Color(0xFF181825),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(6),
-                    side: BorderSide(color: activa ? const Color(0xFF89B4FA) : const Color(0xFF313244)),
-                  ),
-                );
-              }).toList(),
-            ),
-            const SizedBox(height: 10),
-
-            // Chips de géneros sugeridos
-            const Text(
-              'Géneros sugeridos:',
-              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFFA6ADC8)),
-            ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             Wrap(
               spacing: 6,
               runSpacing: 6,
@@ -601,7 +732,7 @@ class _FormularioMetadatosState extends State<FormularioMetadatos> {
                   label: Text(gen),
                   selected: activo,
                   onSelected: (_) => _toggleSubject(gen),
-                  selectedColor: const Color(0xFFCBA6F7).withValues(alpha: 0.3),
+                  selectedColor: const Color(0xFFCBA6F7).withValues(alpha: 0.25),
                   checkmarkColor: const Color(0xFFCBA6F7),
                   labelStyle: TextStyle(
                     fontSize: 11,
@@ -611,7 +742,10 @@ class _FormularioMetadatosState extends State<FormularioMetadatos> {
                   backgroundColor: const Color(0xFF181825),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(6),
-                    side: BorderSide(color: activo ? const Color(0xFFCBA6F7) : const Color(0xFF313244)),
+                    side: BorderSide(
+                      color: activo ? const Color(0xFFCBA6F7) : const Color(0xFF313244),
+                      width: activo ? 1.5 : 1,
+                    ),
                   ),
                 );
               }).toList(),
@@ -682,11 +816,11 @@ class _FormularioMetadatosState extends State<FormularioMetadatos> {
             ),
             const SizedBox(height: 14),
 
-            // BookId UUID v7
+            // BookId UUID v7 e identificadores
             Row(
               children: [
                 Expanded(
-                  flex: 2,
+                  flex: 3,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -708,6 +842,7 @@ class _FormularioMetadatosState extends State<FormularioMetadatos> {
                               child: Text(
                                 meta.bookId.isNotEmpty ? meta.bookId : 'Sin ID',
                                 style: const TextStyle(fontFamily: 'monospace', fontSize: 12, color: Color(0xFFA6E3A1)),
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                             IconButton(
@@ -726,22 +861,33 @@ class _FormularioMetadatosState extends State<FormularioMetadatos> {
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  flex: 1,
+                  flex: 2,
+                  child: _campoTexto(
+                    controller: _isbn10Ctrl,
+                    label: 'ISBN-10 (Opcional)',
+                    hint: 'Ej: 4840134086',
+                    icon: Icons.qr_code,
+                    onChanged: (v) => _actualizar(meta.copyWith(isbn10: v)),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  flex: 2,
                   child: _campoTexto(
                     controller: _isbn13Ctrl,
                     label: 'ISBN-13 (Opcional)',
-                    hint: '978-...',
+                    hint: 'Ej: 978-40-6528-058-4',
                     icon: Icons.qr_code,
                     onChanged: (v) => _actualizar(meta.copyWith(isbn13: v)),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  flex: 1,
+                  flex: 2,
                   child: _campoTexto(
                     controller: _amazonIdCtrl,
                     label: 'Amazon ASIN (Opcional)',
-                    hint: 'B00...',
+                    hint: 'Ej: B0B214451Y',
                     icon: Icons.shopping_bag_outlined,
                     onChanged: (v) => _actualizar(meta.copyWith(amazonId: v)),
                   ),
