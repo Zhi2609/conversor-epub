@@ -111,9 +111,17 @@ String formatearIsbn10(String raw) {
 
 /// Representación estructurada de los metadatos OPF del libro según Base3_v1.15.0.epub.
 class BookMetadata {
+  /// Título en español (utilizado en la portada, página de título.xhtml y nombre de archivo .epub)
+  final String titleSpanish;
+  /// Subtítulo en español (opcional, en título.xhtml)
+  final String subtitle;
+  /// Título de la novela en Romaji / Japonés (utilizado para <dc:title> en content.opf)
+  final String titleJapanese;
+
+  /// Alias de compatibilidad: devuelve titleSpanish si existe, o el título configurado
   final String title;
   final String titleSort;
-  final String series;
+  final String series; // Título de la novela en Inglés / Colección (belongs-to-collection y calibre:series)
   final String volume;
   final String groupTag; // Ej: SIGLAS-GRUPO
 
@@ -152,6 +160,9 @@ class BookMetadata {
 
   const BookMetadata({
     this.title = '',
+    this.titleSpanish = '',
+    this.subtitle = '',
+    this.titleJapanese = '',
     this.titleSort = '',
     this.series = '',
     this.volume = '',
@@ -177,11 +188,10 @@ class BookMetadata {
     this.date,
   });
 
-  /// Crea metadatos iniciales deduciendo título y volumen a partir del nombre de archivo.
+  /// Crea metadatos iniciales deduciendo título en español, volumen y siglas a partir del nombre de archivo.
   factory BookMetadata.fromFileName(String filePath) {
     final baseName = p.basenameWithoutExtension(filePath).trim();
     String detectedTitle = baseName;
-    String detectedSeries = '';
     String detectedVolume = '';
     String detectedTag = '';
 
@@ -199,14 +209,16 @@ class BookMetadata {
     ).firstMatch(detectedTitle);
 
     if (matchVol != null) {
-      detectedSeries = matchVol.group(1)!.trim();
-      detectedTitle = detectedSeries;
+      detectedTitle = matchVol.group(1)!.trim();
       detectedVolume = matchVol.group(2)!.trim();
     }
 
     return BookMetadata(
       title: detectedTitle,
-      series: detectedSeries,
+      titleSpanish: detectedTitle,
+      subtitle: '',
+      titleJapanese: '',
+      series: detectedTitle,
       volume: detectedVolume,
       groupTag: detectedTag,
       language: 'es',
@@ -217,6 +229,9 @@ class BookMetadata {
 
   BookMetadata copyWith({
     String? title,
+    String? titleSpanish,
+    String? subtitle,
+    String? titleJapanese,
     String? titleSort,
     String? series,
     String? volume,
@@ -241,8 +256,12 @@ class BookMetadata {
     String? bookId,
     DateTime? date,
   }) {
+    final tSpanish = titleSpanish ?? (title != null && this.titleSpanish.isEmpty ? title : this.titleSpanish);
     return BookMetadata(
-      title: title ?? this.title,
+      title: title ?? (titleSpanish ?? this.title),
+      titleSpanish: tSpanish,
+      subtitle: subtitle ?? this.subtitle,
+      titleJapanese: titleJapanese ?? this.titleJapanese,
       titleSort: titleSort ?? this.titleSort,
       series: series ?? this.series,
       volume: volume ?? this.volume,
@@ -269,12 +288,25 @@ class BookMetadata {
     );
   }
 
-  /// Título formal para encabezado o metadatos completos.
-  /// En Base3: "Nombre de la novela en romamji – Volumen 01"
+  /// Título de la novela en español efectivo (para portada, título.xhtml y archivo generado)
+  String get effectiveTitleSpanish {
+    if (titleSpanish.trim().isNotEmpty) return titleSpanish.trim();
+    if (title.trim().isNotEmpty) return title.trim();
+    if (series.trim().isNotEmpty) return series.trim();
+    return 'Novela';
+  }
+
+  /// Título formal para encabezado o metadatos completos (<dc:title>).
+  /// En Base3: "Nombre de la novela en romaji - Volumen 01"
+  /// Si no se ha ingresado título en japonés/romaji, utiliza el título en español.
   String get displayTitle {
-    final baseTitle = title.isNotEmpty ? title : (series.isNotEmpty ? series : 'Sin título');
+    final baseTitle = titleJapanese.trim().isNotEmpty
+        ? titleJapanese.trim()
+        : effectiveTitleSpanish;
     if (volume.isNotEmpty) {
-      return '$baseTitle - Volumen $volume';
+      if (!RegExp(r'-\s*Vol(?:umen|\.?)?\s*' + RegExp.escape(volume), caseSensitive: false).hasMatch(baseTitle)) {
+        return '$baseTitle - Volumen $volume';
+      }
     }
     return baseTitle;
   }
@@ -286,15 +318,18 @@ class BookMetadata {
       final tag = groupTag.trim().startsWith('[') && groupTag.trim().endsWith(']')
           ? groupTag.trim()
           : '[${groupTag.trim()}]';
-      return '$base $tag';
+      if (!base.endsWith(tag)) {
+        return '$base $tag';
+      }
     }
     return base;
   }
 
   /// Nombre canónico para el archivo compilado:
   /// "Nombre de novela - V01 [GrupoTraductor].epub"
+  /// Utiliza el título en español.
   String get defaultFileName {
-    String nombre = title.isNotEmpty ? title : (series.isNotEmpty ? series : 'Novela');
+    String nombre = effectiveTitleSpanish;
     nombre = nombre.replaceAll(RegExp(r'\s*\[[^\]]+\]\s*$'), '').trim();
 
     String volStr = 'V01';

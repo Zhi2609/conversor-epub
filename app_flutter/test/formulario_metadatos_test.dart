@@ -146,5 +146,75 @@ void main() {
       expect(actual.subjects, contains('Acción'));
       expect(actual.subjects, contains('Fantasía'));
     });
+
+    testWidgets('Renderiza campos de títulos separados (Español, Subtítulo, Romaji, Inglés) y actualiza BookMetadata', (tester) async {
+      tester.view.physicalSize = const Size(1280, 2000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      BookMetadata actual = const BookMetadata(
+        bookId: 'test-uuid-titulos',
+        titleSpanish: 'La Princesa Demonio',
+        volume: '01',
+        groupTag: 'KT',
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: StatefulBuilder(
+              builder: (context, setState) {
+                return FormularioMetadatos(
+                  metadatos: actual,
+                  onChanged: (nuevo) {
+                    setState(() {
+                      actual = nuevo;
+                    });
+                  },
+                );
+              },
+            ),
+          ),
+        ),
+      );
+
+      // 1. Encontrar los 4 campos de títulos por su hintText
+      final spanishFinder = find.byWidgetPredicate(
+        (w) => w is TextField && w.decoration?.hintText == 'Ej: La Princesa Demonio',
+      );
+      final subtitleFinder = find.byWidgetPredicate(
+        (w) => w is TextField && w.decoration?.hintText == 'Ej: La Historia del Demonio Despreocupado',
+      );
+      final japaneseFinder = find.byWidgetPredicate(
+        (w) => w is TextField && w.decoration?.hintText == 'Ej: Akuma Koujo ~Yurui Akuma no Monogatari~',
+      );
+      final englishFinder = find.byWidgetPredicate(
+        (w) => w is TextField && w.decoration?.hintText == 'Ej: The Devil Princess [NL]',
+      );
+
+      expect(spanishFinder, findsOneWidget);
+      expect(subtitleFinder, findsOneWidget);
+      expect(japaneseFinder, findsOneWidget);
+      expect(englishFinder, findsOneWidget);
+
+      // 2. Modificar Subtítulo
+      await tester.enterText(subtitleFinder, 'La Historia del Demonio Despreocupado');
+      await tester.pump();
+      expect(actual.subtitle, equals('La Historia del Demonio Despreocupado'));
+
+      // 3. Modificar Título en Romaji / Japonés
+      await tester.enterText(japaneseFinder, 'Akuma Koujo ~Yurui Akuma no Monogatari~');
+      await tester.pump();
+      expect(actual.titleJapanese, equals('Akuma Koujo ~Yurui Akuma no Monogatari~'));
+      expect(actual.effectiveTitle, equals('Akuma Koujo ~Yurui Akuma no Monogatari~ - Volumen 01 [KT]'));
+
+      // 4. Modificar Título en Inglés / Colección
+      await tester.enterText(englishFinder, 'The Devil Princess [NL]');
+      await tester.pump();
+      expect(actual.series, equals('The Devil Princess [NL]'));
+
+      // 5. El archivo generado debe conservar el Título en Español
+      expect(actual.defaultFileName, equals('La Princesa Demonio - V01 [KT].epub'));
+    });
   });
 }

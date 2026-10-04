@@ -203,6 +203,10 @@ ResultadoEmpaquetado empaquetarEpub({
       if (metadatos.effectiveTitle.isNotEmpty) {
         opf = opf.replaceAll(RegExp(r'<dc:title>.*?</dc:title>', caseSensitive: false), '<dc:title>${_escXml(metadatos.effectiveTitle)}</dc:title>');
       }
+      if (metadatos.date != null) {
+        final fechaDateUtc = '${metadatos.date!.toUtc().toIso8601String().split('.').first}Z';
+        opf = opf.replaceAll(RegExp(r'<dc:date>.*?</dc:date>', caseSensitive: false), '<dc:date>$fechaDateUtc</dc:date>');
+      }
       if (metadatos.language.isNotEmpty) {
         opf = opf.replaceAll(RegExp(r'<dc:language>.*?</dc:language>', caseSensitive: false), '<dc:language>${_escXml(metadatos.language)}</dc:language>');
       }
@@ -530,10 +534,30 @@ ResultadoEmpaquetado empaquetarEpub({
   final tituloBytes = archivos['OEBPS/Text/titulo.xhtml'];
   if (tituloBytes != null && metadatos != null) {
     String tituloHtml = utf8.decode(tituloBytes);
-    if (metadatos.title.isNotEmpty) {
+    final titEspanol = metadatos.effectiveTitleSpanish;
+    if (titEspanol.isNotEmpty) {
       tituloHtml = tituloHtml.replaceAllMapped(
         RegExp(r'(<span\s+class="grande"\s+epub:type="title">).*?(</span>)', caseSensitive: false),
-        (m) => '${m.group(1)}${_escXml(metadatos.title)}${m.group(2)}',
+        (m) => '${m.group(1)}${_escXml(titEspanol)}${m.group(2)}',
+      );
+    }
+    if (metadatos.subtitle.trim().isNotEmpty) {
+      final subSpan = '<br/><span epub:type="subtitle" role="doc-subtitle">${_escXml(metadatos.subtitle.trim())}</span>';
+      if (RegExp(r'<br\s*/?>\s*<span\s+epub:type="subtitle"[^>]*>.*?</span>', caseSensitive: false).hasMatch(tituloHtml)) {
+        tituloHtml = tituloHtml.replaceAll(
+          RegExp(r'<br\s*/?>\s*<span\s+epub:type="subtitle"[^>]*>.*?</span>', caseSensitive: false),
+          subSpan,
+        );
+      } else {
+        tituloHtml = tituloHtml.replaceAllMapped(
+          RegExp(r'(<span\s+class="grande"\s+epub:type="title">.*?</span>)', caseSensitive: false),
+          (m) => '${m.group(1)}\n$subSpan',
+        );
+      }
+    } else {
+      tituloHtml = tituloHtml.replaceAll(
+        RegExp(r'\s*<br\s*/?>\s*<span\s+epub:type="subtitle"[^>]*>.*?</span>', caseSensitive: false),
+        '',
       );
     }
     if (metadatos.volume.isNotEmpty) {

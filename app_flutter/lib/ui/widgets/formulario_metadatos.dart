@@ -16,7 +16,9 @@ class FormularioMetadatos extends StatefulWidget {
 }
 
 class _FormularioMetadatosState extends State<FormularioMetadatos> {
-  late TextEditingController _titleCtrl;
+  late TextEditingController _titleSpanishCtrl;
+  late TextEditingController _subtitleCtrl;
+  late TextEditingController _titleJapaneseCtrl;
   late TextEditingController _seriesCtrl;
   late TextEditingController _volumeCtrl;
   late TextEditingController _groupTagCtrl;
@@ -95,7 +97,9 @@ class _FormularioMetadatosState extends State<FormularioMetadatos> {
   }
 
   void _initControllers(BookMetadata m) {
-    _titleCtrl = TextEditingController(text: m.title);
+    _titleSpanishCtrl = TextEditingController(text: m.titleSpanish.isNotEmpty ? m.titleSpanish : m.title);
+    _subtitleCtrl = TextEditingController(text: m.subtitle);
+    _titleJapaneseCtrl = TextEditingController(text: m.titleJapanese);
     _seriesCtrl = TextEditingController(text: m.series);
     _volumeCtrl = TextEditingController(text: m.volume);
     _groupTagCtrl = TextEditingController(text: m.groupTag);
@@ -130,7 +134,9 @@ class _FormularioMetadatosState extends State<FormularioMetadatos> {
   }
 
   void _disposeControllers() {
-    _titleCtrl.dispose();
+    _titleSpanishCtrl.dispose();
+    _subtitleCtrl.dispose();
+    _titleJapaneseCtrl.dispose();
     _seriesCtrl.dispose();
     _volumeCtrl.dispose();
     _groupTagCtrl.dispose();
@@ -250,10 +256,11 @@ class _FormularioMetadatosState extends State<FormularioMetadatos> {
                       'Metadatos Editoriales OPF (Estándar Base3)',
                       style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFFCDD6F4)),
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 3),
                     Text(
-                      'Título final: "${meta.effectiveTitle}" • Rating Calibre: ${BookMetadata.calibreRating} (Fijo) • Sello: ${BookMetadata.defaultDistributor} (Fijo)',
-                      style: const TextStyle(fontSize: 12, color: Color(0xFFA6ADC8)),
+                      'OPF dc:title: "${meta.effectiveTitle}" • Colección: "${meta.series.isNotEmpty ? meta.series : '(Sin serie)'}"\n'
+                      'Archivo final: "${meta.defaultFileName}" • Rating: ${BookMetadata.calibreRating} (Fijo) • Sello: ${BookMetadata.defaultDistributor} (Fijo)',
+                      style: const TextStyle(fontSize: 12, color: Color(0xFFA6ADC8), height: 1.35),
                     ),
                   ],
                 ),
@@ -269,14 +276,44 @@ class _FormularioMetadatosState extends State<FormularioMetadatos> {
           icono: Icons.book_outlined,
           colorAcento: const Color(0xFF89B4FA),
           children: [
-            _campoTexto(
-              controller: _titleCtrl,
-              label: 'Título de la Novela en Romaji / Japonés (dc:title)',
-              hint: 'Ej: Akuma Koujo ~Yurui Akuma no Monogatari~',
-              icon: Icons.title,
-              onChanged: (v) => _actualizar(meta.copyWith(title: v)),
+            // Fila 1: Título y Subtítulo en Español (Portada, interior y archivo compilado)
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  flex: 3,
+                  child: _campoTexto(
+                    controller: _titleSpanishCtrl,
+                    label: 'Título de la Novela en Español (Portada / Archivo)',
+                    hint: 'Ej: La Princesa Demonio',
+                    icon: Icons.translate,
+                    onChanged: (v) => _actualizar(meta.copyWith(titleSpanish: v, title: v)),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  flex: 2,
+                  child: _campoTexto(
+                    controller: _subtitleCtrl,
+                    label: 'Subtítulo en Español (Opcional)',
+                    hint: 'Ej: La Historia del Demonio Despreocupado',
+                    icon: Icons.subtitles_outlined,
+                    onChanged: (v) => _actualizar(meta.copyWith(subtitle: v)),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 12),
+            // Fila 2: Título en Japonés / Romaji (dc:title en OPF - arriba)
+            _campoTexto(
+              controller: _titleJapaneseCtrl,
+              label: 'Título de la Novela en Romaji / Japonés (dc:title)',
+              hint: 'Ej: Akuma Koujo ~Yurui Akuma no Monogatari~',
+              icon: Icons.menu_book,
+              onChanged: (v) => _actualizar(meta.copyWith(titleJapanese: v)),
+            ),
+            const SizedBox(height: 12),
+            // Fila 3: Título en Inglés / Colección (calibre:series en OPF - abajo), Volumen y Siglas
             Row(
               children: [
                 Expanded(
@@ -306,7 +343,7 @@ class _FormularioMetadatosState extends State<FormularioMetadatos> {
                   child: _campoTexto(
                     controller: _groupTagCtrl,
                     label: 'Siglas Grupo',
-                    hint: 'Ej: SIGLAS-GRUPO',
+                    hint: 'Ej: KT',
                     icon: Icons.label_outline,
                     onChanged: (v) => _actualizar(meta.copyWith(groupTag: v)),
                   ),
@@ -472,6 +509,55 @@ class _FormularioMetadatosState extends State<FormularioMetadatos> {
                     hint: 'https://...',
                     icon: Icons.link,
                     onChanged: (v) => _actualizar(meta.copyWith(projectUrl: v)),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: InkWell(
+                    onTap: () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: meta.date ?? DateTime.now(),
+                        firstDate: DateTime(1990),
+                        lastDate: DateTime(2050),
+                      );
+                      if (picked != null) {
+                        _actualizar(meta.copyWith(date: picked));
+                      }
+                    },
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF181825),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFF313244)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.calendar_today_outlined, size: 16, color: Color(0xFF89B4FA)),
+                          const SizedBox(width: 10),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Fecha de Publicación (dc:date)', style: TextStyle(fontSize: 10, color: Color(0xFFA6ADC8))),
+                              Text(
+                                meta.date != null
+                                    ? '${meta.date!.year}-${meta.date!.month.toString().padLeft(2, '0')}-${meta.date!.day.toString().padLeft(2, '0')}'
+                                    : 'Sin fecha asignada',
+                                style: const TextStyle(fontSize: 12, color: Color(0xFFCDD6F4)),
+                              ),
+                            ],
+                          ),
+                          const Spacer(),
+                          const Icon(Icons.edit_calendar, size: 16, color: Color(0xFFA6ADC8)),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ],

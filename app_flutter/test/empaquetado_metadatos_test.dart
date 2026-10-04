@@ -355,5 +355,80 @@ void main() {
       expect(matchDesc, isNotNull);
       expect(matchDesc!.group(1)!.contains('\n'), isFalse);
     });
+
+    test('Taxonomía trilingüe canónica: Español en titulo.xhtml y archivo, Japonés/Romaji en dc:title, Inglés en calibre:series', () {
+      final bytesBase = File('assets/Base3_v1.15.0.epub').readAsBytesSync();
+      final meta = BookMetadata(
+        titleSpanish: 'La Princesa Demonio',
+        subtitle: 'La Historia del Demonio Despreocupado',
+        titleJapanese: 'Akuma Koujo ~Yurui Akuma no Monogatari~',
+        series: 'The Devil Princess [NL]',
+        volume: '01',
+        groupTag: 'KT',
+        publisher: 'Kyuden Translations',
+        bookId: 'test-trilingual-uuid',
+        date: DateTime.utc(2018, 10, 31),
+      );
+
+      // 1. Nombre de archivo generado canónico: Español - V01 [KT].epub
+      expect(meta.defaultFileName, equals('La Princesa Demonio - V01 [KT].epub'));
+      // 2. Título OPF dc:title: Romaji - Volumen 01 [KT]
+      expect(meta.effectiveTitle, equals('Akuma Koujo ~Yurui Akuma no Monogatari~ - Volumen 01 [KT]'));
+
+      final res = empaquetarEpub(
+        bytesBaseEpub: bytesBase,
+        capitulosYEspeciales: [ArchivoEpubEntrada(nombre: 'C01.xhtml', contenidoHtml: '<p>C1</p>')],
+        ordenSpine: ['C01.xhtml'],
+        entradasToc: [(archivo: 'C01.xhtml', titulo: 'C1')],
+        metadatos: meta,
+      );
+
+      final zip = ZipDecoder().decodeBytes(res.bytesEpub);
+      final opf = utf8.decode(zip.files.firstWhere((f) => f.name == 'OEBPS/content.opf').content as List<int>);
+      final titulo = utf8.decode(zip.files.firstWhere((f) => f.name == 'OEBPS/Text/titulo.xhtml').content as List<int>);
+
+      // Verificar content.opf:
+      // dc:title tiene japonés/romaji
+      expect(opf.contains('<dc:title>Akuma Koujo ~Yurui Akuma no Monogatari~ - Volumen 01 [KT]</dc:title>'), isTrue);
+      // belongs-to-collection y calibre:series tienen inglés
+      expect(opf.contains('<meta id="serie" property="belongs-to-collection">The Devil Princess [NL]</meta>'), isTrue);
+      expect(opf.contains('<meta content="The Devil Princess [NL]" name="calibre:series"/>'), isTrue);
+      expect(opf.contains('<meta property="group-position" refines="#serie">01</meta>'), isTrue);
+      expect(opf.contains('<meta content="01" name="calibre:series_index"/>'), isTrue);
+      // dc:date está actualizado
+      expect(opf.contains('<dc:date>2018-10-31T00:00:00Z</dc:date>'), isTrue);
+
+      // Verificar titulo.xhtml:
+      // Título en español en span grande
+      expect(titulo.contains('<span class="grande" epub:type="title">La Princesa Demonio</span>'), isTrue);
+      // Subtítulo en español
+      expect(titulo.contains('<span epub:type="subtitle" role="doc-subtitle">La Historia del Demonio Despreocupado</span>'), isTrue);
+      // Volumen y tipo de libro
+      expect(titulo.contains('<h2 class="subtitulo sigil_not_in_toc">Volumen 01<br/><small>[Novela Ligera]</small></h2>'), isTrue);
+    });
+
+    test('titulo.xhtml elimina placeholder de subtítulo si está vacío', () {
+      final bytesBase = File('assets/Base3_v1.15.0.epub').readAsBytesSync();
+      const meta = BookMetadata(
+        titleSpanish: 'Cómo no Invocar a un Señor Demonio',
+        subtitle: '', // Vacío
+        volume: '01',
+      );
+
+      final res = empaquetarEpub(
+        bytesBaseEpub: bytesBase,
+        capitulosYEspeciales: [ArchivoEpubEntrada(nombre: 'C01.xhtml', contenidoHtml: '<p>C1</p>')],
+        ordenSpine: ['C01.xhtml'],
+        entradasToc: [(archivo: 'C01.xhtml', titulo: 'C1')],
+        metadatos: meta,
+      );
+
+      final zip = ZipDecoder().decodeBytes(res.bytesEpub);
+      final titulo = utf8.decode(zip.files.firstWhere((f) => f.name == 'OEBPS/Text/titulo.xhtml').content as List<int>);
+
+      expect(titulo.contains('Cómo no Invocar a un Señor Demonio</span>'), isTrue);
+      expect(titulo.contains('Aquí va el subtítulo'), isFalse);
+      expect(titulo.contains('epub:type="subtitle"'), isFalse);
+    });
   });
 }
