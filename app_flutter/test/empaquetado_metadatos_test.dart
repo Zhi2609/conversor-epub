@@ -272,5 +272,88 @@ void main() {
       expect(meta.groupTag, 'NL-FANS');
       expect(meta.effectiveTitle, 'Overlord - Volumen 14 [NL-FANS]');
     });
+
+    test('BookMetadata.defaultFileName genera Nombre de novela - V01 [GrupoTraductor].epub', () {
+      const meta1 = BookMetadata(
+        title: 'Akuma Koujo ~Yurui Akuma no Monogatari~',
+        volume: '01',
+        groupTag: 'KT',
+      );
+      expect(meta1.defaultFileName, equals('Akuma Koujo ~Yurui Akuma no Monogatari~ - V01 [KT].epub'));
+
+      const meta2 = BookMetadata(
+        series: 'The Devil Princess [NL]',
+        volume: '1',
+        publisher: 'Kyuden Translations',
+      );
+      expect(meta2.defaultFileName, equals('The Devil Princess - V01 [Kyuden Translations].epub'));
+    });
+
+    test('ordenarSubjectsCanonico respeta Edad -> Audiencia -> Géneros alfabéticos', () {
+      final entrada = [
+        'Aventura',
+        'Comedia',
+        'Drama',
+        'Fantasía',
+        'Maduro',
+        'Adultos/Seinen',
+        'Misterio',
+        'Psicológico',
+        'Recuentos de la vida',
+        'Romance',
+      ];
+
+      final ordenado = ordenarSubjectsCanonico(entrada);
+      expect(ordenado, equals([
+        'Maduro',
+        'Adultos/Seinen',
+        'Aventura',
+        'Comedia',
+        'Drama',
+        'Fantasía',
+        'Misterio',
+        'Psicológico',
+        'Recuentos de la vida',
+        'Romance',
+      ]));
+    });
+
+    test('formatearIsbn13 y formatearIsbn10 agregan separaciones de guiones canónicas a números continuos', () {
+      expect(formatearIsbn13('9784065280584'), equals('978-40-6528-058-4'));
+      expect(formatearIsbn10('4065280583'), equals('40-6528-058-3'));
+
+      // Si ya tienen guiones, los conserva
+      expect(formatearIsbn13('978-40-6528-058-4'), equals('978-40-6528-058-4'));
+      expect(formatearIsbn10('40-6528-058-3'), equals('40-6528-058-3'));
+    });
+
+    test('content.opf genera dc:description en una sola línea unida por &lt;br/&gt;&lt;br/&gt;', () {
+      final bytesBase = File('assets/Base3_v1.15.0.epub').readAsBytesSync();
+      const meta = BookMetadata(
+        title: 'Novela Test',
+        synopsis: 'Párrafo 1.\n\nPárrafo 2.\n\nPárrafo 3.',
+        bookId: 'test-desc-uuid',
+      );
+
+      final res = empaquetarEpub(
+        bytesBaseEpub: bytesBase,
+        capitulosYEspeciales: [ArchivoEpubEntrada(nombre: 'C01.xhtml', contenidoHtml: '<p>C1</p>')],
+        ordenSpine: ['C01.xhtml'],
+        entradasToc: [(archivo: 'C01.xhtml', titulo: 'C1')],
+        metadatos: meta,
+      );
+
+      final zip = ZipDecoder().decodeBytes(res.bytesEpub);
+      final opf = utf8.decode(zip.files.firstWhere((f) => f.name == 'OEBPS/content.opf').content as List<int>);
+
+      expect(
+        opf.contains('<dc:description>Párrafo 1.&lt;br/&gt;&lt;br/&gt;Párrafo 2.&lt;br/&gt;&lt;br/&gt;Párrafo 3.</dc:description>'),
+        isTrue,
+      );
+      // No contiene saltos de línea dentro de dc:description
+      final matchDesc = RegExp(r'<dc:description>(.*?)</dc:description>', dotAll: true).firstMatch(opf);
+      expect(matchDesc, isNotNull);
+      expect(matchDesc!.group(1)!.contains('\n'), isFalse);
+    });
   });
 }

@@ -183,7 +183,7 @@ class _FormularioMetadatosState extends State<FormularioMetadatos> {
       list.removeWhere((s) => _demografiasEdad.contains(s));
       list.add(demo);
     }
-    _actualizar(widget.metadatos.copyWith(subjects: list));
+    _actualizar(widget.metadatos.copyWith(subjects: ordenarSubjectsCanonico(list)));
   }
 
   void _seleccionarDemografiaAudiencia(String demo) {
@@ -194,7 +194,7 @@ class _FormularioMetadatosState extends State<FormularioMetadatos> {
       list.removeWhere((s) => _demografiasAudiencia.contains(s));
       list.add(demo);
     }
-    _actualizar(widget.metadatos.copyWith(subjects: list));
+    _actualizar(widget.metadatos.copyWith(subjects: ordenarSubjectsCanonico(list)));
   }
 
   void _toggleSubject(String s) {
@@ -204,14 +204,14 @@ class _FormularioMetadatosState extends State<FormularioMetadatos> {
     } else {
       list.add(s);
     }
-    _actualizar(widget.metadatos.copyWith(subjects: list));
+    _actualizar(widget.metadatos.copyWith(subjects: ordenarSubjectsCanonico(list)));
   }
 
   void _agregarCustomSubject() {
     final val = _customSubjectCtrl.text.trim();
     if (val.isNotEmpty && !widget.metadatos.subjects.contains(val)) {
       final list = List<String>.from(widget.metadatos.subjects)..add(val);
-      _actualizar(widget.metadatos.copyWith(subjects: list));
+      _actualizar(widget.metadatos.copyWith(subjects: ordenarSubjectsCanonico(list)));
       _customSubjectCtrl.clear();
     }
   }
@@ -271,8 +271,8 @@ class _FormularioMetadatosState extends State<FormularioMetadatos> {
           children: [
             _campoTexto(
               controller: _titleCtrl,
-              label: 'Título Principal',
-              hint: 'Ej: Nombre de la Novela',
+              label: 'Título de la Novela en Romaji / Japonés (dc:title)',
+              hint: 'Ej: Akuma Koujo ~Yurui Akuma no Monogatari~',
               icon: Icons.title,
               onChanged: (v) => _actualizar(meta.copyWith(title: v)),
             ),
@@ -283,8 +283,8 @@ class _FormularioMetadatosState extends State<FormularioMetadatos> {
                   flex: 3,
                   child: _campoTexto(
                     controller: _seriesCtrl,
-                    label: 'Saga / Nombre de la Novela (calibre:series)',
-                    hint: 'Ej: Overlord [NL]',
+                    label: 'Título de la Novela en Inglés / Colección (calibre:series)',
+                    hint: 'Ej: The Devil Princess [NL]',
                     icon: Icons.collections_bookmark_outlined,
                     onChanged: (v) => _actualizar(meta.copyWith(series: v)),
                   ),
@@ -865,9 +865,18 @@ class _FormularioMetadatosState extends State<FormularioMetadatos> {
                   child: _campoTexto(
                     controller: _isbn10Ctrl,
                     label: 'ISBN-10 (Opcional)',
-                    hint: 'Ej: 4840134086',
+                    hint: 'Ej: 40-6528-058-3',
                     icon: Icons.qr_code,
-                    onChanged: (v) => _actualizar(meta.copyWith(isbn10: v)),
+                    onChanged: (v) {
+                      final fmt = formatearIsbn10(v);
+                      if (fmt != v && fmt.contains('-')) {
+                        _isbn10Ctrl.value = TextEditingValue(
+                          text: fmt,
+                          selection: TextSelection.collapsed(offset: fmt.length),
+                        );
+                      }
+                      _actualizar(meta.copyWith(isbn10: fmt));
+                    },
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -878,7 +887,16 @@ class _FormularioMetadatosState extends State<FormularioMetadatos> {
                     label: 'ISBN-13 (Opcional)',
                     hint: 'Ej: 978-40-6528-058-4',
                     icon: Icons.qr_code,
-                    onChanged: (v) => _actualizar(meta.copyWith(isbn13: v)),
+                    onChanged: (v) {
+                      final fmt = formatearIsbn13(v);
+                      if (fmt != v && fmt.contains('-')) {
+                        _isbn13Ctrl.value = TextEditingValue(
+                          text: fmt,
+                          selection: TextSelection.collapsed(offset: fmt.length),
+                        );
+                      }
+                      _actualizar(meta.copyWith(isbn13: fmt));
+                    },
                   ),
                 ),
                 const SizedBox(width: 12),

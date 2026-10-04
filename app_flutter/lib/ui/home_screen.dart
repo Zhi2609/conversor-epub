@@ -618,11 +618,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _compilarEpub() async {
-    final nombreBase = _metadatos.displayTitle.isNotEmpty && _metadatos.title.isNotEmpty
-        ? '${_metadatos.displayTitle}.epub'
-        : (_rutaArchivoCargado != null
-            ? '${p.basenameWithoutExtension(_rutaArchivoCargado!)}.epub'
-            : 'Novela.epub');
+    final nombreBase = _metadatos.defaultFileName;
 
     String? destino = await FilePicker.platform.saveFile(
       dialogTitle: 'Guardar ePub compilado',

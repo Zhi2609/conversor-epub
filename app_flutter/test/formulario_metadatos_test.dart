@@ -27,14 +27,15 @@ void main() {
 
       // Encontrar el campo de texto de ISBN-10 por su hint o label
       final isbn10Finder = find.byWidgetPredicate(
-        (w) => w is TextField && w.decoration?.hintText == 'Ej: 4840134086',
+        (w) => w is TextField && w.decoration?.hintText == 'Ej: 40-6528-058-3',
       );
       expect(isbn10Finder, findsOneWidget);
 
-      await tester.enterText(isbn10Finder, '4840134086');
+      await tester.enterText(isbn10Finder, '4065280583');
       await tester.pump();
 
-      expect(actual.isbn10, equals('4840134086'));
+      // Debe formatearse automáticamente con separaciones de guiones
+      expect(actual.isbn10, equals('40-6528-058-3'));
     });
 
     testWidgets('Selecciona demografías duales (Edad y Audiencia) de forma exclusiva por grupo', (tester) async {

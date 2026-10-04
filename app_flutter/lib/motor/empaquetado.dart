@@ -207,7 +207,13 @@ ResultadoEmpaquetado empaquetarEpub({
         opf = opf.replaceAll(RegExp(r'<dc:language>.*?</dc:language>', caseSensitive: false), '<dc:language>${_escXml(metadatos.language)}</dc:language>');
       }
       if (metadatos.synopsis.isNotEmpty) {
-        opf = opf.replaceAll(RegExp(r'<dc:description>.*?</dc:description>', caseSensitive: false), '<dc:description>${_escXml(metadatos.synopsis)}</dc:description>');
+        final parrafos = metadatos.synopsis
+            .split(RegExp(r'\r?\n\s*\r?\n'))
+            .map((p) => p.replaceAll(RegExp(r'\r?\n'), ' ').trim())
+            .where((p) => p.isNotEmpty)
+            .toList();
+        final sinopsisOpf = parrafos.map((p) => _escXml(p)).join('&lt;br/&gt;&lt;br/&gt;');
+        opf = opf.replaceAll(RegExp(r'<dc:description>.*?</dc:description>', caseSensitive: false), '<dc:description>$sinopsisOpf</dc:description>');
       }
       if (metadatos.bookType.isNotEmpty) {
         opf = opf.replaceAll(RegExp(r'<dc:type>.*?</dc:type>', caseSensitive: false), '<dc:type>${_escXml(metadatos.bookType)}</dc:type>');
@@ -292,9 +298,10 @@ ResultadoEmpaquetado empaquetarEpub({
         opf = opf.replaceAll(RegExp(r'\s*<dc:publisher>.*?</dc:publisher>', caseSensitive: false), '');
       }
 
-      // Subjects (Taxonomía / Demografía y Géneros)
+      // Subjects (Taxonomía / Demografía y Géneros según orden estricto de ZeePubs)
       if (metadatos.subjects.isNotEmpty) {
-        final nuevosSubjects = metadatos.subjects
+        final subjectsCanonicos = ordenarSubjectsCanonico(metadatos.subjects);
+        final nuevosSubjects = subjectsCanonicos
             .where((s) => s.trim().isNotEmpty)
             .map((s) => '    <dc:subject>${_escXml(s.trim())}</dc:subject>')
             .join('\n');
@@ -306,9 +313,10 @@ ResultadoEmpaquetado empaquetarEpub({
 
       // Identificadores: isbn13, isbn10, amazon-id, uri-id
       if (metadatos.isbn13.isNotEmpty) {
+        final isbn13Formateado = formatearIsbn13(metadatos.isbn13);
         opf = opf.replaceAll(
           RegExp(r'<dc:identifier\s+id="isbn13">.*?</dc:identifier>', caseSensitive: false),
-          '<dc:identifier id="isbn13">urn:isbn:${_escXml(metadatos.isbn13)}</dc:identifier>',
+          '<dc:identifier id="isbn13">urn:isbn:${_escXml(isbn13Formateado)}</dc:identifier>',
         );
       } else {
         opf = opf.replaceAll(RegExp(r'\s*<dc:identifier\s+id="isbn13">.*?</dc:identifier>', caseSensitive: false), '');
@@ -316,9 +324,10 @@ ResultadoEmpaquetado empaquetarEpub({
       }
 
       if (metadatos.isbn10.isNotEmpty) {
+        final isbn10Formateado = formatearIsbn10(metadatos.isbn10);
         opf = opf.replaceAll(
           RegExp(r'<dc:identifier\s+id="isbn10">.*?</dc:identifier>', caseSensitive: false),
-          '<dc:identifier id="isbn10">urn:isbn:${_escXml(metadatos.isbn10)}</dc:identifier>',
+          '<dc:identifier id="isbn10">urn:isbn:${_escXml(isbn10Formateado)}</dc:identifier>',
         );
       } else {
         opf = opf.replaceAll(RegExp(r'\s*<dc:identifier\s+id="isbn10">.*?</dc:identifier>', caseSensitive: false), '');

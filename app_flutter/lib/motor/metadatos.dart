@@ -17,6 +17,98 @@ String uuidV7([DateTime? at]) {
   return '${hex.substring(0, 8)}-${hex.substring(8, 12)}-${hex.substring(12, 16)}-${hex.substring(16, 20)}-${hex.substring(20)}';
 }
 
+/// Demografías canónicas de ZeePubs divididas por categoría
+const List<String> kDemografiasEdad = [
+  'Maduro',
+  'Juvenil',
+];
+
+const List<String> kDemografiasAudiencia = [
+  'Adultas/Josei',
+  'Adultos/Seinen',
+  'Chicas/Shoujo',
+  'Chicos/Shounen',
+];
+
+/// 20 Géneros canónicos de ZeePubs
+const List<String> kGenerosZeePubs = [
+  'Acción',
+  'Aventura',
+  'Bélico',
+  'Ciencia ficción',
+  'Comedia',
+  'Deporte',
+  'Drama',
+  'Erótico',
+  'Escolar',
+  'Fantasía',
+  'Histórico',
+  'LGBTQI+',
+  'Misterio',
+  'Parodia',
+  'Policial',
+  'Psicológico',
+  'Recuentos de la vida',
+  'Romance',
+  'Sobrenatural',
+  'Terror',
+];
+
+/// Ordena la lista de etiquetas (dc:subject) según la regla estricta de ZeePubs:
+/// 1. Demografía de Edad/Madurez (Maduro o Juvenil)
+/// 2. Demografía de Audiencia/Público (Adultas/Josei, Adultos/Seinen, Chicas/Shoujo o Chicos/Shounen)
+/// 3. Resto de etiquetas (géneros literarios y personalizadas) en orden alfabético.
+List<String> ordenarSubjectsCanonico(Iterable<String> subjects) {
+  String? demoEdad;
+  String? demoAudiencia;
+  final resto = <String>[];
+
+  for (final item in subjects) {
+    final s = item.trim();
+    if (s.isEmpty) continue;
+    if (demoEdad == null && kDemografiasEdad.contains(s)) {
+      demoEdad = s;
+    } else if (demoAudiencia == null && kDemografiasAudiencia.contains(s)) {
+      demoAudiencia = s;
+    } else {
+      resto.add(s);
+    }
+  }
+
+  // Orden alfabético insensible a mayúsculas/minúsculas
+  resto.sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+
+  final res = <String>[];
+  if (demoEdad != null) res.add(demoEdad);
+  if (demoAudiencia != null) res.add(demoAudiencia);
+  res.addAll(resto);
+  return res;
+}
+
+/// Formatea un ISBN-13 si se introdujo como 13 dígitos continuos sin guiones:
+/// Patrón canónico de Base3: 000-00-0000-000-0 (3-2-4-3-1)
+String formatearIsbn13(String raw) {
+  final limpio = raw.trim();
+  if (limpio.contains('-')) return limpio;
+  final soloDigitos = limpio.replaceAll(RegExp(r'\s+'), '');
+  if (soloDigitos.length == 13 && RegExp(r'^\d{13}$').hasMatch(soloDigitos)) {
+    return '${soloDigitos.substring(0, 3)}-${soloDigitos.substring(3, 5)}-${soloDigitos.substring(5, 9)}-${soloDigitos.substring(9, 12)}-${soloDigitos.substring(12, 13)}';
+  }
+  return limpio;
+}
+
+/// Formatea un ISBN-10 si se introdujo como 10 caracteres/dígitos continuos sin guiones:
+/// Patrón canónico de Base3: 00-0000-000-0 (2-4-3-1)
+String formatearIsbn10(String raw) {
+  final limpio = raw.trim();
+  if (limpio.contains('-')) return limpio;
+  final soloDigitos = limpio.replaceAll(RegExp(r'\s+'), '');
+  if (soloDigitos.length == 10 && RegExp(r'^\d{9}[\dX]$', caseSensitive: false).hasMatch(soloDigitos)) {
+    return '${soloDigitos.substring(0, 2)}-${soloDigitos.substring(2, 6)}-${soloDigitos.substring(6, 9)}-${soloDigitos.substring(9, 10).toUpperCase()}';
+  }
+  return limpio;
+}
+
 /// Representación estructurada de los metadatos OPF del libro según Base3_v1.15.0.epub.
 class BookMetadata {
   final String title;
@@ -178,11 +270,13 @@ class BookMetadata {
   }
 
   /// Título formal para encabezado o metadatos completos.
+  /// En Base3: "Nombre de la novela en romamji – Volumen 01"
   String get displayTitle {
-    if (series.isNotEmpty && volume.isNotEmpty) {
-      return '$series - Volumen $volume';
+    final baseTitle = title.isNotEmpty ? title : (series.isNotEmpty ? series : 'Sin título');
+    if (volume.isNotEmpty) {
+      return '$baseTitle - Volumen $volume';
     }
-    return title.isNotEmpty ? title : 'Sin título';
+    return baseTitle;
   }
 
   /// Título con etiqueta de grupo al final si existe (como en Base3: '... [SIGLAS-GRUPO]')
@@ -195,5 +289,30 @@ class BookMetadata {
       return '$base $tag';
     }
     return base;
+  }
+
+  /// Nombre canónico para el archivo compilado:
+  /// "Nombre de novela - V01 [GrupoTraductor].epub"
+  String get defaultFileName {
+    String nombre = title.isNotEmpty ? title : (series.isNotEmpty ? series : 'Novela');
+    nombre = nombre.replaceAll(RegExp(r'\s*\[[^\]]+\]\s*$'), '').trim();
+
+    String volStr = 'V01';
+    final volLimpio = volume.trim().replaceAll(RegExp(r'^[Vv]ol(?:umen|\.?)?\s*', caseSensitive: false), '').trim();
+    if (volLimpio.isNotEmpty) {
+      final n = int.tryParse(volLimpio);
+      volStr = n != null ? 'V${n.toString().padLeft(2, '0')}' : 'V$volLimpio';
+    }
+
+    final tag = groupTag.trim().isNotEmpty
+        ? groupTag.trim().replaceAll(RegExp(r'^\[|\]$'), '')
+        : (publisher.trim().isNotEmpty ? publisher.trim() : '');
+
+    final buffer = StringBuffer(nombre);
+    buffer.write(' - $volStr');
+    if (tag.isNotEmpty) {
+      buffer.write(' [$tag]');
+    }
+    return '${buffer.toString()}.epub';
   }
 }
