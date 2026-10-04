@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:conversor_epub/motor/modelo.dart';
+import 'package:conversor_epub/motor/plantillas.dart';
 import 'package:conversor_epub/motor/secciones.dart';
 import 'package:conversor_epub/motor/metadatos.dart';
 
@@ -84,14 +85,41 @@ void main() {
         SectionItem(id: '1', kind: SectionKind.cover, matter: BookMatter.front, title: 'Cubierta', fileName: 'cubierta.xhtml'),
         SectionItem(id: '2', kind: SectionKind.prologue, matter: BookMatter.body, title: 'Prólogo', subtitle: 'Inicio', fileName: 'prologo.xhtml', htmlContent: '<p>P</p>'),
         SectionItem(id: '3', kind: SectionKind.chapter, matter: BookMatter.body, title: 'Capítulo 1', fileName: 'C01.xhtml', htmlContent: '<p>C1</p>'),
-        SectionItem(id: '4', kind: SectionKind.chapter, matter: BookMatter.body, title: 'Capítulo Desactivado', fileName: 'C02.xhtml', enabled: false),
+        SectionItem(id: '4', kind: SectionKind.extra, matter: BookMatter.back, title: 'Historia Extra 1', fileName: 'extra_01.xhtml', htmlContent: '<p>Extra</p>'),
+        SectionItem(id: '5', kind: SectionKind.chapter, matter: BookMatter.body, title: 'Capítulo Desactivado', fileName: 'C02.xhtml', enabled: false),
       ];
 
       final capitulos = seccionesACapitulos(secciones);
-      expect(capitulos.length, 2);
+      expect(capitulos.length, 3);
       expect(capitulos[0].plantillaNombre, 'prologo.xhtml');
       expect(capitulos[0].titulo, 'Prólogo: Inicio');
       expect(capitulos[1].archivo, 'C01.xhtml');
+      expect(capitulos[2].archivo, 'extra_01.xhtml');
+      expect(capitulos[2].tipoForzado, TipoEspecial.extra);
+    });
+
+    test('detectarTipoEspecial y clasificarYRenumerarCapitulos reconocen Historia Extra y no alteran numeracion de capitulos', () {
+      expect(detectarTipoEspecial('Historia Extra 1: El diario de los pequeños demonios'), TipoEspecial.extra);
+      expect(detectarTipoEspecial('Historia Extra 2: ¿Necesitas una Princesa a la cual dedicarle tu corazón?'), TipoEspecial.extra);
+      expect(detectarTipoEspecial('Historia Corta: Vacaciones'), TipoEspecial.extra);
+      expect(detectarTipoEspecial('Capítulo Extra: Encuentro'), TipoEspecial.extra);
+      expect(detectarTipoEspecial('Side Story 1: Recuerdos'), TipoEspecial.extra);
+
+      final caps = [
+        Chapter(titulo: 'Capítulo 1: Inicio', htmlCuerpo: '<p>1</p>'),
+        Chapter(titulo: 'Capítulo 2: Mitad', htmlCuerpo: '<p>2</p>'),
+        Chapter(titulo: 'EPÍLOGO', htmlCuerpo: '<p>E</p>'),
+        Chapter(titulo: 'Historia Extra 1: El diario', htmlCuerpo: '<p>Ex1</p>'),
+        Chapter(titulo: 'Historia Extra 2: La princesa', htmlCuerpo: '<p>Ex2</p>'),
+      ];
+
+      clasificarYRenumerarCapitulos(caps, startNum: 1);
+
+      expect(caps[0].archivo, 'C01.xhtml');
+      expect(caps[1].archivo, 'C02.xhtml');
+      expect(caps[2].archivo, 'epilogo.xhtml');
+      expect(caps[3].archivo, 'extra_01.xhtml');
+      expect(caps[4].archivo, 'extra_02.xhtml');
     });
   });
 }

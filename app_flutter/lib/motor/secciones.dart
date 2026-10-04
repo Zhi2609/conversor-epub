@@ -28,6 +28,7 @@ enum SectionKind {
   chapter('Capítulo', BookMatter.body, 'C01.xhtml'),
   interlude('Interludio', BookMatter.body, 'C01.xhtml'),
   part('Parte', BookMatter.body, 'parte.xhtml'),
+  extra('Historia Extra', BookMatter.back, 'extra.xhtml'),
   epilogue('Epílogo', BookMatter.back, 'epilogo.xhtml'),
   author('Acerca del autor', BookMatter.back, 'autor.xhtml'),
   translator('Palabras del traductor', BookMatter.back, 'traductor.xhtml'),
@@ -293,7 +294,7 @@ List<SectionItem> convertirResultadoASecciones(
       capTraductor = cap;
     } else {
       capitulosNarrativa.add((cap: cap, partes: partes, index: i));
-      if (!partes.esInterludio) {
+      if (!partes.esInterludio && !partes.esExtra) {
         contadorCapitulosRegulares++;
       }
     }
@@ -328,24 +329,33 @@ List<SectionItem> convertirResultadoASecciones(
     ));
   }
 
-  // Posición 13: Capítulos narrativos (C01.xhtml ... CNN.xhtml e interludios)
+  // Posición 13: Capítulos narrativos (C01.xhtml ... CNN.xhtml, interludios e historias extra)
   int numArchivo = startNum;
+  int numExtra = 1;
   for (final item in capitulosNarrativa) {
     final cap = item.cap;
     final partes = item.partes;
     final i = item.index;
 
-    final kind = partes.esInterludio ? SectionKind.interlude : SectionKind.chapter;
+    final kind = partes.esExtra
+        ? SectionKind.extra
+        : (partes.esInterludio ? SectionKind.interlude : SectionKind.chapter);
+    final matter = partes.esExtra ? BookMatter.back : BookMatter.body;
     String nombreArchivo = cap.archivo ?? '';
     if (nombreArchivo.isEmpty) {
-      nombreArchivo = 'C${numArchivo.toString().padLeft(2, '0')}.xhtml';
-      numArchivo++;
+      if (partes.esExtra) {
+        nombreArchivo = 'extra_${numExtra.toString().padLeft(2, '0')}.xhtml';
+        numExtra++;
+      } else {
+        nombreArchivo = 'C${numArchivo.toString().padLeft(2, '0')}.xhtml';
+        numArchivo++;
+      }
     }
 
     secciones.add(SectionItem(
       id: 'cap_$i',
       kind: kind,
-      matter: BookMatter.body,
+      matter: matter,
       title: partes.etiqueta,
       subtitle: partes.subtitulo ?? '',
       fileName: nombreArchivo,
@@ -512,11 +522,30 @@ List<Chapter> seccionesACapitulos(List<SectionItem> secciones) {
       continue;
     }
 
+    TipoEspecial? tipoForzado;
     String? plantillaNombre;
-    if (s.kind == SectionKind.prologue) plantillaNombre = 'prologo.xhtml';
-    if (s.kind == SectionKind.epilogue) plantillaNombre = 'epilogo.xhtml';
-    if (s.kind == SectionKind.author) plantillaNombre = 'autor.xhtml';
-    if (s.kind == SectionKind.translator) plantillaNombre = 'traductor.xhtml';
+    if (s.kind == SectionKind.prologue) {
+      plantillaNombre = 'prologo.xhtml';
+      tipoForzado = TipoEspecial.prologo;
+    }
+    if (s.kind == SectionKind.epilogue) {
+      plantillaNombre = 'epilogo.xhtml';
+      tipoForzado = TipoEspecial.epilogo;
+    }
+    if (s.kind == SectionKind.author) {
+      plantillaNombre = 'autor.xhtml';
+      tipoForzado = TipoEspecial.autor;
+    }
+    if (s.kind == SectionKind.translator) {
+      plantillaNombre = 'traductor.xhtml';
+      tipoForzado = TipoEspecial.traductor;
+    }
+    if (s.kind == SectionKind.interlude) {
+      tipoForzado = TipoEspecial.interludio;
+    }
+    if (s.kind == SectionKind.extra) {
+      tipoForzado = TipoEspecial.extra;
+    }
 
     caps.add(Chapter(
       titulo: s.effectiveHeading,
@@ -526,6 +555,7 @@ List<Chapter> seccionesACapitulos(List<SectionItem> secciones) {
       plantillaNombre: plantillaNombre,
       tituloEsImagen: s.titleIsImage,
       numeroImagenTitulo: s.titleImageNumber,
+      tipoForzado: tipoForzado,
     ));
   }
   return caps;

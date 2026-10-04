@@ -51,6 +51,8 @@ class PanelSecciones extends StatelessWidget {
       case SectionKind.part:
       case SectionKind.epilogue:
         return const Color(0xFFCBA6F7);
+      case SectionKind.extra:
+        return const Color(0xFFF5C2E7);
       case SectionKind.notes:
         return const Color(0xFFF38BA8);
       case SectionKind.author:
@@ -116,6 +118,7 @@ class PanelSecciones extends StatelessWidget {
                     child: Text('FINALES', style: TextStyle(fontSize: 10, color: Color(0xFF6C7086), fontWeight: FontWeight.bold)),
                   ),
                   _menuItem(SectionKind.epilogue),
+                  _menuItem(SectionKind.extra),
                   _menuItem(SectionKind.author),
                   _menuItem(SectionKind.translator),
                   _menuItem(SectionKind.backCover),

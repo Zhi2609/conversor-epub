@@ -28,6 +28,7 @@ enum TipoEspecial {
   autor,
   traductor,
   interludio,
+  extra,
 }
 
 TipoEspecial? detectarTipoEspecial(String titulo) {
@@ -44,6 +45,16 @@ TipoEspecial? detectarTipoEspecial(String titulo) {
     if (norm.startsWith('epilogo del autor')) return TipoEspecial.autor;
     if (norm.startsWith('epilogo')) return TipoEspecial.epilogo;
     if (norm.startsWith('interludio')) return TipoEspecial.interludio;
+    if (norm.startsWith('historia extra') ||
+        norm.startsWith('historia corta') ||
+        norm.startsWith('capitulo extra') ||
+        norm.startsWith('side story') ||
+        norm.startsWith('relato corto') ||
+        norm.startsWith('ss:') ||
+        norm.startsWith('ss ') ||
+        RegExp(r'^extra(?:\s+\d+|:|\s*$)').hasMatch(norm)) {
+      return TipoEspecial.extra;
+    }
     if (norm.startsWith('palabras del traductor') ||
         norm.startsWith('palabras de traductor') ||
         norm.startsWith('nota del traductor') ||
@@ -87,6 +98,7 @@ String? clasificarEspecial(String titulo) {
     case TipoEspecial.traductor:
       return 'traductor.xhtml';
     case TipoEspecial.interludio:
+    case TipoEspecial.extra:
     case TipoEspecial.cuerpo:
     case null:
       return null;
@@ -102,6 +114,7 @@ class PartesTitulo {
   final bool esEpilogo;
   final bool esAutor;
   final bool esTraductor;
+  final bool esExtra;
 
   PartesTitulo({
     required this.etiqueta,
@@ -112,6 +125,7 @@ class PartesTitulo {
     this.esEpilogo = false,
     this.esAutor = false,
     this.esTraductor = false,
+    this.esExtra = false,
   });
 }
 
@@ -127,6 +141,11 @@ final _reEpilogo = RegExp(
 
 final _reInterludio = RegExp(
   r'^\s*(interludio(?:\s*(?:[ivxlcdm]+|\d+))?)\s*[:—–\-.|｜/]*\s*(.*)$',
+  caseSensitive: false,
+);
+
+final _reExtra = RegExp(
+  r'^\s*(historia\s+extra(?:\s*(?:[ivxlcdm]+|\d+))?|historia\s+corta(?:\s*(?:[ivxlcdm]+|\d+))?|cap[ií]tulo\s+extra(?:\s*(?:[ivxlcdm]+|\d+))?|side\s+story(?:\s*(?:[ivxlcdm]+|\d+))?|ss(?:\s*(?:[ivxlcdm]+|\d+))?|relato\s+corto(?:\s*(?:[ivxlcdm]+|\d+))?|extra(?:\s*(?:[ivxlcdm]+|\d+))?)\b\s*[:—–\-.|｜/]*\s*(.*)$',
   caseSensitive: false,
 );
 
@@ -208,6 +227,18 @@ PartesTitulo descomponerTitulo(String titulo, {int? numeroPorDefecto}) {
     );
   }
 
+  m = _reExtra.firstMatch(t);
+  if (m != null) {
+    String etiqueta = m.group(1)!.trim();
+    String sub = _limpiarSubtitulo(m.group(2)!);
+    return PartesTitulo(
+      etiqueta: etiqueta,
+      subtitulo: sub.isNotEmpty ? sub : null,
+      tituloCompleto: sub.isNotEmpty ? '$etiqueta: $sub' : etiqueta,
+      esExtra: true,
+    );
+  }
+
   m = _reTraductor.firstMatch(t);
   if (m != null) {
     String etiqueta = m.group(1)!.trim();
@@ -270,6 +301,7 @@ void clasificarYRenumerarCapitulos(List<Chapter> capitulos, {int startNum = 1, S
   int totalAutores = 0;
   int totalTraductores = 0;
   int totalInterludios = 0;
+  int totalExtras = 0;
 
   for (var cap in capitulos) {
     final tipo = cap.tipoForzado == TipoEspecial.cuerpo
@@ -280,6 +312,7 @@ void clasificarYRenumerarCapitulos(List<Chapter> capitulos, {int startNum = 1, S
     if (tipo == TipoEspecial.autor) totalAutores++;
     if (tipo == TipoEspecial.traductor) totalTraductores++;
     if (tipo == TipoEspecial.interludio) totalInterludios++;
+    if (tipo == TipoEspecial.extra) totalExtras++;
   }
 
   int countPrologo = 0;
@@ -287,6 +320,7 @@ void clasificarYRenumerarCapitulos(List<Chapter> capitulos, {int startNum = 1, S
   int countAutor = 0;
   int countTraductor = 0;
   int countInterludio = 0;
+  int countExtra = 0;
   int numeroCapitulo = startNum;
 
   for (var cap in capitulos) {
@@ -323,8 +357,14 @@ void clasificarYRenumerarCapitulos(List<Chapter> capitulos, {int startNum = 1, S
       cap.archivo = (totalInterludios > 1)
           ? 'interludio_${countInterludio.toString().padLeft(2, '0')}.xhtml'
           : 'interludio.xhtml';
+    } else if (tipo == TipoEspecial.extra) {
+      countExtra++;
+      cap.plantillaNombre = null; // usa template.xhtml
+      cap.archivo = (totalExtras > 1)
+          ? 'extra_${countExtra.toString().padLeft(2, '0')}.xhtml'
+          : 'extra.xhtml';
     } else {
-      // Capítulo normal o historia extra/adicional
+      // Capítulo normal
       cap.plantillaNombre = null;
       cap.archivo = 'C${numeroCapitulo.toString().padLeft(2, '0')}.xhtml';
       numeroCapitulo++;

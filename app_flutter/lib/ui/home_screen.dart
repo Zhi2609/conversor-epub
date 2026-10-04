@@ -124,6 +124,8 @@ class _HomeScreenState extends State<HomeScreen> {
         return 'Epílogo';
       case TipoEspecial.interludio:
         return 'Interludio';
+      case TipoEspecial.extra:
+        return 'Historia Extra';
       case TipoEspecial.autor:
         return 'Autor';
       case TipoEspecial.traductor:
@@ -141,6 +143,8 @@ class _HomeScreenState extends State<HomeScreen> {
         return const Color(0xFFCBA6F7);
       case TipoEspecial.interludio:
         return const Color(0xFFFAB387);
+      case TipoEspecial.extra:
+        return const Color(0xFFF5C2E7);
       case TipoEspecial.autor:
         return const Color(0xFFF9E2AF);
       case TipoEspecial.traductor:
@@ -746,7 +750,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 s.kind == SectionKind.epilogue ||
                 s.kind == SectionKind.author ||
                 s.kind == SectionKind.translator ||
-                s.kind == SectionKind.interlude).toList();
+                s.kind == SectionKind.interlude ||
+                s.kind == SectionKind.extra).toList();
             for (int i = 0; i < _resultado!.capitulos.length && i < secCaps.length; i++) {
               _resultado!.capitulos[i].htmlCuerpo = secCaps[i].htmlContent;
               _resultado!.capitulos[i].titulo = secCaps[i].title;

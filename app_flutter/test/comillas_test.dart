@@ -194,7 +194,7 @@ void main() {
       expect(capitulos[9].archivo, 'epilogo_01.xhtml');
       expect(capitulos[10].archivo, 'epilogo_02.xhtml');
       expect(capitulos[11].archivo, 'autor.xhtml');
-      expect(capitulos[12].archivo, 'C05.xhtml'); // Historia corta es C05!
+      expect(capitulos[12].archivo, 'extra.xhtml'); // Historia corta es extra.xhtml!
     });
 
     test('renderCapitulo no duplica el titulo', () {
