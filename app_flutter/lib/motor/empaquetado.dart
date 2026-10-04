@@ -94,11 +94,16 @@ ResultadoEmpaquetado empaquetarEpub({
   }
 
   final nombresGenerados = capitulosYEspeciales.map((c) => c.nombre).toSet();
-  final tienePrologo = nombresGenerados.any((n) => n.toLowerCase().startsWith('prologo'));
-  final tieneEpilogo = nombresGenerados.any((n) => n.toLowerCase().startsWith('epilogo'));
-  final tieneAutor = nombresGenerados.any((n) => n.toLowerCase().startsWith('autor'));
-  final tieneTraductor = nombresGenerados.any((n) => n.toLowerCase().startsWith('traductor'));
-  final tieneNotas = contenidoNotas != null && contenidoNotas.trim().isNotEmpty;
+  final tienePrologo = nombresGenerados.any((n) => n.toLowerCase().startsWith('prologo')) ||
+      (secciones?.any((s) => s.kind == SectionKind.prologue && s.enabled) ?? false);
+  final tieneEpilogo = nombresGenerados.any((n) => n.toLowerCase().startsWith('epilogo')) ||
+      (secciones?.any((s) => s.kind == SectionKind.epilogue && s.enabled) ?? false);
+  final tieneAutor = nombresGenerados.any((n) => n.toLowerCase().startsWith('autor')) ||
+      (secciones?.any((s) => s.kind == SectionKind.author && s.enabled) ?? false);
+  final tieneTraductor = nombresGenerados.any((n) => n.toLowerCase().startsWith('traductor')) ||
+      (secciones?.any((s) => s.kind == SectionKind.translator && s.enabled) ?? false);
+  final tieneNotas = (contenidoNotas != null && contenidoNotas.trim().isNotEmpty) ||
+      (secciones?.any((s) => s.kind == SectionKind.notes && s.enabled) ?? false);
 
   final deshabilitados = secciones != null
       ? secciones.where((s) => !s.enabled).map((s) => s.fileName.toLowerCase()).toSet()
@@ -132,6 +137,16 @@ ResultadoEmpaquetado empaquetarEpub({
     }
   }
 
+  // Si hay secciones con contenido HTML personalizado que no fueron cubiertas por capitulosYEspeciales
+  if (secciones != null) {
+    for (final s in secciones) {
+      if (!s.enabled || s.htmlContent.trim().isEmpty) continue;
+      if (nombresGenerados.contains(s.fileName)) continue;
+      if (s.kind == SectionKind.synopsis || s.kind == SectionKind.notes) continue;
+      archivos['OEBPS/Text/${s.fileName}'] = Uint8List.fromList(utf8.encode(s.htmlContent));
+    }
+  }
+
   // Insertar notas si existen
   if (tieneNotas && !deshabilitados.contains('notas.xhtml')) {
     String notasHtmlBase;
@@ -158,11 +173,12 @@ ResultadoEmpaquetado empaquetarEpub({
     }
 
     const marcador = '<!-- Agregar notas con el siguiente formato -->';
+    final textoNotas = (contenidoNotas ?? '').trim();
     String notasHtmlFinal;
     if (notasHtmlBase.contains(marcador)) {
-      notasHtmlFinal = notasHtmlBase.replaceFirst(marcador, '$marcador\n${contenidoNotas.trim()}');
+      notasHtmlFinal = notasHtmlBase.replaceFirst(marcador, '$marcador\n$textoNotas');
     } else {
-      notasHtmlFinal = notasHtmlBase.replaceFirst('</section>', '${contenidoNotas.trim()}\n  </section>');
+      notasHtmlFinal = notasHtmlBase.replaceFirst('</section>', '$textoNotas\n  </section>');
     }
     archivos['OEBPS/Text/notas.xhtml'] = Uint8List.fromList(utf8.encode(notasHtmlFinal));
   }
@@ -248,6 +264,17 @@ ResultadoEmpaquetado empaquetarEpub({
         }
       }
 
+      if (secciones != null) {
+        for (final sec in secciones) {
+          if (!sec.enabled) continue;
+          final href = 'Text/${sec.fileName}';
+          if (!nuevasLineas.any((l) => l.contains('href="$href"'))) {
+            final idItem = (sec.fileName == 'contenido-1.xhtml') ? 'contenido.xhtml' : sec.fileName;
+            nuevasLineas.add('    <item id="$idItem" href="$href" media-type="application/xhtml+xml"/>');
+          }
+        }
+      }
+
       if (tieneNotas && !deshabilitados.contains('notas.xhtml') && !nuevasLineas.any((l) => l.contains('href="Text/notas.xhtml"'))) {
         nuevasLineas.add('    <item id="notas.xhtml" href="Text/notas.xhtml" media-type="application/xhtml+xml"/>');
       }
@@ -273,6 +300,26 @@ ResultadoEmpaquetado empaquetarEpub({
 
     // Limpiar spine
     opf = opf.replaceFirstMapped(_reSpine, (m) {
+      if (secciones != null) {
+        final lineasSpine = <String>[];
+        for (final s in secciones.where((s) => s.enabled)) {
+          final idref = (s.fileName == 'contenido-1.xhtml') ? 'contenido.xhtml' : s.fileName;
+          if (s.fileName == 'cubierta.xhtml') {
+            lineasSpine.add('    <itemref idref="$idref" linear="yes"/>');
+          } else if (s.fileName == 'toc.xhtml') {
+            lineasSpine.add('    <itemref idref="$idref" linear="no"/>');
+          } else {
+            lineasSpine.add('    <itemref idref="$idref"/>');
+          }
+        }
+        if (!deshabilitados.contains('toc.xhtml') &&
+            archivos.containsKey('OEBPS/Text/toc.xhtml') &&
+            !lineasSpine.any((l) => l.contains('idref="toc.xhtml"'))) {
+          lineasSpine.add('    <itemref idref="toc.xhtml" linear="no"/>');
+        }
+        return '<spine>\n${lineasSpine.join('\n')}\n  </spine>';
+      }
+
       final lineas = m.group(1)!.split('\n');
       final frontSpine = <String>[];
       final backSpine = <String>[];
@@ -428,12 +475,22 @@ $pTags
       final olContenido = m.group(2)!;
       final suffix = m.group(3)!;
 
+      if (secciones != null) {
+        final itemsToc = <String>[];
+        for (final ent in entradasToc) {
+          itemsToc.add('      <li>\n        <a href="${ent.archivo}">${_escXml(ent.titulo)}</a>\n      </li>');
+        }
+        return '$prefix\n${itemsToc.join('\n')}\n    $suffix';
+      }
+
       final itemsFijos = <String>[];
       final reLi = RegExp(r'<li>\s*<a\b[^>]*href="([^"]*)"[^>]*>(.*?)</a>\s*</li>', dotAll: true, caseSensitive: false);
 
       for (final match in reLi.allMatches(olContenido)) {
         final href = match.group(1)!;
         final texto = match.group(2)!.trim();
+
+        if (deshabilitados.any((d) => href.toLowerCase().contains(d))) continue;
 
         if (href.contains('cubierta.xhtml') ||
             href.contains('resumen.xhtml') ||
@@ -474,32 +531,39 @@ $pTags
             liCompleto.contains('notas.xhtml')) {
           continue;
         }
+        if (deshabilitados.any((d) => liCompleto.toLowerCase().contains(d))) {
+          continue;
+        }
         itemsLandmarks.add('      $liCompleto');
       }
 
       // Reinsertar landmarks narrativos según correspondan
-      if (tienePrologo) {
+      if (tienePrologo && !deshabilitados.contains('prologo.xhtml')) {
         final prologoArch = ordenSpine.firstWhere((a) => a.toLowerCase().startsWith('prologo'), orElse: () => 'prologo.xhtml');
         itemsLandmarks.add('      <li>\n        <a href="$prologoArch" epub:type="prologue">Prólogo</a>\n      </li>');
       }
 
-      final primerCapitulo = ordenSpine.firstWhere(
-        (a) => !a.toLowerCase().startsWith('prologo'),
-        orElse: () => ordenSpine.isNotEmpty ? ordenSpine.first : 'C01.xhtml',
-      );
+      final primerCapitulo = secciones
+              ?.where((s) => s.enabled && s.matter == BookMatter.body && s.kind != SectionKind.prologue)
+              .map((s) => s.fileName)
+              .firstOrNull ??
+          ordenSpine.firstWhere(
+            (a) => !a.toLowerCase().startsWith('prologo') && !a.toLowerCase().startsWith('cubierta'),
+            orElse: () => ordenSpine.isNotEmpty ? ordenSpine.first : 'C01.xhtml',
+          );
       itemsLandmarks.add('      <li>\n        <a href="$primerCapitulo" epub:type="bodymatter">Contenido principal</a>\n      </li>');
 
-      if (tieneEpilogo) {
+      if (tieneEpilogo && !deshabilitados.contains('epilogo.xhtml')) {
         final epilogoArch = ordenSpine.firstWhere((a) => a.toLowerCase().startsWith('epilogo'), orElse: () => 'epilogo.xhtml');
         itemsLandmarks.add('      <li>\n        <a href="$epilogoArch" epub:type="epilogue">Epílogo</a>\n      </li>');
       }
 
-      if (tieneAutor) {
+      if (tieneAutor && !deshabilitados.contains('autor.xhtml')) {
         final autorArch = ordenSpine.firstWhere((a) => a.toLowerCase().startsWith('autor'), orElse: () => 'autor.xhtml');
         itemsLandmarks.add('      <li>\n        <a href="$autorArch" epub:type="afterword">Palabras finales</a>\n      </li>');
       }
 
-      if (tieneTraductor) {
+      if (tieneTraductor && !deshabilitados.contains('traductor.xhtml')) {
         final traductorArch = ordenSpine.firstWhere((a) => a.toLowerCase().startsWith('traductor'), orElse: () => 'traductor.xhtml');
         itemsLandmarks.add('      <li>\n        <a href="$traductorArch" epub:type="conclusion">Palabras del traductor</a>\n      </li>');
       }

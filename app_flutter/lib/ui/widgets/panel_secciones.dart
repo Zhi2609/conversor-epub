@@ -25,12 +25,23 @@ class PanelSecciones extends StatelessWidget {
     switch (kind) {
       case SectionKind.cover:
       case SectionKind.illustrations:
+      case SectionKind.backCover:
         return const Color(0xFFF9E2AF);
       case SectionKind.titlePage:
       case SectionKind.synopsis:
       case SectionKind.notice:
       case SectionKind.epigraph:
+      case SectionKind.preface:
+      case SectionKind.characterProfile:
         return const Color(0xFF89DCEB);
+      case SectionKind.credits:
+      case SectionKind.logos:
+      case SectionKind.colophon:
+        return const Color(0xFFA6ADC8);
+      case SectionKind.tocVisual:
+      case SectionKind.tocList:
+      case SectionKind.tocNav:
+        return const Color(0xFF94E2D5);
       case SectionKind.prologue:
         return const Color(0xFFA6E3A1);
       case SectionKind.chapter:
@@ -38,7 +49,6 @@ class PanelSecciones extends StatelessWidget {
       case SectionKind.interlude:
         return const Color(0xFFFAB387);
       case SectionKind.part:
-        return const Color(0xFFCBA6F7);
       case SectionKind.epilogue:
         return const Color(0xFFCBA6F7);
       case SectionKind.notes:
@@ -47,8 +57,6 @@ class PanelSecciones extends StatelessWidget {
         return const Color(0xFFF9E2AF);
       case SectionKind.translator:
         return const Color(0xFF94E2D5);
-      case SectionKind.colophon:
-        return const Color(0xFFA6ADC8);
     }
   }
 
@@ -87,6 +95,12 @@ class PanelSecciones extends StatelessWidget {
                   _menuItem(SectionKind.cover),
                   _menuItem(SectionKind.synopsis),
                   _menuItem(SectionKind.illustrations),
+                  _menuItem(SectionKind.characterProfile),
+                  _menuItem(SectionKind.titlePage),
+                  _menuItem(SectionKind.credits),
+                  _menuItem(SectionKind.logos),
+                  _menuItem(SectionKind.epigraph),
+                  _menuItem(SectionKind.preface),
                   const PopupMenuDivider(),
                   const PopupMenuItem(
                     enabled: false,
@@ -95,15 +109,17 @@ class PanelSecciones extends StatelessWidget {
                   _menuItem(SectionKind.prologue),
                   _menuItem(SectionKind.chapter),
                   _menuItem(SectionKind.interlude),
+                  _menuItem(SectionKind.part),
                   const PopupMenuDivider(),
                   const PopupMenuItem(
                     enabled: false,
                     child: Text('FINALES', style: TextStyle(fontSize: 10, color: Color(0xFF6C7086), fontWeight: FontWeight.bold)),
                   ),
                   _menuItem(SectionKind.epilogue),
-                  _menuItem(SectionKind.notes),
                   _menuItem(SectionKind.author),
                   _menuItem(SectionKind.translator),
+                  _menuItem(SectionKind.backCover),
+                  _menuItem(SectionKind.notes),
                 ],
               ),
             ],

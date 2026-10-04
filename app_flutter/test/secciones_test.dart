@@ -32,13 +32,21 @@ void main() {
 
       final secciones = convertirResultadoASecciones(resultado, sinopsisTexto: 'Esta es la sinopsis.');
 
-      // Front: Cubierta, Página de título, Sinopsis
+      // Front: 11 preliminares canónicos de Base3
       final front = secciones.where((s) => s.matter == BookMatter.front).toList();
-      expect(front.length, 3);
+      expect(front.length, 11);
       expect(front[0].kind, SectionKind.cover);
-      expect(front[1].kind, SectionKind.titlePage);
-      expect(front[2].kind, SectionKind.synopsis);
-      expect(front[2].enabled, isTrue);
+      expect(front[1].kind, SectionKind.synopsis);
+      expect(front[1].enabled, isTrue);
+      expect(front[2].kind, SectionKind.illustrations);
+      expect(front[3].kind, SectionKind.characterProfile);
+      expect(front[4].kind, SectionKind.titlePage);
+      expect(front[5].kind, SectionKind.credits);
+      expect(front[6].kind, SectionKind.logos);
+      expect(front[7].kind, SectionKind.tocVisual);
+      expect(front[8].kind, SectionKind.tocList);
+      expect(front[9].kind, SectionKind.epigraph);
+      expect(front[10].kind, SectionKind.preface);
 
       // Body: Prólogo, Capítulo 1, Capítulo 2
       final body = secciones.where((s) => s.matter == BookMatter.body).toList();
@@ -56,12 +64,19 @@ void main() {
       expect(body[2].title, 'Capítulo 2');
       expect(body[2].fileName, 'C02.xhtml');
 
-      // Back: Notas, Epílogo
+      // Back: Epílogo, Autor, Traductor, Contracubierta, Notas, TocNav
       final back = secciones.where((s) => s.matter == BookMatter.back).toList();
-      expect(back.length, 2);
-      expect(back[0].kind, SectionKind.notes);
-      expect(back[1].kind, SectionKind.epilogue);
-      expect(back[1].effectiveHeading, 'Epílogo: Despedida');
+      expect(back.length, 6);
+      expect(back[0].kind, SectionKind.epilogue);
+      expect(back[0].effectiveHeading, 'Epílogo: Despedida');
+      expect(back[1].kind, SectionKind.author);
+      expect(back[1].enabled, isFalse);
+      expect(back[2].kind, SectionKind.translator);
+      expect(back[2].enabled, isFalse);
+      expect(back[3].kind, SectionKind.backCover);
+      expect(back[4].kind, SectionKind.notes);
+      expect(back[4].enabled, isTrue);
+      expect(back[5].kind, SectionKind.tocNav);
     });
 
     test('seccionesACapitulos convierte secciones de vuelta a Chapter con plantillas adecuadas', () {

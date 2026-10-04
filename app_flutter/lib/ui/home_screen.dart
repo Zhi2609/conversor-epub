@@ -361,6 +361,16 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         }
       }
 
+      final coverSec = _secciones.where((s) => s.kind == SectionKind.cover).firstOrNull;
+      final coverPath = coverSec?.associatedImage;
+      if (coverPath != null && File(coverPath).existsSync()) {
+        final bytesCover = File(coverPath).readAsBytesSync();
+        imagenes.add(EntradaImagenEpub(
+          nombreArchivo: 'cover.jpg',
+          bytes: bytesCover,
+        ));
+      }
+
       final ordenSpine = _secciones.where((s) => s.enabled).map((s) => s.fileName).toList();
       final entradasToc = [
         for (final s in _secciones.where((s) => s.enabled && s.inToc))

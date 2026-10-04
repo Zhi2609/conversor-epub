@@ -490,4 +490,38 @@ Las nuevas entradas se añaden al final de cada sesión de trabajo.
   - `flutter analyze`: **0 incidencias** (código 100% limpio).
   - Binario nativo de release compilado exitosamente en `build/linux/x64/release/bundle/ConversorEpubs`.
 
+      22:20 — Corrección de Orden Canónico 1:1 de Base3 y Clarificación de Metadatos
+- **Alineación Canónica 1:1 del Spine con `Base3_v1.15.0.epub` (`motor/secciones.dart` y `motor/empaquetado.dart`)**:
+  - Replicadas exactamente las 19 posiciones canónicas del spine de Base3:
+    1. `cubierta.xhtml` (`linear="yes"`)
+    2. `sinopsis.xhtml`
+    3. `resumen.xhtml` (Ilustraciones a color)
+    4. `perfil.xhtml` (Perfil de personajes)
+    5. `titulo.xhtml` (Página de título)
+    6. `creditos.xhtml` (Créditos editoriales)
+    7. `logos.xhtml` (Logos editoriales)
+    8. `contenido-1.xhtml` (Índice visual, idref `contenido.xhtml`)
+    9. `contenido-2.xhtml` (Tabla de contenido)
+    10. `epigrafe.xhtml`
+    11. `prefacio.xhtml`
+    12. `prologo.xhtml`
+    13. Capítulos narrativos (`C01.xhtml` ... `CNN.xhtml` e interludios)
+    14. `epilogo.xhtml`
+    15. `autor.xhtml`
+    16. `traductor.xhtml`
+    17. `contracubierta.xhtml`
+    18. `notas.xhtml`
+    19. `toc.xhtml` (`linear="no"`)
+  - Eliminada la duplicación accidental en el spine (`cubierta`, `sinopsis` y `titulo` ya no aparecen duplicados).
+  - Las secciones deshabilitadas (`enabled == false`) se excluyen limpiamente del ZIP, del manifiesto, del spine, de los landmarks y del índice de navegación sin alterar el orden relativo de los demás archivos.
+  - Soporte de incrustación de imagen de cubierta personalizada en `cover.jpg` directamente desde el inspector de secciones.
+- **Clarificación de Campos de Metadatos (`ui/widgets/formulario_metadatos.dart`)**:
+  - Clarificadas las etiquetas: "Serie / Colección" se renombró a "Saga / Nombre de la Novela", y "Volumen" a "Volumen / Tomo" para disipar dudas con títulos independientes vs novelas con volumen.
+- **Batería de Pruebas y Compilación**:
+  - Actualizado `test/secciones_test.dart` con la suite de 19 posiciones canónicas.
+  - Añadido test en `test/empaquetado_metadatos_test.dart` verificando que el spine final respete el orden canónico 1:1 sin elementos duplicados y con atributos `linear` correctos.
+  - Total: **46/46 pruebas pasando**.
+  - `flutter analyze`: **0 incidencias**.
+  - Compilación nativa Linux exitosa: `build/linux/x64/release/bundle/ConversorEpubs`.
+
 

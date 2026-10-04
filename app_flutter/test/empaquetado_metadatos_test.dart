@@ -6,6 +6,7 @@ import 'package:archive/archive.dart';
 import 'package:conversor_epub/motor/empaquetado.dart';
 import 'package:conversor_epub/motor/metadatos.dart';
 import 'package:conversor_epub/motor/secciones.dart';
+import 'package:conversor_epub/motor/modelo.dart';
 
 void main() {
   group('TestEmpaquetadoConMetadatosYSecciones', () {
@@ -106,6 +107,75 @@ void main() {
       final opf = utf8.decode(zip.files.firstWhere((f) => f.name == 'OEBPS/content.opf').content as List<int>);
       expect(opf.contains('href="Text/C02.xhtml"'), isFalse);
       expect(opf.contains('idref="C02.xhtml"'), isFalse);
+    });
+
+    test('El spine compilado respeta exactamente el orden canónico 1:1 de Base3 sin duplicados', () {
+      final resMotor = Resultado(
+        capitulos: [
+          Chapter(titulo: 'Prólogo | Inicios', htmlCuerpo: '<p>Texto prólogo</p>'),
+          Chapter(titulo: 'Capítulo 1 | Despertar', htmlCuerpo: '<p>Texto C1</p>'),
+          Chapter(titulo: 'Epílogo | Conclusión', htmlCuerpo: '<p>Texto epílogo</p>'),
+        ],
+        notas: [Nota(num: 1, texto: 'Nota al pie 1', capNum: 1)],
+        contadores: Contadores(capitulos: 3, notas: 1, imagenes: 0, separadores: 0),
+      );
+
+      final secciones = convertirResultadoASecciones(resMotor, sinopsisTexto: 'Sinopsis canónica.');
+
+      final capsXhtml = [
+        const ArchivoEpubEntrada(nombre: 'prologo.xhtml', contenidoHtml: '<p>Prólogo</p>'),
+        const ArchivoEpubEntrada(nombre: 'C01.xhtml', contenidoHtml: '<p>C01</p>'),
+        const ArchivoEpubEntrada(nombre: 'epilogo.xhtml', contenidoHtml: '<p>Epílogo</p>'),
+      ];
+
+      final res = empaquetarEpub(
+        bytesBaseEpub: bytesBase,
+        capitulosYEspeciales: capsXhtml,
+        ordenSpine: secciones.where((s) => s.enabled).map((s) => s.fileName).toList(),
+        entradasToc: [
+          for (final s in secciones.where((s) => s.enabled && s.inToc))
+            (archivo: s.fileName, titulo: s.effectiveHeading)
+        ],
+        secciones: secciones,
+        contenidoNotas: '<div class="nota"><p id="nt1">Nota</p></div>',
+      );
+
+      final zip = ZipDecoder().decodeBytes(res.bytesEpub);
+      final opf = utf8.decode(zip.files.firstWhere((f) => f.name == 'OEBPS/content.opf').content as List<int>);
+
+      final reSpineMatch = RegExp(r'<spine\b[^>]*>(.*?)</spine>', dotAll: true).firstMatch(opf);
+      expect(reSpineMatch, isNotNull);
+      final spineContent = reSpineMatch!.group(1)!;
+
+      final itemrefs = RegExp(r'''<itemref\s+idref="([^"]+)"(?:\s+linear="([^"]+)")?\s*/>''')
+          .allMatches(spineContent)
+          .map((m) => (idref: m.group(1)!, linear: m.group(2)))
+          .toList();
+
+      final listaIdrefs = itemrefs.map((i) => i.idref).toList();
+
+      // Ningún idref debe estar duplicado
+      expect(listaIdrefs.toSet().length, equals(listaIdrefs.length));
+
+      // Verificar orden canónico 1:1
+      expect(listaIdrefs, [
+        'cubierta.xhtml',
+        'sinopsis.xhtml',
+        'titulo.xhtml',
+        'creditos.xhtml',
+        'logos.xhtml',
+        'contenido-2.xhtml',
+        'prologo.xhtml',
+        'C01.xhtml',
+        'epilogo.xhtml',
+        'contracubierta.xhtml',
+        'notas.xhtml',
+        'toc.xhtml',
+      ]);
+
+      // Cubierta debe tener linear="yes" y toc linear="no"
+      expect(itemrefs.first.linear, 'yes');
+      expect(itemrefs.last.linear, 'no');
     });
   });
 }

@@ -14,18 +14,26 @@ enum BookMatter {
 enum SectionKind {
   cover('Cubierta', BookMatter.front, 'cubierta.xhtml'),
   synopsis('Sinopsis', BookMatter.front, 'sinopsis.xhtml'),
-  illustrations('Ilustraciones', BookMatter.front, 'resumen.xhtml'),
+  illustrations('Ilustraciones a color', BookMatter.front, 'resumen.xhtml'),
+  characterProfile('Perfil de personajes', BookMatter.front, 'perfil.xhtml'),
   titlePage('Página de título', BookMatter.front, 'titulo.xhtml'),
-  notice('Advertencia', BookMatter.front, 'aviso.xhtml'),
+  credits('Créditos', BookMatter.front, 'creditos.xhtml'),
+  logos('Logos editoriales', BookMatter.front, 'logos.xhtml'),
+  tocVisual('Índice visual', BookMatter.front, 'contenido-1.xhtml'),
+  tocList('Tabla de contenido', BookMatter.front, 'contenido-2.xhtml'),
   epigraph('Epígrafe', BookMatter.front, 'epigrafe.xhtml'),
+  preface('Prefacio', BookMatter.front, 'prefacio.xhtml'),
+  notice('Advertencia', BookMatter.front, 'aviso.xhtml'),
   prologue('Prólogo', BookMatter.body, 'prologo.xhtml'),
   chapter('Capítulo', BookMatter.body, 'C01.xhtml'),
   interlude('Interludio', BookMatter.body, 'C01.xhtml'),
   part('Parte', BookMatter.body, 'parte.xhtml'),
   epilogue('Epílogo', BookMatter.back, 'epilogo.xhtml'),
-  notes('Notas al pie', BookMatter.back, 'notas.xhtml'),
   author('Acerca del autor', BookMatter.back, 'autor.xhtml'),
   translator('Palabras del traductor', BookMatter.back, 'traductor.xhtml'),
+  backCover('Contracubierta', BookMatter.back, 'contracubierta.xhtml'),
+  notes('Notas al pie', BookMatter.back, 'notas.xhtml'),
+  tocNav('Navegación ePub', BookMatter.back, 'toc.xhtml'),
   colophon('Créditos y logos', BookMatter.back, 'logos.xhtml');
 
   final String label;
@@ -108,7 +116,8 @@ class SectionItem {
 }
 
 /// Convierte el `Resultado` generado por `procesar.dart` en una lista jerárquica
-/// y configurable de `SectionItem` agrupada en Preliminares, Cuerpo y Finales.
+/// y configurable de `SectionItem` reflejando de forma idéntica las 19 posiciones
+/// canónicas del spine de `Base3_v1.15.0.epub`.
 List<SectionItem> convertirResultadoASecciones(
   Resultado res, {
   int startNum = 1,
@@ -117,7 +126,11 @@ List<SectionItem> convertirResultadoASecciones(
 }) {
   final secciones = <SectionItem>[];
 
-  // 1. Preliminares estándar
+  // ==========================================
+  // 1. PRELIMINARES (Front Matter) — Base3 1:1
+  // ==========================================
+
+  // Posición 1: Cubierta
   secciones.add(SectionItem(
     id: 'sec_cover',
     kind: SectionKind.cover,
@@ -129,16 +142,7 @@ List<SectionItem> convertirResultadoASecciones(
     associatedImage: portadaDefault,
   ));
 
-  secciones.add(SectionItem(
-    id: 'sec_titlepage',
-    kind: SectionKind.titlePage,
-    matter: BookMatter.front,
-    title: 'Página de título',
-    fileName: 'titulo.xhtml',
-    inToc: true,
-    enabled: true,
-  ));
-
+  // Posición 2: Sinopsis
   final tieneSinopsis = sinopsisTexto != null && sinopsisTexto.trim().isNotEmpty;
   secciones.add(SectionItem(
     id: 'sec_synopsis',
@@ -151,9 +155,115 @@ List<SectionItem> convertirResultadoASecciones(
     htmlContent: tieneSinopsis ? sinopsisTexto : '',
   ));
 
-  // 2. Capítulos extraídos del manuscrito
-  final capitulosCuerpo = <SectionItem>[];
-  final capitulosFinales = <SectionItem>[];
+  // Posición 3: Ilustraciones a color (resumen.xhtml en Base3)
+  secciones.add(SectionItem(
+    id: 'sec_illustrations',
+    kind: SectionKind.illustrations,
+    matter: BookMatter.front,
+    title: 'Ilustraciones a color',
+    fileName: 'resumen.xhtml',
+    inToc: true,
+    enabled: false,
+  ));
+
+  // Posición 4: Perfil de personajes (perfil.xhtml)
+  secciones.add(SectionItem(
+    id: 'sec_profile',
+    kind: SectionKind.characterProfile,
+    matter: BookMatter.front,
+    title: 'Perfil de personajes',
+    fileName: 'perfil.xhtml',
+    inToc: true,
+    enabled: false,
+  ));
+
+  // Posición 5: Página de título (titulo.xhtml)
+  secciones.add(SectionItem(
+    id: 'sec_titlepage',
+    kind: SectionKind.titlePage,
+    matter: BookMatter.front,
+    title: 'Página de título',
+    fileName: 'titulo.xhtml',
+    inToc: true,
+    enabled: true,
+  ));
+
+  // Posición 6: Créditos de traducción (creditos.xhtml)
+  secciones.add(SectionItem(
+    id: 'sec_credits',
+    kind: SectionKind.credits,
+    matter: BookMatter.front,
+    title: 'Créditos',
+    fileName: 'creditos.xhtml',
+    inToc: true,
+    enabled: true,
+  ));
+
+  // Posición 7: Logos editoriales (logos.xhtml)
+  secciones.add(SectionItem(
+    id: 'sec_logos',
+    kind: SectionKind.logos,
+    matter: BookMatter.front,
+    title: 'Logos editoriales',
+    fileName: 'logos.xhtml',
+    inToc: true,
+    enabled: true,
+  ));
+
+  // Posición 8: Índice visual (contenido-1.xhtml)
+  secciones.add(SectionItem(
+    id: 'sec_toc_visual',
+    kind: SectionKind.tocVisual,
+    matter: BookMatter.front,
+    title: 'Índice visual',
+    fileName: 'contenido-1.xhtml',
+    inToc: false,
+    enabled: false,
+  ));
+
+  // Posición 9: Tabla de contenido textual (contenido-2.xhtml)
+  secciones.add(SectionItem(
+    id: 'sec_toc_list',
+    kind: SectionKind.tocList,
+    matter: BookMatter.front,
+    title: 'Tabla de contenido',
+    fileName: 'contenido-2.xhtml',
+    inToc: true,
+    enabled: true,
+  ));
+
+  // Posición 10: Epígrafe (epigrafe.xhtml)
+  secciones.add(SectionItem(
+    id: 'sec_epigraph',
+    kind: SectionKind.epigraph,
+    matter: BookMatter.front,
+    title: 'Epígrafe',
+    fileName: 'epigrafe.xhtml',
+    inToc: false,
+    enabled: false,
+  ));
+
+  // Posición 11: Prefacio (prefacio.xhtml)
+  secciones.add(SectionItem(
+    id: 'sec_preface',
+    kind: SectionKind.preface,
+    matter: BookMatter.front,
+    title: 'Prefacio',
+    fileName: 'prefacio.xhtml',
+    inToc: false,
+    enabled: false,
+  ));
+
+  // ==========================================
+  // 2. CUERPO (Body Matter) — Base3 1:1
+  // ==========================================
+
+  // Separar especiales detectados en el manuscrito
+  Chapter? capPrologo;
+  Chapter? capEpilogo;
+  Chapter? capAutor;
+  Chapter? capTraductor;
+  final capitulosNarrativa = <({Chapter cap, PartesTitulo partes, int index})>[];
 
   int contadorCapitulosRegulares = startNum;
 
@@ -161,46 +271,69 @@ List<SectionItem> convertirResultadoASecciones(
     final cap = res.capitulos[i];
     final partes = descomponerTitulo(cap.titulo, numeroPorDefecto: contadorCapitulosRegulares);
 
-    SectionKind kind;
-    BookMatter matter;
-    String nombreArchivo = cap.archivo ?? '';
-
-    if (partes.esPrologo) {
-      kind = SectionKind.prologue;
-      matter = BookMatter.body;
-      nombreArchivo = 'prologo.xhtml';
-    } else if (partes.esEpilogo) {
-      kind = SectionKind.epilogue;
-      matter = BookMatter.back;
-      nombreArchivo = 'epilogo.xhtml';
-    } else if (partes.esAutor) {
-      kind = SectionKind.author;
-      matter = BookMatter.back;
-      nombreArchivo = 'autor.xhtml';
-    } else if (partes.esTraductor) {
-      kind = SectionKind.translator;
-      matter = BookMatter.back;
-      nombreArchivo = 'traductor.xhtml';
-    } else if (partes.esInterludio) {
-      kind = SectionKind.interlude;
-      matter = BookMatter.body;
-      if (nombreArchivo.isEmpty) {
-        nombreArchivo = 'C${contadorCapitulosRegulares.toString().padLeft(2, '0')}.xhtml';
-        contadorCapitulosRegulares++;
-      }
+    if (partes.esPrologo && capPrologo == null) {
+      capPrologo = cap;
+    } else if (partes.esEpilogo && capEpilogo == null) {
+      capEpilogo = cap;
+    } else if (partes.esAutor && capAutor == null) {
+      capAutor = cap;
+    } else if (partes.esTraductor && capTraductor == null) {
+      capTraductor = cap;
     } else {
-      kind = SectionKind.chapter;
-      matter = BookMatter.body;
-      if (nombreArchivo.isEmpty) {
-        nombreArchivo = 'C${contadorCapitulosRegulares.toString().padLeft(2, '0')}.xhtml';
+      capitulosNarrativa.add((cap: cap, partes: partes, index: i));
+      if (!partes.esInterludio) {
         contadorCapitulosRegulares++;
       }
     }
+  }
 
-    final item = SectionItem(
+  // Posición 12: Prólogo (prologo.xhtml)
+  if (capPrologo != null) {
+    final partesPro = descomponerTitulo(capPrologo.titulo);
+    secciones.add(SectionItem(
+      id: 'sec_prologue',
+      kind: SectionKind.prologue,
+      matter: BookMatter.body,
+      title: partesPro.etiqueta,
+      subtitle: partesPro.subtitulo ?? '',
+      fileName: 'prologo.xhtml',
+      inToc: true,
+      enabled: true,
+      htmlContent: capPrologo.htmlCuerpo,
+      htmlRaw: capPrologo.htmlRaw,
+      titleIsImage: capPrologo.tituloEsImagen,
+      titleImageNumber: capPrologo.numeroImagenTitulo,
+    ));
+  } else {
+    secciones.add(SectionItem(
+      id: 'sec_prologue',
+      kind: SectionKind.prologue,
+      matter: BookMatter.body,
+      title: 'Prólogo',
+      fileName: 'prologo.xhtml',
+      inToc: true,
+      enabled: false,
+    ));
+  }
+
+  // Posición 13: Capítulos narrativos (C01.xhtml ... CNN.xhtml e interludios)
+  int numArchivo = startNum;
+  for (final item in capitulosNarrativa) {
+    final cap = item.cap;
+    final partes = item.partes;
+    final i = item.index;
+
+    final kind = partes.esInterludio ? SectionKind.interlude : SectionKind.chapter;
+    String nombreArchivo = cap.archivo ?? '';
+    if (nombreArchivo.isEmpty) {
+      nombreArchivo = 'C${numArchivo.toString().padLeft(2, '0')}.xhtml';
+      numArchivo++;
+    }
+
+    secciones.add(SectionItem(
       id: 'cap_$i',
       kind: kind,
-      matter: matter,
+      matter: BookMatter.body,
       title: partes.etiqueta,
       subtitle: partes.subtitulo ?? '',
       fileName: nombreArchivo,
@@ -210,33 +343,134 @@ List<SectionItem> convertirResultadoASecciones(
       htmlRaw: cap.htmlRaw,
       titleIsImage: cap.tituloEsImagen,
       titleImageNumber: cap.numeroImagenTitulo,
-    );
-
-    if (matter == BookMatter.back) {
-      capitulosFinales.add(item);
-    } else {
-      capitulosCuerpo.add(item);
-    }
-  }
-
-  secciones.addAll(capitulosCuerpo);
-
-  // 3. Finales: Notas al pie y secciones finales detectadas
-  final tieneNotas = res.notas.isNotEmpty;
-  if (tieneNotas) {
-    secciones.add(SectionItem(
-      id: 'sec_notes',
-      kind: SectionKind.notes,
-      matter: BookMatter.back,
-      title: 'Notas',
-      fileName: 'notas.xhtml',
-      inToc: false,
-      enabled: true,
-      htmlContent: renderNotas(res.notas),
     ));
   }
 
-  secciones.addAll(capitulosFinales);
+  // ==========================================
+  // 3. FINALES (Back Matter) — Base3 1:1
+  // ==========================================
+
+  // Posición 14: Epílogo (epilogo.xhtml)
+  if (capEpilogo != null) {
+    final partesEpi = descomponerTitulo(capEpilogo.titulo);
+    secciones.add(SectionItem(
+      id: 'sec_epilogue',
+      kind: SectionKind.epilogue,
+      matter: BookMatter.back,
+      title: partesEpi.etiqueta,
+      subtitle: partesEpi.subtitulo ?? '',
+      fileName: 'epilogo.xhtml',
+      inToc: true,
+      enabled: true,
+      htmlContent: capEpilogo.htmlCuerpo,
+      htmlRaw: capEpilogo.htmlRaw,
+      titleIsImage: capEpilogo.tituloEsImagen,
+      titleImageNumber: capEpilogo.numeroImagenTitulo,
+    ));
+  } else {
+    secciones.add(SectionItem(
+      id: 'sec_epilogue',
+      kind: SectionKind.epilogue,
+      matter: BookMatter.back,
+      title: 'Epílogo',
+      fileName: 'epilogo.xhtml',
+      inToc: true,
+      enabled: false,
+    ));
+  }
+
+  // Posición 15: Acerca del autor (autor.xhtml)
+  if (capAutor != null) {
+    final partesAut = descomponerTitulo(capAutor.titulo);
+    secciones.add(SectionItem(
+      id: 'sec_author',
+      kind: SectionKind.author,
+      matter: BookMatter.back,
+      title: partesAut.etiqueta,
+      subtitle: partesAut.subtitulo ?? '',
+      fileName: 'autor.xhtml',
+      inToc: true,
+      enabled: true,
+      htmlContent: capAutor.htmlCuerpo,
+      htmlRaw: capAutor.htmlRaw,
+      titleIsImage: capAutor.tituloEsImagen,
+      titleImageNumber: capAutor.numeroImagenTitulo,
+    ));
+  } else {
+    secciones.add(SectionItem(
+      id: 'sec_author',
+      kind: SectionKind.author,
+      matter: BookMatter.back,
+      title: 'Acerca del autor',
+      fileName: 'autor.xhtml',
+      inToc: true,
+      enabled: false,
+    ));
+  }
+
+  // Posición 16: Palabras del traductor (traductor.xhtml)
+  if (capTraductor != null) {
+    final partesTra = descomponerTitulo(capTraductor.titulo);
+    secciones.add(SectionItem(
+      id: 'sec_translator',
+      kind: SectionKind.translator,
+      matter: BookMatter.back,
+      title: partesTra.etiqueta,
+      subtitle: partesTra.subtitulo ?? '',
+      fileName: 'traductor.xhtml',
+      inToc: true,
+      enabled: true,
+      htmlContent: capTraductor.htmlCuerpo,
+      htmlRaw: capTraductor.htmlRaw,
+      titleIsImage: capTraductor.tituloEsImagen,
+      titleImageNumber: capTraductor.numeroImagenTitulo,
+    ));
+  } else {
+    secciones.add(SectionItem(
+      id: 'sec_translator',
+      kind: SectionKind.translator,
+      matter: BookMatter.back,
+      title: 'Palabras del traductor',
+      fileName: 'traductor.xhtml',
+      inToc: true,
+      enabled: false,
+    ));
+  }
+
+  // Posición 17: Contracubierta (contracubierta.xhtml)
+  secciones.add(SectionItem(
+    id: 'sec_backcover',
+    kind: SectionKind.backCover,
+    matter: BookMatter.back,
+    title: 'Contracubierta',
+    fileName: 'contracubierta.xhtml',
+    inToc: false,
+    enabled: true,
+  ));
+
+  // Posición 18: Notas al pie (notas.xhtml)
+  final tieneNotas = res.notas.isNotEmpty;
+  secciones.add(SectionItem(
+    id: 'sec_notes',
+    kind: SectionKind.notes,
+    matter: BookMatter.back,
+    title: 'Notas al pie',
+    fileName: 'notas.xhtml',
+    inToc: false,
+    enabled: tieneNotas,
+    htmlContent: tieneNotas ? renderNotas(res.notas) : '',
+  ));
+
+  // Posición 19: Navegación ePub (toc.xhtml)
+  secciones.add(SectionItem(
+    id: 'sec_toc_nav',
+    kind: SectionKind.tocNav,
+    matter: BookMatter.back,
+    title: 'Navegación ePub',
+    fileName: 'toc.xhtml',
+    inToc: false,
+    enabled: true,
+  ));
 
   return secciones;
 }
@@ -248,7 +482,21 @@ List<Chapter> seccionesACapitulos(List<SectionItem> secciones) {
   for (final s in secciones) {
     if (!s.enabled) continue;
     // Solo secciones con contenido narrativo o que son capítulos
-    if (s.kind == SectionKind.cover || s.kind == SectionKind.illustrations || s.kind == SectionKind.titlePage) {
+    if (s.kind == SectionKind.cover ||
+        s.kind == SectionKind.synopsis ||
+        s.kind == SectionKind.illustrations ||
+        s.kind == SectionKind.characterProfile ||
+        s.kind == SectionKind.titlePage ||
+        s.kind == SectionKind.credits ||
+        s.kind == SectionKind.logos ||
+        s.kind == SectionKind.tocVisual ||
+        s.kind == SectionKind.tocList ||
+        s.kind == SectionKind.epigraph ||
+        s.kind == SectionKind.preface ||
+        s.kind == SectionKind.backCover ||
+        s.kind == SectionKind.notes ||
+        s.kind == SectionKind.tocNav ||
+        s.kind == SectionKind.colophon) {
       continue;
     }
 

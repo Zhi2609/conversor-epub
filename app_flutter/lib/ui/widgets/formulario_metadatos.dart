@@ -16,7 +16,7 @@ class FormularioMetadatos extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        _seccionHeader(context, 'Título y Colección', Icons.book_outlined),
+        _seccionHeader(context, 'Título y Saga', Icons.book_outlined),
         const SizedBox(height: 10),
         _campoTexto(
           label: 'Título Principal',
@@ -31,9 +31,9 @@ class FormularioMetadatos extends StatelessWidget {
             Expanded(
               flex: 3,
               child: _campoTexto(
-                label: 'Serie / Colección',
+                label: 'Saga / Nombre de la Novela',
                 value: metadatos.series,
-                hint: 'Ej: Novela Ligera',
+                hint: 'Ej: Overlord, Mushoku Tensei...',
                 icon: Icons.collections_bookmark_outlined,
                 onChanged: (v) => onChanged(metadatos.copyWith(series: v)),
               ),
@@ -42,7 +42,7 @@ class FormularioMetadatos extends StatelessWidget {
             Expanded(
               flex: 1,
               child: _campoTexto(
-                label: 'Volumen',
+                label: 'Volumen / Tomo',
                 value: metadatos.volume,
                 hint: '01',
                 icon: Icons.tag,
