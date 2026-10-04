@@ -5,15 +5,21 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as p;
+
 import '../motor/modelo.dart';
 import '../motor/procesar.dart';
 import '../motor/adaptadores.dart';
 import '../motor/render.dart';
 import '../motor/plantillas.dart';
-import '../motor/notas.dart';
-import '../motor/imagenes.dart' show extraerPrimeraImagen;
 import '../motor/empaquetado.dart';
 import '../motor/ajustes.dart';
+import '../motor/secciones.dart';
+import '../motor/metadatos.dart';
+
+import 'widgets/panel_secciones.dart';
+import 'widgets/formulario_metadatos.dart';
+import 'widgets/inspector_seccion.dart';
+import 'widgets/dialogo_buscar_reemplazar.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -22,23 +28,22 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
   Resultado? _resultado;
-  int _startNumActual = 1;
-  late final TextEditingController _startNumController;
-  late final TextEditingController _prefixController;
-  late final TextEditingController _suffixController;
+  List<SectionItem> _secciones = [];
+  BookMetadata _metadatos = const BookMetadata();
+  SectionItem? _seccionSeleccionada;
+  int _tabPanelIzquierdo = 0; // 0: Secciones, 1: Metadatos
+
   String _mensajeEstado = 'Sin archivo cargado';
   String? _rutaArchivoCargado;
   int _tamanoArchivo = 0;
   bool _isDragging = false;
-  int _indiceSeleccionado = -1;
-  final List<TextEditingController> _controladoresTitulos = [];
-  final List<FocusNode> _focusNodesTitulos = [];
   String? _mensajeError;
 
-  String _rutaBaseEpub = AjustesApp.obtenerRutaBaseEpub();
+  final String _rutaBaseEpub = AjustesApp.obtenerRutaBaseEpub();
   String? _rutaCarpetaImagenes;
+  final List<String> _imagenesDisponibles = [];
 
   final String rutaTemplateDefecto = '../assets/Conv_Xhtml/template.xhtml';
   final String rutaPlantillasDefecto = '../assets/Plantillas';
@@ -46,45 +51,12 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _startNumController = TextEditingController(text: _startNumActual.toString());
-    _prefixController = TextEditingController(text: 'Cap. ');
-    _suffixController = TextEditingController(text: ' - ');
-  }
-
-  @override
-  void dispose() {
-    _startNumController.dispose();
-    _prefixController.dispose();
-    _suffixController.dispose();
-    for (var c in _controladoresTitulos) {
-      c.dispose();
-    }
-    for (var f in _focusNodesTitulos) {
-      f.dispose();
-    }
-    super.dispose();
   }
 
   void _mostrarError(String msg) {
     setState(() {
       _mensajeError = msg;
     });
-  }
-
-  int get _palabrasTotales {
-    if (_resultado == null) return 0;
-    int total = 0;
-    for (var cap in _resultado!.capitulos) {
-      final textoPlano = cap.htmlCuerpo.replaceAll(RegExp(r'<[^>]+>'), ' ');
-      total += textoPlano.split(RegExp(r'\s+')).where((p) => p.isNotEmpty).length;
-    }
-    return total;
-  }
-
-  int get _paginasEstimadas {
-    int palabras = _palabrasTotales;
-    if (palabras == 0) return 0;
-    return (palabras / 250).ceil();
   }
 
   String _formatearTamano(int bytes) {
@@ -94,43 +66,40 @@ class _HomeScreenState extends State<HomeScreen> {
     return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
   }
 
-  TipoEspecial _tipoDeCapitulo(Chapter cap) {
-    if (cap.tipoForzado != null) return cap.tipoForzado!;
-    final det = detectarTipoEspecial(cap.titulo);
-    return det ?? TipoEspecial.cuerpo;
-  }
-
-  String _nombreTipo(TipoEspecial tipo) {
-    switch (tipo) {
-      case TipoEspecial.cuerpo:
-        return 'Cuerpo';
-      case TipoEspecial.prologo:
-        return 'Prólogo';
-      case TipoEspecial.epilogo:
-        return 'Epílogo';
-      case TipoEspecial.interludio:
-        return 'Interludio';
-      case TipoEspecial.autor:
-        return 'Autor';
-      case TipoEspecial.traductor:
-        return 'Traductor';
+  void _cargarImagenesCarpeta(String rutaCarpeta) {
+    _imagenesDisponibles.clear();
+    final dir = Directory(rutaCarpeta);
+    if (dir.existsSync()) {
+      for (final entity in dir.listSync()) {
+        if (entity is File) {
+          final ext = p.extension(entity.path).toLowerCase();
+          if (['.jpg', '.jpeg', '.png', '.webp', '.gif', '.svg'].contains(ext)) {
+            _imagenesDisponibles.add(p.basename(entity.path));
+          }
+        }
+      }
+      _imagenesDisponibles.sort();
     }
   }
 
-  Color _colorTipo(TipoEspecial tipo) {
-    switch (tipo) {
-      case TipoEspecial.cuerpo:
-        return const Color(0xFF89B4FA);
-      case TipoEspecial.prologo:
-        return const Color(0xFFA6E3A1);
-      case TipoEspecial.epilogo:
-        return const Color(0xFFCBA6F7);
-      case TipoEspecial.interludio:
-        return const Color(0xFFFAB387);
-      case TipoEspecial.autor:
-        return const Color(0xFFF9E2AF);
-      case TipoEspecial.traductor:
-        return const Color(0xFF94E2D5);
+  Future<void> _seleccionarCarpetaImagenes() async {
+    final ruta = await FilePicker.platform.getDirectoryPath(dialogTitle: 'Elegir carpeta con ilustraciones');
+    if (ruta != null) {
+      setState(() {
+        _rutaCarpetaImagenes = ruta;
+        _cargarImagenesCarpeta(ruta);
+        // Asignar portada por defecto si existe cover.jpg o 01.jpg
+        final coverCandidate = _imagenesDisponibles.firstWhere(
+          (img) => RegExp(r'^(?:cover|0?1)\.(?:jpg|jpeg|png|webp)$', caseSensitive: false).hasMatch(img),
+          orElse: () => _imagenesDisponibles.isNotEmpty ? _imagenesDisponibles.first : '',
+        );
+        if (coverCandidate.isNotEmpty) {
+          final coverSec = _secciones.where((s) => s.kind == SectionKind.cover).firstOrNull;
+          if (coverSec != null) {
+            coverSec.associatedImage = coverCandidate;
+          }
+        }
+      });
     }
   }
 
@@ -160,314 +129,106 @@ class _HomeScreenState extends State<HomeScreen> {
         modo: modo,
         rutaEntrada: ruta,
         rutaTemplate: rutaTemplateDefecto,
-        startNum: _startNumActual,
+        startNum: 1,
         rutaPlantillas: plantillas,
       );
-      _mensajeEstado = '✅ $modo — ${p.basename(ruta)}';
-      _actualizarControladores();
 
-      if (_resultado!.capitulos.isNotEmpty) {
-        _indiceSeleccionado = 0;
+      _metadatos = BookMetadata.fromFileName(ruta);
+
+      // Portada sugerida si ya había carpeta de imágenes
+      String? portadaSugerida;
+      if (_imagenesDisponibles.isNotEmpty) {
+        portadaSugerida = _imagenesDisponibles.firstWhere(
+          (img) => RegExp(r'^(?:cover|0?1)\.(?:jpg|jpeg|png|webp)$', caseSensitive: false).hasMatch(img),
+          orElse: () => _imagenesDisponibles.first,
+        );
       }
+
+      _secciones = convertirResultadoASecciones(
+        _resultado!,
+        portadaDefault: portadaSugerida,
+      );
+
+      _seccionSeleccionada = _secciones.firstWhere(
+        (s) => s.kind == SectionKind.chapter || s.kind == SectionKind.prologue,
+        orElse: () => _secciones.first,
+      );
+
+      _mensajeEstado = '✅ $modo — ${p.basename(ruta)}';
     } catch (e) {
       _mostrarError(e.toString());
       _mensajeEstado = '❌ Error';
       _resultado = null;
+      _secciones = [];
     }
     setState(() {});
   }
 
-  void _actualizarControladores() {
-    for (var c in _controladoresTitulos) {
-      c.dispose();
-    }
-    _controladoresTitulos.clear();
-    for (var f in _focusNodesTitulos) {
-      f.dispose();
-    }
-    _focusNodesTitulos.clear();
-
-    if (_resultado != null) {
-      for (var cap in _resultado!.capitulos) {
-        _controladoresTitulos.add(TextEditingController(text: cap.titulo));
-        _focusNodesTitulos.add(FocusNode());
-      }
-    }
-  }
-
-  void _renumerarCapitulos() {
-    if (_resultado == null) return;
-    clasificarYRenumerarCapitulos(_resultado!.capitulos, startNum: _startNumActual);
-    asignarCapitulos(_resultado!.notas, _resultado!.capitulos, startNum: _startNumActual);
-    _resultado!.contadores.capitulos = _resultado!.capitulos.length;
-  }
-
-  void _aplicarPrefijoSufijo() {
-    if (_resultado == null) return;
-    final pref = _prefixController.text;
-    final suf = _suffixController.text;
-
+  void _onReordenarSecciones(int oldIndex, int newIndex) {
     setState(() {
-      for (int i = 0; i < _resultado!.capitulos.length; i++) {
-        final cap = _resultado!.capitulos[i];
-        final tipo = _tipoDeCapitulo(cap);
-        if (tipo == TipoEspecial.cuerpo) {
-          final partes = descomponerTitulo(cap.titulo, numeroPorDefecto: _startNumActual + i);
-          final sub = partes.subtitulo;
-          final numFmt = (_startNumActual + i).toString().padLeft(2, '0');
-          if (sub != null && sub.isNotEmpty) {
-            _controladoresTitulos[i].text = '$pref$numFmt$suf$sub';
-          } else {
-            _controladoresTitulos[i].text = '$pref$numFmt';
-          }
-          cap.titulo = _controladoresTitulos[i].text;
-        }
-      }
-      _renumerarCapitulos();
+      final item = _secciones.removeAt(oldIndex);
+      _secciones.insert(newIndex, item);
     });
   }
 
-  void _anadirFila() {
-    if (_resultado == null) return;
+  void _onActualizarSeccion(SectionItem sec) {
     setState(() {
-      int insertIndex = (_indiceSeleccionado >= 0 && _indiceSeleccionado < _resultado!.capitulos.length)
-          ? _indiceSeleccionado + 1
-          : _resultado!.capitulos.length;
-      _resultado!.capitulos.insert(insertIndex, Chapter(titulo: '', htmlCuerpo: ''));
-      _controladoresTitulos.insert(insertIndex, TextEditingController(text: ''));
-      _focusNodesTitulos.insert(insertIndex, FocusNode());
-      _indiceSeleccionado = insertIndex;
-      _renumerarCapitulos();
-      _validarConteo();
+      final index = _secciones.indexWhere((s) => s.id == sec.id);
+      if (index != -1) {
+        _secciones[index] = sec;
+      }
+      if (_seccionSeleccionada?.id == sec.id) {
+        _seccionSeleccionada = sec;
+      }
     });
   }
 
-  Future<void> _quitarFila([int? indice]) async {
-    if (_resultado == null || _resultado!.capitulos.isEmpty) return;
-    int fila = indice ?? _indiceSeleccionado;
-    if (fila < 0 || fila >= _resultado!.capitulos.length) {
-      fila = _resultado!.capitulos.length - 1;
-    }
-
-    final cap = _resultado!.capitulos[fila];
-
-    if (cap.htmlCuerpo.trim().isNotEmpty) {
-      final respuesta = await showDialog<String>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          backgroundColor: const Color(0xFF1E1E2E),
-          title: const Text('Eliminar capítulo', style: TextStyle(color: Color(0xFFCDD6F4))),
-          content: Text(
-            'El capítulo "${cap.titulo.isEmpty ? "Capítulo ${fila + 1}" : cap.titulo}" contiene texto.\n\n¿Deseas unir su contenido con el capítulo anterior o descartarlo?',
-            style: const TextStyle(color: Color(0xFFA6ADC8)),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, 'cancelar'),
-              child: const Text('Cancelar', style: TextStyle(color: Color(0xFF6C7086))),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, 'descartar'),
-              child: const Text('Descartar texto', style: TextStyle(color: Color(0xFFF38BA8))),
-            ),
-            if (fila > 0 || _resultado!.capitulos.length > 1)
-              ElevatedButton(
-                onPressed: () => Navigator.pop(ctx, 'unir'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF89B4FA),
-                  foregroundColor: const Color(0xFF1E1E2E),
-                ),
-                child: const Text('Unir con adyacente'),
-              ),
-          ],
-        ),
-      );
-
-      if (respuesta == null || respuesta == 'cancelar') return;
-
-      if (respuesta == 'unir') {
-        if (fila > 0) {
-          _resultado!.capitulos[fila - 1].htmlCuerpo += '\n${cap.htmlCuerpo}';
-        } else if (_resultado!.capitulos.length > 1) {
-          _resultado!.capitulos[fila + 1].htmlCuerpo = '${cap.htmlCuerpo}\n${_resultado!.capitulos[fila + 1].htmlCuerpo}';
-        }
-      }
-    }
-
+  void _onAgregarSeccion(SectionKind kind) {
     setState(() {
-      _resultado!.capitulos.removeAt(fila);
-      _controladoresTitulos[fila].dispose();
-      _controladoresTitulos.removeAt(fila);
-      _focusNodesTitulos[fila].dispose();
-      _focusNodesTitulos.removeAt(fila);
-
-      _renumerarCapitulos();
-
-      if (_resultado!.capitulos.isEmpty) {
-        _indiceSeleccionado = -1;
-      } else if (_indiceSeleccionado >= _resultado!.capitulos.length) {
-        _indiceSeleccionado = _resultado!.capitulos.length - 1;
-      } else if (_indiceSeleccionado > fila) {
-        _indiceSeleccionado--;
-      }
-
-      _validarConteo();
+      final nuevoId = 'sec_${DateTime.now().millisecondsSinceEpoch}';
+      final item = SectionItem(
+        id: nuevoId,
+        kind: kind,
+        matter: kind.matter,
+        title: kind.label,
+        fileName: kind.defaultFileName,
+        inToc: true,
+        enabled: true,
+        htmlContent: '<p>Contenido de ${kind.label}...</p>',
+      );
+      _secciones.add(item);
+      _seccionSeleccionada = item;
     });
   }
 
-  Future<void> _toggleTituloImagen(int index) async {
-    if (_resultado == null || index >= _resultado!.capitulos.length) return;
-    final cap = _resultado!.capitulos[index];
-
-    if (!cap.tituloEsImagen) {
-      String sugerencia = cap.numeroImagenTitulo ??
-          extraerPrimeraImagen(cap.htmlCuerpo) ??
-          extraerPrimeraImagen(cap.htmlRaw) ??
-          '02';
-
-      final controlador = TextEditingController(text: sugerencia);
-      final resultado = await showDialog<String>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          backgroundColor: const Color(0xFF1E1E2E),
-          title: const Text('Título con Imagen', style: TextStyle(color: Color(0xFFCDD6F4), fontSize: 16)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Capítulo: ${cap.titulo}',
-                style: const TextStyle(color: Color(0xFFA6ADC8), fontSize: 13),
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                'Número de la imagen (ej: 02, 07):',
-                style: TextStyle(color: Color(0xFFCDD6F4), fontSize: 13),
-              ),
-              const SizedBox(height: 6),
-              TextField(
-                controller: controlador,
-                autofocus: true,
-                style: const TextStyle(color: Color(0xFFCDD6F4)),
-                decoration: InputDecoration(
-                  hintText: '02',
-                  prefixText: '../Images/',
-                  suffixText: '.jpg',
-                  isDense: true,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, null),
-              child: const Text('Cancelar', style: TextStyle(color: Color(0xFF6C7086))),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(ctx, controlador.text.trim()),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF89B4FA),
-                foregroundColor: const Color(0xFF1E1E2E),
-              ),
-              child: const Text('Aceptar'),
-            ),
-          ],
-        ),
-      );
-
-      if (resultado != null && resultado.isNotEmpty) {
-        setState(() {
-          cap.tituloEsImagen = true;
-          cap.numeroImagenTitulo = resultado.padLeft(2, '0');
-        });
+  void _onEliminarSeccion(SectionItem sec) {
+    setState(() {
+      _secciones.removeWhere((s) => s.id == sec.id);
+      if (_seccionSeleccionada?.id == sec.id) {
+        _seccionSeleccionada = _secciones.isNotEmpty ? _secciones.first : null;
       }
-    } else {
-      final accion = await showDialog<String>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          backgroundColor: const Color(0xFF1E1E2E),
-          title: const Text('Título con Imagen', style: TextStyle(color: Color(0xFFCDD6F4), fontSize: 16)),
-          content: Text(
-            'Actualmente usa "../Images/${cap.numeroImagenTitulo ?? "02"}.jpg" como título.',
-            style: const TextStyle(color: Color(0xFFA6ADC8), fontSize: 13),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, 'desactivar'),
-              child: const Text('Desactivar imagen', style: TextStyle(color: Color(0xFFF38BA8))),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(ctx, 'editar'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF89B4FA),
-                foregroundColor: const Color(0xFF1E1E2E),
-              ),
-              child: const Text('Cambiar número'),
-            ),
-          ],
-        ),
-      );
+    });
+  }
 
-      if (accion == 'desactivar') {
-        setState(() {
-          cap.tituloEsImagen = false;
-        });
-      } else if (accion == 'editar' && mounted) {
-        final controlador = TextEditingController(text: cap.numeroImagenTitulo ?? '02');
-        final nuevoNum = await showDialog<String>(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            backgroundColor: const Color(0xFF1E1E2E),
-            title: const Text('Cambiar Número de Imagen', style: TextStyle(color: Color(0xFFCDD6F4), fontSize: 16)),
-            content: TextField(
-              controller: controlador,
-              autofocus: true,
-              style: const TextStyle(color: Color(0xFFCDD6F4)),
-              decoration: InputDecoration(
-                prefixText: '../Images/',
-                suffixText: '.jpg',
-                isDense: true,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, null),
-                child: const Text('Cancelar', style: TextStyle(color: Color(0xFF6C7086))),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(ctx, controlador.text.trim()),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF89B4FA),
-                  foregroundColor: const Color(0xFF1E1E2E),
-                ),
-                child: const Text('Guardar'),
-              ),
-            ],
-          ),
-        );
-        if (nuevoNum != null && nuevoNum.isNotEmpty) {
+  void _abrirDialogoBuscarReemplazar() {
+    showDialog(
+      context: context,
+      builder: (ctx) => DialogoBuscarReemplazar(
+        secciones: _secciones,
+        seccionActual: _seccionSeleccionada,
+        onAplicarCambios: (nuevasSecciones) {
           setState(() {
-            cap.numeroImagenTitulo = nuevoNum.padLeft(2, '0');
+            _secciones = nuevasSecciones;
+            if (_seccionSeleccionada != null) {
+              _seccionSeleccionada = _secciones.firstWhere(
+                (s) => s.id == _seccionSeleccionada!.id,
+                orElse: () => _secciones.first,
+              );
+            }
           });
-        }
-      }
-    }
-  }
-
-  void _validarConteo() {
-    if (_resultado == null) return;
-    int esperados = _resultado!.capitulos.length;
-    int actuales = _controladoresTitulos.length;
-
-    int vacios = _controladoresTitulos.where((c) => c.text.trim().isEmpty).length;
-
-    if (vacios > 0) {
-      _mensajeError = 'Títulos: ${actuales - vacios}/$esperados — hay $vacios título(s) vacío(s)';
-    } else {
-      _mensajeError = null;
-    }
+        },
+      ),
+    );
   }
 
   Future<String> _cargarPlantilla({String? nombreEspecial, String? rutaDisco}) async {
@@ -484,16 +245,16 @@ class _HomeScreenState extends State<HomeScreen> {
     return disco.existsSync() ? disco.readAsStringSync() : await rootBundle.loadString(assetPath);
   }
 
-  bool _puedeGenerar() => _resultado != null && _mensajeError == null;
-
   Future<List<ArchivoEpubEntrada>> _prepararArchivosXhtml() async {
     final plantilla = await _cargarPlantilla();
     final lista = <ArchivoEpubEntrada>[];
 
-    for (int i = 0; i < _resultado!.capitulos.length; i++) {
-      var cap = _resultado!.capitulos[i];
-      String titulo = _controladoresTitulos[i].text.trim();
-      int num = _startNumActual + i;
+    final caps = seccionesACapitulos(_secciones);
+
+    for (int i = 0; i < caps.length; i++) {
+      var cap = caps[i];
+      String titulo = cap.titulo;
+      int num = i + 1;
       String archivo = cap.archivo ?? 'C${num.toString().padLeft(2, '0')}.xhtml';
       int numero = numeroDeArchivo(archivo, num);
 
@@ -525,8 +286,8 @@ class _HomeScreenState extends State<HomeScreen> {
       lista.add(ArchivoEpubEntrada(nombre: archivo, contenidoHtml: htmlFinal));
     }
 
-    final titulos = _controladoresTitulos.map((c) => c.text.trim()).toList();
-    final tocHtml = renderTablaContenidos(_resultado!.capitulos, titulos);
+    final titulos = caps.map((c) => c.titulo).toList();
+    final tocHtml = renderTablaContenidos(caps, titulos);
     lista.add(ArchivoEpubEntrada(nombre: 'contenido-2.xhtml', contenidoHtml: tocHtml));
 
     return lista;
@@ -544,7 +305,7 @@ class _HomeScreenState extends State<HomeScreen> {
         File(p.join(salida, arch.nombre)).writeAsStringSync(arch.contenidoHtml);
       }
 
-      if (_resultado!.notas.isNotEmpty) {
+      if (_resultado?.notas.isNotEmpty == true) {
         String plantillaNotas = await _cargarPlantilla(nombreEspecial: 'notas.xhtml');
         File(p.join(salida, 'notas.xhtml')).writeAsStringSync(renderArchivoNotas(plantillaNotas, _resultado!.notas));
       }
@@ -557,9 +318,11 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _compilarEpub() async {
-    final nombreBase = _rutaArchivoCargado != null
-        ? '${p.basenameWithoutExtension(_rutaArchivoCargado!)}.epub'
-        : 'Novela.epub';
+    final nombreBase = _metadatos.displayTitle.isNotEmpty
+        ? '${_metadatos.displayTitle}.epub'
+        : (_rutaArchivoCargado != null
+            ? '${p.basenameWithoutExtension(_rutaArchivoCargado!)}.epub'
+            : 'Novela.epub');
 
     String? destino = await FilePicker.platform.saveFile(
       dialogTitle: 'Guardar ePub compilado',
@@ -598,18 +361,14 @@ class _HomeScreenState extends State<HomeScreen> {
         }
       }
 
-      final ordenSpine = _resultado!.capitulos.map((c) => c.archivo ?? 'C01.xhtml').toList();
+      final ordenSpine = _secciones.where((s) => s.enabled).map((s) => s.fileName).toList();
       final entradasToc = [
-        for (int i = 0; i < _resultado!.capitulos.length; i++)
-          (
-            archivo: _resultado!.capitulos[i].archivo ?? 'C01.xhtml',
-            titulo: _controladoresTitulos[i].text.trim().isNotEmpty
-                ? _controladoresTitulos[i].text.trim()
-                : _resultado!.capitulos[i].titulo,
-          )
+        for (final s in _secciones.where((s) => s.enabled && s.inToc))
+          (archivo: s.fileName, titulo: s.effectiveHeading)
       ];
 
-      final contenidoNotas = _resultado!.notas.isNotEmpty ? renderNotas(_resultado!.notas) : null;
+      final secNotas = _secciones.where((s) => s.kind == SectionKind.notes && s.enabled).firstOrNull;
+      final contenidoNotas = secNotas?.htmlContent ?? (_resultado?.notas.isNotEmpty == true ? renderNotas(_resultado!.notas) : null);
 
       final res = empaquetarEpub(
         bytesBaseEpub: bytesBase,
@@ -618,6 +377,8 @@ class _HomeScreenState extends State<HomeScreen> {
         entradasToc: entradasToc,
         contenidoNotas: contenidoNotas,
         imagenes: imagenes,
+        metadatos: _metadatos,
+        secciones: _secciones,
       );
 
       File(destino).writeAsBytesSync(res.bytesEpub);
@@ -648,1059 +409,376 @@ class _HomeScreenState extends State<HomeScreen> {
             actions: [
               ElevatedButton(
                 onPressed: () => Navigator.pop(ctx),
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF89B4FA), foregroundColor: const Color(0xFF1E1E2E)),
-                child: const Text('Aceptar'),
+                child: const Text('Entendido'),
               ),
             ],
           ),
         );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('✅ ePub compilado exitosamente: ${p.basename(destino)}')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: const Color(0xFFA6E3A1),
+            content: Text(
+              '🎉 ePub guardado con éxito en: $destino',
+              style: const TextStyle(color: Color(0xFF181825), fontWeight: FontWeight.bold),
+            ),
+          ),
+        );
       }
     } catch (e) {
       _mostrarError('Error al compilar ePub: $e');
     }
   }
 
-  void _mostrarDialogoCompilacion() {
-    showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setModalState) {
-          final hayBase = _rutaBaseEpub.isNotEmpty && File(_rutaBaseEpub).existsSync();
-          return AlertDialog(
-            backgroundColor: const Color(0xFF1E1E2E),
-            title: const Row(
-              children: [
-                Icon(Icons.auto_stories, color: Color(0xFF89B4FA), size: 22),
-                SizedBox(width: 8),
-                Text('Compilar Manuscrito', style: TextStyle(color: Color(0xFFCDD6F4), fontSize: 16)),
-              ],
-            ),
-            content: SizedBox(
-              width: 520,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('1. Archivo Base ePub (Plantilla estructural):', style: TextStyle(color: Color(0xFFA6ADC8), fontSize: 12, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF181825),
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: const Color(0xFFA6E3A1).withValues(alpha: 0.4)),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.check_circle, color: Color(0xFFA6E3A1), size: 16),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            hayBase
-                                ? '${p.basename(_rutaBaseEpub)} (Personalizado)'
-                                : 'Base3_v1.15.0.epub (Integrado en la App)',
-                            style: const TextStyle(color: Color(0xFFCDD6F4), fontSize: 11, fontFamily: 'monospace'),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        if (hayBase)
-                          IconButton(
-                            icon: const Icon(Icons.restart_alt, size: 16, color: Color(0xFFFAB387)),
-                            tooltip: 'Restaurar base integrada',
-                            onPressed: () {
-                              AjustesApp.guardarRutaBaseEpub('');
-                              setModalState(() {
-                                _rutaBaseEpub = '';
-                              });
-                              setState(() {
-                                _rutaBaseEpub = '';
-                              });
-                            },
-                          ),
-                        TextButton(
-                          onPressed: () async {
-                            final res = await FilePicker.platform.pickFiles(
-                              type: FileType.custom,
-                              allowedExtensions: ['epub'],
-                              dialogTitle: 'Seleccionar archivo Base ePub',
-                            );
-                            if (res != null && res.files.single.path != null) {
-                              final path = res.files.single.path!;
-                              AjustesApp.guardarRutaBaseEpub(path);
-                              setModalState(() {
-                                _rutaBaseEpub = path;
-                              });
-                              setState(() {
-                                _rutaBaseEpub = path;
-                              });
-                            }
-                          },
-                          child: const Text('Cambiar', style: TextStyle(fontSize: 11, color: Color(0xFF89B4FA))),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  const Text('2. Carpeta de Ilustraciones e Imágenes (Opcional):', style: TextStyle(color: Color(0xFFA6ADC8), fontSize: 12, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF181825),
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: const Color(0xFF45475A)),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.folder_open, color: Color(0xFFFAB387), size: 16),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            _rutaCarpetaImagenes != null ? p.basename(_rutaCarpetaImagenes!) : 'Ninguna carpeta seleccionada (usará las del base)',
-                            style: const TextStyle(color: Color(0xFFA6ADC8), fontSize: 11),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        if (_rutaCarpetaImagenes != null)
-                          IconButton(
-                            icon: const Icon(Icons.close, size: 16, color: Color(0xFFF38BA8)),
-                            tooltip: 'Quitar carpeta',
-                            onPressed: () {
-                              setModalState(() {
-                                _rutaCarpetaImagenes = null;
-                              });
-                              setState(() {
-                                _rutaCarpetaImagenes = null;
-                              });
-                            },
-                          ),
-                        TextButton(
-                          onPressed: () async {
-                            final dir = await FilePicker.platform.getDirectoryPath(dialogTitle: 'Seleccionar carpeta de imágenes');
-                            if (dir != null) {
-                              setModalState(() {
-                                _rutaCarpetaImagenes = dir;
-                              });
-                              setState(() {
-                                _rutaCarpetaImagenes = dir;
-                              });
-                            }
-                          },
-                          child: const Text('Elegir', style: TextStyle(fontSize: 11, color: Color(0xFF89B4FA))),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Cancelar', style: TextStyle(color: Color(0xFFA6ADC8))),
-              ),
-              OutlinedButton(
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  _generarSoloXhtml();
-                },
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFFCDD6F4),
-                  side: const BorderSide(color: Color(0xFF45475A)),
-                ),
-                child: const Text('Exportar solo XHTML', style: TextStyle(fontSize: 12)),
-              ),
-              ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  _compilarEpub();
-                },
-                icon: const Icon(Icons.task_alt, size: 16),
-                label: const Text('Generar ePub (.epub)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF89B4FA),
-                  foregroundColor: const Color(0xFF181825),
-                ),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-
-  void _mostrarAjustes() {
-    showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setModalState) {
-          final hayBase = _rutaBaseEpub.isNotEmpty && File(_rutaBaseEpub).existsSync();
-          return AlertDialog(
-            backgroundColor: const Color(0xFF1E1E2E),
-            title: const Text('Ajustes y Rutas', style: TextStyle(color: Color(0xFFCDD6F4))),
-            content: SizedBox(
-              width: 500,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Base ePub Estructural (Base3.epub):', style: TextStyle(color: Color(0xFFA6ADC8), fontSize: 12, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          hayBase ? _rutaBaseEpub : 'Base3_v1.15.0.epub (Integrado en la App)',
-                          style: TextStyle(
-                            color: hayBase ? const Color(0xFF89B4FA) : const Color(0xFFA6E3A1),
-                            fontSize: 11,
-                            fontFamily: 'monospace',
-                            fontWeight: hayBase ? FontWeight.normal : FontWeight.bold,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      if (hayBase) ...[
-                        const SizedBox(width: 6),
-                        IconButton(
-                          icon: const Icon(Icons.restart_alt, size: 16, color: Color(0xFFFAB387)),
-                          tooltip: 'Restaurar base integrada',
-                          onPressed: () {
-                            AjustesApp.guardarRutaBaseEpub('');
-                            setModalState(() {
-                              _rutaBaseEpub = '';
-                            });
-                            setState(() {
-                              _rutaBaseEpub = '';
-                            });
-                          },
-                        ),
-                      ],
-                      const SizedBox(width: 8),
-                      ElevatedButton(
-                        onPressed: () async {
-                          final res = await FilePicker.platform.pickFiles(
-                            type: FileType.custom,
-                            allowedExtensions: ['epub'],
-                            dialogTitle: 'Seleccionar archivo Base ePub',
-                          );
-                          if (res != null && res.files.single.path != null) {
-                            final path = res.files.single.path!;
-                            AjustesApp.guardarRutaBaseEpub(path);
-                            setModalState(() {
-                              _rutaBaseEpub = path;
-                            });
-                            setState(() {
-                              _rutaBaseEpub = path;
-                            });
-                          }
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF313244),
-                          foregroundColor: const Color(0xFFCDD6F4),
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        ),
-                        child: const Text('Examinar...', style: TextStyle(fontSize: 11)),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  const Text('Plantilla base (template.xhtml):', style: TextStyle(color: Color(0xFFA6ADC8), fontSize: 12)),
-                  const SizedBox(height: 4),
-                  Text(rutaTemplateDefecto, style: const TextStyle(color: Color(0xFF89B4FA), fontSize: 11, fontFamily: 'monospace')),
-                  const SizedBox(height: 12),
-                  const Text('Carpeta de plantillas especiales:', style: TextStyle(color: Color(0xFFA6ADC8), fontSize: 12)),
-                  const SizedBox(height: 4),
-                  Text(rutaPlantillasDefecto, style: const TextStyle(color: Color(0xFF89B4FA), fontSize: 11, fontFamily: 'monospace')),
-                ],
-              ),
-            ),
-            actions: [
-              ElevatedButton(
-                onPressed: () => Navigator.pop(ctx),
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF89B4FA), foregroundColor: const Color(0xFF1E1E2E)),
-                child: const Text('Cerrar'),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-
-  void _mostrarAyuda() {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1E1E2E),
-        title: const Text('Ayuda y Atajos', style: TextStyle(color: Color(0xFFCDD6F4))),
-        content: const Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('• Arrastra archivos .docx, .pdf, .md o carpetas de Calibre a la zona de carga.', style: TextStyle(color: Color(0xFFA6ADC8), fontSize: 13)),
-            SizedBox(height: 8),
-            Text('• Haz clic en el badge de TIPO en cualquier capítulo para cambiarlo manualmente (Prólogo, Cuerpo, etc.).', style: TextStyle(color: Color(0xFFA6ADC8), fontSize: 13)),
-            SizedBox(height: 8),
-            Text('• Usa el botón de imagen 🖼️ para marcar capítulos cuyo título es una ilustración.', style: TextStyle(color: Color(0xFFA6ADC8), fontSize: 13)),
-            SizedBox(height: 8),
-            Text('• La aplicación genera automáticamente la tabla de contenidos (contenido-2.xhtml).', style: TextStyle(color: Color(0xFFA6ADC8), fontSize: 13)),
-          ],
-        ),
-        actions: [
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx),
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF89B4FA), foregroundColor: const Color(0xFF1E1E2E)),
-            child: const Text('Entendido'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPill(IconData icon, String texto, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withValues(alpha: 0.35)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: color),
-          const SizedBox(width: 6),
-          Text(texto, style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.bold)),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    Chapter? capSeleccionado = (_resultado != null &&
-            _indiceSeleccionado >= 0 &&
-            _indiceSeleccionado < _resultado!.capitulos.length)
-        ? _resultado!.capitulos[_indiceSeleccionado]
-        : null;
-
     return Scaffold(
+      backgroundColor: const Color(0xFF11111B),
+      appBar: _construirAppBar(),
+      body: _resultado == null ? _construirVistaDropzone() : _construirWorkstation(),
+    );
+  }
+
+  PreferredSizeWidget _construirAppBar() {
+    return AppBar(
       backgroundColor: const Color(0xFF181825),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // -----------------------------------------------------------
-              // 1. PANEL IZQUIERDO: Configuración y Carga de Manuscrito
-              // -----------------------------------------------------------
-              SizedBox(
-                width: 270,
-                child: Column(
+      elevation: 0,
+      title: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: const Color(0xFF89B4FA).withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(Icons.auto_stories, color: Color(0xFF89B4FA), size: 20),
+          ),
+          const SizedBox(width: 10),
+          const Text(
+            'Conversor ePub',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFFCDD6F4)),
+          ),
+          if (_rutaArchivoCargado != null) ...[
+            const SizedBox(width: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: const Color(0xFF313244),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.description_outlined, size: 14, color: Color(0xFFA6ADC8)),
+                  const SizedBox(width: 6),
+                  Text(
+                    p.basename(_rutaArchivoCargado!),
+                    style: const TextStyle(fontSize: 12, color: Color(0xFFCDD6F4)),
+                  ),
+                  if (_tamanoArchivo > 0) ...[
+                    const SizedBox(width: 6),
+                    Text(
+                      '(${_formatearTamano(_tamanoArchivo)})',
+                      style: const TextStyle(fontSize: 11, color: Color(0xFFA6ADC8)),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+      actions: [
+        if (_resultado != null) ...[
+          // Botón selector de carpeta de imágenes
+          TextButton.icon(
+            icon: Icon(
+              Icons.photo_library_outlined,
+              size: 16,
+              color: _rutaCarpetaImagenes != null ? const Color(0xFFA6E3A1) : const Color(0xFFA6ADC8),
+            ),
+            label: Text(
+              _rutaCarpetaImagenes != null
+                  ? '${p.basename(_rutaCarpetaImagenes!)} (${_imagenesDisponibles.length})'
+                  : 'Imágenes',
+              style: TextStyle(
+                fontSize: 12,
+                color: _rutaCarpetaImagenes != null ? const Color(0xFFA6E3A1) : const Color(0xFFA6ADC8),
+              ),
+            ),
+            onPressed: _seleccionarCarpetaImagenes,
+          ),
+          const SizedBox(width: 6),
+
+          // Botón Buscar y Reemplazar
+          TextButton.icon(
+            icon: const Icon(Icons.find_replace, size: 16, color: Color(0xFF89B4FA)),
+            label: const Text('Regex Buscar/Reemplazar', style: TextStyle(fontSize: 12, color: Color(0xFF89B4FA))),
+            onPressed: _abrirDialogoBuscarReemplazar,
+          ),
+          const SizedBox(width: 6),
+
+          // Menú Exportar Solo XHTML
+          PopupMenuButton<String>(
+            tooltip: 'Opciones de exportación',
+            icon: const Icon(Icons.more_vert, color: Color(0xFFA6ADC8)),
+            color: const Color(0xFF1E1E2E),
+            onSelected: (val) {
+              if (val == 'xhtml') _generarSoloXhtml();
+              if (val == 'nuevo') setState(() => _resultado = null);
+            },
+            itemBuilder: (ctx) => [
+              const PopupMenuItem(
+                value: 'xhtml',
+                child: Row(
                   children: [
-                    // Card Configurar Capítulos
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1E1E2E),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: const Color(0xFF313244)),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              const Icon(Icons.tune, size: 16, color: Color(0xFF89B4FA)),
-                              const SizedBox(width: 6),
-                              const Text('Configurar Capítulos', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFFCDD6F4))),
-                              const Spacer(),
-                              InkWell(
-                                onTap: _aplicarPrefijoSufijo,
-                                child: const Tooltip(
-                                  message: 'Aplicar prefijo y sufijo a los títulos',
-                                  child: Icon(Icons.auto_fix_high, size: 16, color: Color(0xFF89B4FA)),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 10),
-                          Row(
-                            children: [
-                              const Text('Start:', style: TextStyle(color: Color(0xFFA6ADC8), fontSize: 12)),
-                              const Spacer(),
-                              IconButton(
-                                icon: const Icon(Icons.remove, size: 14),
-                                constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-                                padding: EdgeInsets.zero,
-                                onPressed: () {
-                                  if (_startNumActual > 0) {
-                                    setState(() {
-                                      _startNumActual--;
-                                      _startNumController.text = _startNumActual.toString();
-                                      _renumerarCapitulos();
-                                    });
-                                  }
-                                },
-                              ),
-                              SizedBox(
-                                width: 36,
-                                child: Text(
-                                  '$_startNumActual',
-                                  textAlign: TextAlign.center,
-                                  style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFCDD6F4)),
-                                ),
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.add, size: 14),
-                                constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-                                padding: EdgeInsets.zero,
-                                onPressed: () {
-                                  setState(() {
-                                    _startNumActual++;
-                                    _startNumController.text = _startNumActual.toString();
-                                    _renumerarCapitulos();
-                                  });
-                                },
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 6),
-                          Row(
-                            children: [
-                              const SizedBox(width: 48, child: Text('Prefix', style: TextStyle(color: Color(0xFFA6ADC8), fontSize: 12))),
-                              Expanded(
-                                child: SizedBox(
-                                  height: 28,
-                                  child: TextField(
-                                    controller: _prefixController,
-                                    style: const TextStyle(fontSize: 12, color: Color(0xFFCDD6F4)),
-                                    decoration: InputDecoration(
-                                      isDense: true,
-                                      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(4)),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 6),
-                          Row(
-                            children: [
-                              const SizedBox(width: 48, child: Text('Suffix', style: TextStyle(color: Color(0xFFA6ADC8), fontSize: 12))),
-                              Expanded(
-                                child: SizedBox(
-                                  height: 28,
-                                  child: TextField(
-                                    controller: _suffixController,
-                                    style: const TextStyle(fontSize: 12, color: Color(0xFFCDD6F4)),
-                                    decoration: InputDecoration(
-                                      isDense: true,
-                                      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(4)),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-
-                    // Card Dropzone
-                    Expanded(
-                      child: DropTarget(
-                        onDragEntered: (details) => setState(() => _isDragging = true),
-                        onDragExited: (details) => setState(() => _isDragging = false),
-                        onDragDone: (details) {
-                          if (details.files.isNotEmpty) {
-                            _procesarArchivo(details.files.first.path);
-                          }
-                        },
-                        child: InkWell(
-                          onTap: () async {
-                            FilePickerResult? result = await FilePicker.platform.pickFiles(allowMultiple: false);
-                            if (result != null && result.files.single.path != null) {
-                              _procesarArchivo(result.files.single.path!);
-                            }
-                          },
-                          borderRadius: BorderRadius.circular(10),
-                          child: CustomPaint(
-                            painter: DashedRectPainter(
-                              color: _isDragging ? const Color(0xFF89B4FA) : const Color(0xFF45475A),
-                              strokeWidth: _isDragging ? 2.0 : 1.2,
-                            ),
-                            child: Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: _isDragging ? const Color(0xFF252538) : const Color(0xFF1E1E2E).withValues(alpha: 0.6),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.cloud_upload_outlined,
-                                    size: 36,
-                                    color: _isDragging ? const Color(0xFF89B4FA) : const Color(0xFF6C7086),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  const Text('Carga tu Manuscrito', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFFCDD6F4))),
-                                  const SizedBox(height: 4),
-                                  const Text('.docx, .pdf, or directory.', style: TextStyle(color: Color(0xFFA6ADC8), fontSize: 11)),
-                                  const SizedBox(height: 2),
-                                  const Text('[Arrastra aquí o haz clic]', style: TextStyle(color: Color(0xFF89B4FA), fontSize: 10)),
-                                  if (_rutaArchivoCargado != null) ...[
-                                    const SizedBox(height: 10),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFF313244),
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      child: Column(
-                                        children: [
-                                          Text(
-                                            p.basename(_rutaArchivoCargado!),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: const TextStyle(color: Color(0xFFCDD6F4), fontSize: 11, fontWeight: FontWeight.bold),
-                                          ),
-                                          const SizedBox(height: 2),
-                                          Text(
-                                            _formatearTamano(_tamanoArchivo),
-                                            style: const TextStyle(color: Color(0xFFA6ADC8), fontSize: 10),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        if (_mensajeEstado.startsWith('🔄')) ...[
-                                          const SizedBox(
-                                            width: 10,
-                                            height: 10,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 1.5,
-                                              color: Color(0xFF89B4FA),
-                                            ),
-                                          ),
-                                          const SizedBox(width: 6),
-                                        ],
-                                        Flexible(
-                                          child: Text(
-                                            _mensajeEstado.startsWith('✅') ? '[Listo]' : _mensajeEstado,
-                                            textAlign: TextAlign.center,
-                                            style: TextStyle(
-                                              color: _mensajeEstado.startsWith('❌')
-                                                  ? const Color(0xFFF38BA8)
-                                                  : _mensajeEstado.startsWith('🔄')
-                                                      ? const Color(0xFF89B4FA)
-                                                      : const Color(0xFFA6E3A1),
-                                              fontSize: 10,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-
-                    // Botones Inferiores del Panel Izquierdo
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: _resultado != null ? _anadirFila : null,
-                            icon: const Icon(Icons.add, size: 14),
-                            label: const Text('Añadir', style: TextStyle(fontSize: 12)),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF313244),
-                              foregroundColor: const Color(0xFFCDD6F4),
-                              padding: const EdgeInsets.symmetric(vertical: 8),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: (_resultado != null && _resultado!.capitulos.isNotEmpty && _indiceSeleccionado >= 0)
-                                ? () => _quitarFila()
-                                : null,
-                            icon: const Icon(Icons.remove, size: 14),
-                            label: const Text('Eliminar', style: TextStyle(fontSize: 12)),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF313244),
-                              foregroundColor: const Color(0xFFF38BA8),
-                              padding: const EdgeInsets.symmetric(vertical: 8),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextButton.icon(
-                            onPressed: _mostrarAjustes,
-                            icon: const Icon(Icons.tune, size: 14, color: Color(0xFFA6ADC8)),
-                            label: const Text('Ajustes', style: TextStyle(color: Color(0xFFA6ADC8), fontSize: 11)),
-                          ),
-                        ),
-                        Expanded(
-                          child: TextButton.icon(
-                            onPressed: _mostrarAyuda,
-                            icon: const Icon(Icons.help_outline, size: 14, color: Color(0xFFA6ADC8)),
-                            label: const Text('Ayuda', style: TextStyle(color: Color(0xFFA6ADC8), fontSize: 11)),
-                          ),
-                        ),
-                      ],
-                    ),
+                    Icon(Icons.folder_zip_outlined, size: 16, color: Color(0xFF89B4FA)),
+                    SizedBox(width: 8),
+                    Text('Exportar solo XHTMLs', style: TextStyle(fontSize: 12, color: Color(0xFFCDD6F4))),
                   ],
                 ),
               ),
-
-              const SizedBox(width: 12),
-
-              // -----------------------------------------------------------
-              // 2. PANEL CENTRAL: Tabla de Capítulos Profesional con Badges
-              // -----------------------------------------------------------
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
+              const PopupMenuItem(
+                value: 'nuevo',
+                child: Row(
                   children: [
-                    // Dashboard Superior (Pills)
-                    Row(
-                      children: [
-                        _buildPill(Icons.format_list_bulleted, 'Capítulos: ${_resultado?.contadores.capitulos ?? 0}', const Color(0xFF89B4FA)),
-                        const SizedBox(width: 8),
-                        _buildPill(Icons.edit_note, 'Notas: ${_resultado?.contadores.notas ?? 0}', const Color(0xFFF9E2AF)),
-                        const SizedBox(width: 8),
-                        _buildPill(Icons.image, 'Imágenes: ${_resultado?.contadores.imagenes ?? 0}', const Color(0xFFA6E3A1)),
-                        const SizedBox(width: 8),
-                        _buildPill(Icons.content_cut, 'Separadores: ${_resultado?.contadores.separadores ?? 0}', const Color(0xFFF38BA8)),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-
-                    // Tabla de Capítulos
-                    Expanded(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF1E1E2E),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: const Color(0xFF313244)),
-                        ),
-                        child: Column(
-                          children: [
-                            // Encabezado de la Tabla
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                              decoration: const BoxDecoration(
-                                color: Color(0xFF181825),
-                                borderRadius: BorderRadius.only(
-                                  topLeft: Radius.circular(9),
-                                  topRight: Radius.circular(9),
-                                ),
-                              ),
-                              child: const Row(
-                                children: [
-                                  SizedBox(
-                                    width: 32,
-                                    child: Text('ID', style: TextStyle(color: Color(0xFFA6ADC8), fontWeight: FontWeight.bold, fontSize: 11)),
-                                  ),
-                                  Expanded(
-                                    child: Text('TÍTULO DEL CAPÍTULO', style: TextStyle(color: Color(0xFFA6ADC8), fontWeight: FontWeight.bold, fontSize: 11)),
-                                  ),
-                                  SizedBox(
-                                    width: 100,
-                                    child: Center(
-                                      child: Text('TIPO', style: TextStyle(color: Color(0xFFA6ADC8), fontWeight: FontWeight.bold, fontSize: 11)),
-                                    ),
-                                  ),
-                                  SizedBox(
-                                    width: 85,
-                                    child: Center(
-                                      child: Text('ACCIONES', style: TextStyle(color: Color(0xFFA6ADC8), fontWeight: FontWeight.bold, fontSize: 11)),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const Divider(height: 1, color: Color(0xFF313244)),
-
-                            // Lista de Capítulos
-                            Expanded(
-                              child: _resultado == null || _resultado!.capitulos.isEmpty
-                                  ? const Center(
-                                      child: Text(
-                                        'Arrastra un manuscrito para comenzar',
-                                        style: TextStyle(color: Color(0xFF6C7086), fontSize: 13),
-                                      ),
-                                    )
-                                  : ListView.separated(
-                                      padding: const EdgeInsets.symmetric(vertical: 4),
-                                      itemCount: _controladoresTitulos.length,
-                                      separatorBuilder: (_, _) => const Divider(height: 1, color: Color(0xFF252538)),
-                                      itemBuilder: (context, index) {
-                                        bool isSelected = index == _indiceSeleccionado;
-                                        final cap = _resultado!.capitulos[index];
-                                        final tipo = _tipoDeCapitulo(cap);
-                                        final colorTipo = _colorTipo(tipo);
-
-                                        return InkWell(
-                                          onTap: () => setState(() => _indiceSeleccionado = index),
-                                          child: Container(
-                                            color: isSelected ? const Color(0xFF313244) : Colors.transparent,
-                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                            child: Row(
-                                              children: [
-                                                // ID
-                                                SizedBox(
-                                                  width: 32,
-                                                  child: Text(
-                                                    (index + 1).toString().padLeft(2, '0'),
-                                                    style: TextStyle(
-                                                      color: isSelected ? const Color(0xFF89B4FA) : const Color(0xFFA6ADC8),
-                                                      fontWeight: FontWeight.bold,
-                                                      fontSize: 12,
-                                                    ),
-                                                  ),
-                                                ),
-
-                                                // Título
-                                                Expanded(
-                                                  child: SizedBox(
-                                                    height: 32,
-                                                    child: TextField(
-                                                      controller: _controladoresTitulos[index],
-                                                      focusNode: _focusNodesTitulos[index],
-                                                      style: const TextStyle(fontSize: 13, color: Color(0xFFCDD6F4)),
-                                                      onTap: () {
-                                                        if (_indiceSeleccionado != index) {
-                                                          setState(() => _indiceSeleccionado = index);
-                                                        }
-                                                      },
-                                                      onChanged: (v) {
-                                                        cap.titulo = v;
-                                                        _validarConteo();
-                                                      },
-                                                      decoration: InputDecoration(
-                                                        isDense: true,
-                                                        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                                                        border: OutlineInputBorder(
-                                                          borderRadius: BorderRadius.circular(4),
-                                                          borderSide: BorderSide(
-                                                            color: isSelected ? const Color(0xFF89B4FA) : const Color(0xFF45475A),
-                                                          ),
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ),
-                                                const SizedBox(width: 8),
-
-                                                // Badge TIPO (Interactivo con PopupMenu)
-                                                SizedBox(
-                                                  width: 100,
-                                                  child: PopupMenuButton<TipoEspecial>(
-                                                    tooltip: 'Cambiar tipo de capítulo',
-                                                    color: const Color(0xFF1E1E2E),
-                                                    onSelected: (nuevoTipo) {
-                                                      setState(() {
-                                                        cap.tipoForzado = nuevoTipo;
-                                                        _renumerarCapitulos();
-                                                      });
-                                                    },
-                                                    itemBuilder: (ctx) => [
-                                                      for (var t in TipoEspecial.values)
-                                                        PopupMenuItem(
-                                                          value: t,
-                                                          child: Row(
-                                                            children: [
-                                                              Container(
-                                                                width: 10,
-                                                                height: 10,
-                                                                decoration: BoxDecoration(
-                                                                  color: _colorTipo(t),
-                                                                  shape: BoxShape.circle,
-                                                                ),
-                                                              ),
-                                                              const SizedBox(width: 8),
-                                                              Text(
-                                                                _nombreTipo(t),
-                                                                style: TextStyle(
-                                                                  color: t == tipo ? _colorTipo(t) : const Color(0xFFCDD6F4),
-                                                                  fontWeight: t == tipo ? FontWeight.bold : FontWeight.normal,
-                                                                ),
-                                                              ),
-                                                            ],
-                                                          ),
-                                                        ),
-                                                    ],
-                                                    child: Container(
-                                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                                      decoration: BoxDecoration(
-                                                        color: colorTipo.withValues(alpha: 0.15),
-                                                        borderRadius: BorderRadius.circular(12),
-                                                        border: Border.all(color: colorTipo.withValues(alpha: 0.4)),
-                                                      ),
-                                                      child: Center(
-                                                        child: Text(
-                                                          _nombreTipo(tipo),
-                                                          style: TextStyle(
-                                                            color: colorTipo,
-                                                            fontSize: 11,
-                                                            fontWeight: FontWeight.bold,
-                                                          ),
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ),
-                                                const SizedBox(width: 6),
-
-                                                // ACCIONES
-                                                SizedBox(
-                                                  width: 85,
-                                                  child: Row(
-                                                    mainAxisAlignment: MainAxisAlignment.end,
-                                                    children: [
-                                                      IconButton(
-                                                        icon: const Icon(Icons.edit_outlined, size: 15),
-                                                        color: const Color(0xFFA6ADC8),
-                                                        tooltip: 'Editar título',
-                                                        splashRadius: 12,
-                                                        constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-                                                        padding: EdgeInsets.zero,
-                                                        onPressed: () {
-                                                          setState(() => _indiceSeleccionado = index);
-                                                          _focusNodesTitulos[index].requestFocus();
-                                                        },
-                                                      ),
-                                                      IconButton(
-                                                        icon: Icon(
-                                                          cap.tituloEsImagen ? Icons.image : Icons.image_outlined,
-                                                          size: 15,
-                                                        ),
-                                                        color: cap.tituloEsImagen ? const Color(0xFF89B4FA) : const Color(0xFF6C7086),
-                                                        tooltip: cap.tituloEsImagen
-                                                            ? 'Título con imagen (${cap.numeroImagenTitulo ?? "02"})'
-                                                            : 'El título es una imagen (click para activar)',
-                                                        splashRadius: 12,
-                                                        constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-                                                        padding: EdgeInsets.zero,
-                                                        onPressed: () => _toggleTituloImagen(index),
-                                                      ),
-                                                      IconButton(
-                                                        icon: const Icon(Icons.delete_outline, size: 15),
-                                                        color: const Color(0xFFF38BA8),
-                                                        tooltip: 'Eliminar este capítulo',
-                                                        splashRadius: 12,
-                                                        constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-                                                        padding: EdgeInsets.zero,
-                                                        onPressed: () => _quitarFila(index),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                    ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(width: 12),
-
-              // -----------------------------------------------------------
-              // 3. PANEL DERECHO: Resumen del Archivo y Vista Previa Limpia
-              // -----------------------------------------------------------
-              SizedBox(
-                width: 290,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // Card Resumen del Archivo
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1E1E2E),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: const Color(0xFF313244)),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              const Icon(Icons.description_outlined, size: 16, color: Color(0xFF89B4FA)),
-                              const SizedBox(width: 6),
-                              Expanded(
-                                child: Text(
-                                  _rutaArchivoCargado != null ? p.basename(_rutaArchivoCargado!) : 'Resumen del Archivo',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFFCDD6F4)),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 10),
-                          Row(
-                            children: [
-                              const Text('Páginas:', style: TextStyle(color: Color(0xFFA6ADC8), fontSize: 12)),
-                              const Spacer(),
-                              Text('~$_paginasEstimadas', style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFCDD6F4), fontSize: 12)),
-                            ],
-                          ),
-                          const SizedBox(height: 4),
-                          Row(
-                            children: [
-                              const Text('Palabras:', style: TextStyle(color: Color(0xFFA6ADC8), fontSize: 12)),
-                              const Spacer(),
-                              Text(
-                                _palabrasTotales > 1000 ? '${(_palabrasTotales / 1000).toStringAsFixed(1)}k' : '$_palabrasTotales',
-                                style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFCDD6F4), fontSize: 12),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          const Divider(height: 1, color: Color(0xFF313244)),
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              const Text('Limpia Formatos', style: TextStyle(color: Color(0xFFA6ADC8), fontSize: 11)),
-                              const Spacer(),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFA6E3A1).withValues(alpha: 0.15),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: const Text('[ON]', style: TextStyle(color: Color(0xFFA6E3A1), fontSize: 10, fontWeight: FontWeight.bold)),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-
-                    // Vista Previa del Archivo Seleccionado
-                    Expanded(
-                      child: Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF1E1E2E),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: const Color(0xFF313244)),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                const Icon(Icons.visibility_outlined, size: 14, color: Color(0xFF89B4FA)),
-                                const SizedBox(width: 6),
-                                Expanded(
-                                  child: Text(
-                                    capSeleccionado != null
-                                        ? (capSeleccionado.archivo ?? 'C01.xhtml')
-                                        : 'Vista Previa',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFFCDD6F4)),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            Expanded(
-                              child: Container(
-                                width: double.infinity,
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF181825),
-                                  borderRadius: BorderRadius.circular(6),
-                                  border: Border.all(color: const Color(0xFF252538)),
-                                ),
-                                child: SingleChildScrollView(
-                                  child: Text(
-                                    capSeleccionado != null && capSeleccionado.htmlCuerpo.isNotEmpty
-                                        ? capSeleccionado.htmlCuerpo
-                                        : 'Selecciona un capítulo para previsualizar su HTML limpio.',
-                                    style: const TextStyle(
-                                      fontFamily: 'monospace',
-                                      fontSize: 11,
-                                      color: Color(0xFFA6ADC8),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-
-                    // Mensaje de error si existe
-                    if (_mensajeError != null) ...[
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 6),
-                        child: Text(
-                          _mensajeError!,
-                          style: const TextStyle(color: Color(0xFFF38BA8), fontSize: 11, fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    ],
-
-                    // Botón Principal de Compilación
-                    ElevatedButton.icon(
-                      onPressed: _puedeGenerar() ? _mostrarDialogoCompilacion : null,
-                      icon: const Icon(Icons.task_alt, size: 18),
-                      label: const Text('Compilar ePub Final [✓]', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF89B4FA),
-                        foregroundColor: const Color(0xFF181825),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      ),
-                    ),
+                    Icon(Icons.refresh, size: 16, color: Color(0xFFF38BA8)),
+                    SizedBox(width: 8),
+                    Text('Cargar otro manuscrito', style: TextStyle(fontSize: 12, color: Color(0xFFF38BA8))),
                   ],
                 ),
               ),
             ],
           ),
+          const SizedBox(width: 10),
+
+          // Botón Compilar EPUB Destacado
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+            child: ElevatedButton.icon(
+              icon: const Icon(Icons.check_circle_outline, size: 16),
+              label: const Text('Compilar EPUB', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF89B4FA),
+                foregroundColor: const Color(0xFF11111B),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              onPressed: _compilarEpub,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _construirVistaDropzone() {
+    return Center(
+      child: Container(
+        width: 620,
+        height: 380,
+        margin: const EdgeInsets.all(24),
+        child: DropTarget(
+          onDragEntered: (details) => setState(() => _isDragging = true),
+          onDragExited: (details) => setState(() => _isDragging = false),
+          onDragDone: (details) {
+            if (details.files.isNotEmpty) {
+              _procesarArchivo(details.files.first.path);
+            }
+          },
+          child: InkWell(
+            onTap: () async {
+              FilePickerResult? result = await FilePicker.platform.pickFiles(
+                allowMultiple: false,
+                type: FileType.custom,
+                allowedExtensions: ['docx', 'md', 'markdown', 'pdf', 'txt'],
+              );
+              if (result != null && result.files.single.path != null) {
+                _procesarArchivo(result.files.single.path!);
+              }
+            },
+            borderRadius: BorderRadius.circular(16),
+            child: CustomPaint(
+              painter: DashedRectPainter(
+                color: _isDragging ? const Color(0xFF89B4FA) : const Color(0xFF45475A),
+                strokeWidth: _isDragging ? 2.5 : 1.5,
+              ),
+              child: Container(
+                padding: const EdgeInsets.all(32),
+                decoration: BoxDecoration(
+                  color: _isDragging
+                      ? const Color(0xFF1E1E2E)
+                      : const Color(0xFF181825).withValues(alpha: 0.7),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF89B4FA).withValues(alpha: 0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.cloud_upload_outlined,
+                        size: 56,
+                        color: Color(0xFF89B4FA),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    const Text(
+                      'Arrastra tu novela aquí',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFFCDD6F4),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Soporta archivos .docx, .md, .pdf o haz clic para explorar',
+                      style: TextStyle(fontSize: 13, color: Color(0xFFA6ADC8)),
+                    ),
+                    const SizedBox(height: 16),
+                    if (_mensajeError != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF38BA8).withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          _mensajeError!,
+                          style: const TextStyle(color: Color(0xFFF38BA8), fontSize: 12),
+                        ),
+                      )
+                    else if (_mensajeEstado != 'Sin archivo cargado')
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF89B4FA).withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          _mensajeEstado,
+                          style: const TextStyle(color: Color(0xFF89B4FA), fontSize: 12),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _construirWorkstation() {
+    return Row(
+      children: [
+        // Columna Izquierda: Panel de Secciones y Metadatos (390px)
+        Container(
+          width: 390,
+          decoration: const BoxDecoration(
+            color: Color(0xFF181825),
+            border: Border(right: BorderSide(color: Color(0xFF313244))),
+          ),
+          child: Column(
+            children: [
+              // Selector de Pestañas Izquierda (Secciones / Metadatos)
+              Container(
+                padding: const EdgeInsets.all(6),
+                color: const Color(0xFF11111B),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _tabBoton(
+                        titulo: 'Secciones (${_secciones.length})',
+                        icono: Icons.list_alt,
+                        activo: _tabPanelIzquierdo == 0,
+                        onTap: () => setState(() => _tabPanelIzquierdo = 0),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: _tabBoton(
+                        titulo: 'Metadatos',
+                        icono: Icons.menu_book,
+                        activo: _tabPanelIzquierdo == 1,
+                        onTap: () => setState(() => _tabPanelIzquierdo = 1),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Contenido según pestaña
+              Expanded(
+                child: _tabPanelIzquierdo == 0
+                    ? PanelSecciones(
+                        secciones: _secciones,
+                        seccionSeleccionada: _seccionSeleccionada,
+                        onSeleccionar: (sec) => setState(() => _seccionSeleccionada = sec),
+                        onReordenar: _onReordenarSecciones,
+                        onActualizar: _onActualizarSeccion,
+                        onAgregarSeccion: _onAgregarSeccion,
+                        onEliminarSeccion: _onEliminarSeccion,
+                      )
+                    : FormularioMetadatos(
+                        metadatos: _metadatos,
+                        onChanged: (nuevos) => setState(() => _metadatos = nuevos),
+                      ),
+              ),
+            ],
+          ),
+        ),
+
+        // Columna Derecha: Inspector de Sección y Visor (Expanded)
+        Expanded(
+          child: InspectorSeccion(
+            section: _seccionSeleccionada,
+            imagenesDisponibles: _imagenesDisponibles,
+            onActualizar: _onActualizarSeccion,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _tabBoton({
+    required String titulo,
+    required IconData icono,
+    required bool activo,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(6),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        decoration: BoxDecoration(
+          color: activo ? const Color(0xFF1E1E2E) : Colors.transparent,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(
+            color: activo ? const Color(0xFF89B4FA) : Colors.transparent,
+            width: 1,
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icono, size: 14, color: activo ? const Color(0xFF89B4FA) : const Color(0xFFA6ADC8)),
+            const SizedBox(width: 6),
+            Text(
+              titulo,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: activo ? FontWeight.bold : FontWeight.normal,
+                color: activo ? const Color(0xFFCDD6F4) : const Color(0xFFA6ADC8),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -1727,7 +805,7 @@ class DashedRectPainter extends CustomPainter {
     final path = Path()
       ..addRRect(RRect.fromRectAndRadius(
         Rect.fromLTWH(0, 0, size.width, size.height),
-        const Radius.circular(10),
+        const Radius.circular(16),
       ));
     for (final metric in path.computeMetrics()) {
       double distance = 0.0;

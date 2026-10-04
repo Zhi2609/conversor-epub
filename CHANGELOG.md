@@ -458,6 +458,36 @@ Las nuevas entradas se añaden al final de cada sesión de trabajo.
   - Añadidos tests unitarios para títulos con barra vertical y detección de prólogo en párrafos en `test/comillas_test.dart`.
   - Suite de pruebas: **34/34 pruebas pasando**.
   - `flutter analyze`: 0 incidencias.
-  - Binario nativo reconstruido exitosamente en `build/linux/x64/release/bundle/ConversorEpubs`.
+      21:55 — Workstation Editorial (Panel Dividido), Taxonomía ZeeTools, Metadatos OPF y Buscador Regex
+- **Modelo de Metadatos OPF (`motor/metadatos.dart`)**:
+  - Implementada la clase `BookMetadata` con soporte para título, serie, volumen, roles MARC (autor, traductor, ilustrador), sinopsis y fecha.
+  - Generador canónico de UUID v7 (RFC 9562) ordenable cronológicamente para el `BookId` del ePub.
+  - Inferencia automática de título, serie y volumen a partir del nombre del archivo cargado.
+- **Taxonomía Editorial de Secciones (`motor/secciones.dart`)**:
+  - Clasificación de contenido en bloques `BookMatter` (`front` / Preliminares, `body` / Cuerpo, `back` / Finales) y tipos de sección `SectionKind` (cubierta, sinopsis, título, ilustraciones, prólogo, capítulos, interludios, epílogo, notas, autor, traductor).
+  - Estructura `SectionItem` con estado de activación (`enabled`), inclusión en el índice (`inToc`), subtítulo versalita y vinculación a imágenes.
+  - Funciones bidireccionales `convertirResultadoASecciones` y `seccionesACapitulos`.
+- **Motor de Búsqueda y Reemplazo Regex (`motor/busqueda_reemplazo.dart`)**:
+  - Búsqueda en memoria sobre el contenido de todas las secciones o una sección específica.
+  - Soporte completo para expresiones regulares (`isRegex`), sensibilidad a mayúsculas/minúsculas y validación de sintaxis.
+  - Snippets contextuales con número de línea, texto previo, coincidencia resaltada y texto posterior.
+  - Métodos `applyReplaceSingle` y `applyReplaceAll` para reemplazos unitarios o por lotes con conteo exacto de sustituciones.
+- **Empaquetado Mejorado con Inyección de Metadatos (`motor/empaquetado.dart`)**:
+  - Inyección en `content.opf` de metadatos Dublin Core (`<dc:title>`, `<dc:creator>`, `<dc:description>`, metadatos de Calibre para serie y volumen, y UUID v7).
+  - Inyección dinámica en `titulo.xhtml` (título principal, volumen, autor, traductor, ilustrador).
+  - Inyección de párrafos de sinopsis en `resumen.xhtml` o `sinopsis.xhtml`.
+  - Asociación de portada personalizada en `cubierta.xhtml`.
+  - Exclusión limpia de secciones deshabilitadas del manifiesto, espina dorsal (spine) y archivo ZIP.
+- **Workstation Editorial en Flutter (`ui/home_screen.dart` y `ui/widgets/`)**:
+  - Descomposición modular de la interfaz en componentes dedicados:
+    - `panel_secciones.dart`: Lista interactiva reordenable (`onReorderItem`) con badges por tipo, checkboxes de activación, toggle de TOC y menú para añadir nuevas secciones.
+    - `formulario_metadatos.dart`: Editor de título, serie, volumen, autor, traductor, ilustrador, sinopsis y botón para regenerar UUID v7.
+    - `inspector_seccion.dart`: Editor de encabezado, selector de imágenes asociadas (portada / ilustraciones), contador de palabras en tiempo real, pestaña de visualización de HTML limpio y pestaña de Comparador Diff.
+    - `dialogo_buscar_reemplazar.dart`: Modal de búsqueda y reemplazo con lista interactiva de coincidencias y reemplazo global.
+- **Batería de Pruebas y Compilación**:
+  - Creados `test/secciones_test.dart`, `test/busqueda_reemplazo_test.dart` y `test/empaquetado_metadatos_test.dart`.
+  - Suite completa: **45/45 pruebas pasando** (100% de éxito).
+  - `flutter analyze`: **0 incidencias** (código 100% limpio).
+  - Binario nativo de release compilado exitosamente en `build/linux/x64/release/bundle/ConversorEpubs`.
 
 

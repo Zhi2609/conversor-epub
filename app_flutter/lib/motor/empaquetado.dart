@@ -2,6 +2,17 @@ import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
 import 'package:archive/archive.dart';
+import 'metadatos.dart';
+import 'secciones.dart';
+
+String _escXml(String text) {
+  return text
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&apos;');
+}
 
 class ArchivoEpubEntrada {
   final String nombre;
@@ -66,6 +77,8 @@ ResultadoEmpaquetado empaquetarEpub({
   List<EntradaImagenEpub> imagenes = const [],
   String? uuidCustom,
   DateTime? fechaModificacion,
+  BookMetadata? metadatos,
+  List<SectionItem>? secciones,
 }) {
   final avisos = <String>[];
   final archiveBase = ZipDecoder().decodeBytes(bytesBaseEpub);
@@ -87,30 +100,40 @@ ResultadoEmpaquetado empaquetarEpub({
   final tieneTraductor = nombresGenerados.any((n) => n.toLowerCase().startsWith('traductor'));
   final tieneNotas = contenidoNotas != null && contenidoNotas.trim().isNotEmpty;
 
+  final deshabilitados = secciones != null
+      ? secciones.where((s) => !s.enabled).map((s) => s.fileName.toLowerCase()).toSet()
+      : <String>{};
+
+  for (final des in deshabilitados) {
+    archivos.removeWhere((k, _) => k.toLowerCase().endsWith('/$des') || k.toLowerCase().endsWith(des));
+  }
+
   // Eliminar de archivos base los especiales que no existen en el manuscrito
-  if (!tienePrologo) {
+  if (!tienePrologo || deshabilitados.contains('prologo.xhtml')) {
     archivos.removeWhere((k, _) => RegExp(r'OEBPS/Text/prologo.*\.xhtml$', caseSensitive: false).hasMatch(k));
   }
-  if (!tieneEpilogo) {
+  if (!tieneEpilogo || deshabilitados.contains('epilogo.xhtml')) {
     archivos.removeWhere((k, _) => RegExp(r'OEBPS/Text/epilogo.*\.xhtml$', caseSensitive: false).hasMatch(k));
   }
-  if (!tieneAutor) {
+  if (!tieneAutor || deshabilitados.contains('autor.xhtml')) {
     archivos.removeWhere((k, _) => RegExp(r'OEBPS/Text/autor.*\.xhtml$', caseSensitive: false).hasMatch(k));
   }
-  if (!tieneTraductor) {
+  if (!tieneTraductor || deshabilitados.contains('traductor.xhtml')) {
     archivos.removeWhere((k, _) => RegExp(r'OEBPS/Text/traductor.*\.xhtml$', caseSensitive: false).hasMatch(k));
   }
-  if (!tieneNotas) {
+  if (!tieneNotas || deshabilitados.contains('notas.xhtml')) {
     archivos.remove('OEBPS/Text/notas.xhtml');
   }
 
   // Insertar capítulos y especiales generados
   for (final cap in capitulosYEspeciales) {
-    archivos['OEBPS/Text/${cap.nombre}'] = Uint8List.fromList(utf8.encode(cap.contenidoHtml));
+    if (!deshabilitados.contains(cap.nombre.toLowerCase())) {
+      archivos['OEBPS/Text/${cap.nombre}'] = Uint8List.fromList(utf8.encode(cap.contenidoHtml));
+    }
   }
 
   // Insertar notas si existen
-  if (tieneNotas) {
+  if (tieneNotas && !deshabilitados.contains('notas.xhtml')) {
     String notasHtmlBase;
     if (archivos.containsKey('OEBPS/Text/notas.xhtml')) {
       notasHtmlBase = utf8.decode(archivos['OEBPS/Text/notas.xhtml']!);
@@ -154,11 +177,41 @@ ResultadoEmpaquetado empaquetarEpub({
   if (opfBytes != null) {
     String opf = utf8.decode(opfBytes);
 
-    final uuidFinal = uuidCustom ?? generarUuidV4();
+    final uuidFinal = uuidCustom ?? (metadatos?.bookId.isNotEmpty == true ? metadatos!.bookId : generarUuidV4());
     opf = opf.replaceAll(_reUuidOpf, '<dc:identifier id="BookId">urn:uuid:$uuidFinal</dc:identifier>');
 
-    final fechaUtc = '${(fechaModificacion ?? DateTime.now().toUtc()).toIso8601String().split('.').first}Z';
+    final fechaUtc = '${(fechaModificacion ?? (metadatos?.date?.toUtc()) ?? DateTime.now().toUtc()).toIso8601String().split('.').first}Z';
     opf = opf.replaceAll(_reModifiedOpf, '<meta property="dcterms:modified">$fechaUtc</meta>');
+
+    if (metadatos != null) {
+      if (metadatos.displayTitle.isNotEmpty) {
+        opf = opf.replaceAll(RegExp(r'<dc:title>.*?</dc:title>', caseSensitive: false), '<dc:title>${_escXml(metadatos.displayTitle)}</dc:title>');
+      }
+      if (metadatos.language.isNotEmpty) {
+        opf = opf.replaceAll(RegExp(r'<dc:language>.*?</dc:language>', caseSensitive: false), '<dc:language>${_escXml(metadatos.language)}</dc:language>');
+      }
+      if (metadatos.synopsis.isNotEmpty) {
+        opf = opf.replaceAll(RegExp(r'<dc:description>.*?</dc:description>', caseSensitive: false), '<dc:description>${_escXml(metadatos.synopsis)}</dc:description>');
+      }
+      if (metadatos.author.isNotEmpty) {
+        opf = opf.replaceAll(RegExp(r'<dc:creator\s+id="creator01">.*?</dc:creator>', caseSensitive: false), '<dc:creator id="creator01">${_escXml(metadatos.author)}</dc:creator>');
+      }
+      if (metadatos.illustrator.isNotEmpty) {
+        opf = opf.replaceAll(RegExp(r'<dc:creator\s+id="creator02">.*?</dc:creator>', caseSensitive: false), '<dc:creator id="creator02">${_escXml(metadatos.illustrator)}</dc:creator>');
+      }
+      if (metadatos.translator.isNotEmpty) {
+        opf = opf.replaceAll(RegExp(r'<dc:contributor\s+id="contrib1">.*?</dc:contributor>', caseSensitive: false), '<dc:contributor id="contrib1">${_escXml(metadatos.translator)}</dc:contributor>');
+      }
+      if (metadatos.publisher.isNotEmpty) {
+        opf = opf.replaceAll(RegExp(r'<dc:publisher>.*?</dc:publisher>', caseSensitive: false), '<dc:publisher>${_escXml(metadatos.publisher)}</dc:publisher>');
+      }
+      if (metadatos.series.isNotEmpty) {
+        opf = opf.replaceAll(RegExp(r'<meta\s+id="serie"\s+property="belongs-to-collection">.*?</meta>', caseSensitive: false), '<meta id="serie" property="belongs-to-collection">${_escXml(metadatos.series)}</meta>');
+        opf = opf.replaceAll(RegExp(r'<meta\s+property="group-position"\s+refines="#serie">.*?</meta>', caseSensitive: false), '<meta property="group-position" refines="#serie">${_escXml(metadatos.volume.isNotEmpty ? metadatos.volume : '1')}</meta>');
+        opf = opf.replaceAll(RegExp(r'<meta\s+content=".*?"\s+name="calibre:series"/>', caseSensitive: false), '<meta content="${_escXml(metadatos.series)}" name="calibre:series"/>');
+        opf = opf.replaceAll(RegExp(r'<meta\s+content=".*?"\s+name="calibre:series_index"/>', caseSensitive: false), '<meta content="${_escXml(metadatos.volume.isNotEmpty ? metadatos.volume : '1')}" name="calibre:series_index"/>');
+      }
+    }
 
     // Limpiar manifest
     opf = opf.replaceFirstMapped(_reManifest, (m) {
@@ -176,24 +229,26 @@ ResultadoEmpaquetado empaquetarEpub({
         if (item.contains('Section000') || item.contains('Section0001') || item.contains('Section0002')) {
           continue;
         }
-        if (!tienePrologo && item.contains('prologo.xhtml')) continue;
-        if (!tieneEpilogo && item.contains('epilogo.xhtml')) continue;
-        if (!tieneAutor && item.contains('autor.xhtml')) continue;
-        if (!tieneTraductor && item.contains('traductor.xhtml')) continue;
-        if (!tieneNotas && item.contains('notas.xhtml')) continue;
+        if ((!tienePrologo || deshabilitados.contains('prologo.xhtml')) && item.contains('prologo.xhtml')) continue;
+        if ((!tieneEpilogo || deshabilitados.contains('epilogo.xhtml')) && item.contains('epilogo.xhtml')) continue;
+        if ((!tieneAutor || deshabilitados.contains('autor.xhtml')) && item.contains('autor.xhtml')) continue;
+        if ((!tieneTraductor || deshabilitados.contains('traductor.xhtml')) && item.contains('traductor.xhtml')) continue;
+        if ((!tieneNotas || deshabilitados.contains('notas.xhtml')) && item.contains('notas.xhtml')) continue;
+        if (deshabilitados.any((d) => item.toLowerCase().contains(d))) continue;
 
         nuevasLineas.add(l);
       }
 
       // Añadir items generados si no existen
       for (final cap in capitulosYEspeciales) {
+        if (deshabilitados.contains(cap.nombre.toLowerCase())) continue;
         final href = 'Text/${cap.nombre}';
         if (!nuevasLineas.any((l) => l.contains('href="$href"'))) {
           nuevasLineas.add('    <item id="${cap.nombre}" href="$href" media-type="application/xhtml+xml"/>');
         }
       }
 
-      if (tieneNotas && !nuevasLineas.any((l) => l.contains('href="Text/notas.xhtml"'))) {
+      if (tieneNotas && !deshabilitados.contains('notas.xhtml') && !nuevasLineas.any((l) => l.contains('href="Text/notas.xhtml"'))) {
         nuevasLineas.add('    <item id="notas.xhtml" href="Text/notas.xhtml" media-type="application/xhtml+xml"/>');
       }
 
@@ -241,6 +296,10 @@ ResultadoEmpaquetado empaquetarEpub({
           continue;
         }
 
+        if (deshabilitados.any((d) => itemref.toLowerCase().contains(d))) {
+          continue;
+        }
+
         if (itemref.contains('contracubierta') || itemref.contains('toc.xhtml')) {
           despuesDeNarrativa = true;
           backSpine.add(l);
@@ -256,18 +315,20 @@ ResultadoEmpaquetado empaquetarEpub({
 
       final narrativaSpine = <String>[];
       for (final arch in ordenSpine) {
-        narrativaSpine.add('    <itemref idref="$arch"/>');
+        if (!deshabilitados.contains(arch.toLowerCase())) {
+          narrativaSpine.add('    <itemref idref="$arch"/>');
+        }
       }
 
       // Si hay notas, insertarlas antes de toc.xhtml
       final finalBack = <String>[];
       for (final b in backSpine) {
-        if (tieneNotas && b.contains('toc.xhtml')) {
+        if (tieneNotas && !deshabilitados.contains('notas.xhtml') && b.contains('toc.xhtml')) {
           finalBack.add('    <itemref idref="notas.xhtml"/>');
         }
         finalBack.add(b);
       }
-      if (tieneNotas && !finalBack.any((l) => l.contains('idref="notas.xhtml"'))) {
+      if (tieneNotas && !deshabilitados.contains('notas.xhtml') && !finalBack.any((l) => l.contains('idref="notas.xhtml"'))) {
         finalBack.add('    <itemref idref="notas.xhtml"/>');
       }
 
@@ -276,6 +337,84 @@ ResultadoEmpaquetado empaquetarEpub({
     });
 
     archivos['OEBPS/content.opf'] = Uint8List.fromList(utf8.encode(opf));
+  }
+
+  // Modificar titulo.xhtml si existe
+  final tituloBytes = archivos['OEBPS/Text/titulo.xhtml'];
+  if (tituloBytes != null && metadatos != null) {
+    String tituloHtml = utf8.decode(tituloBytes);
+    if (metadatos.title.isNotEmpty) {
+      tituloHtml = tituloHtml.replaceAllMapped(
+        RegExp(r'(<span\s+class="grande"\s+epub:type="title">).*?(</span>)', caseSensitive: false),
+        (m) => '${m.group(1)}${_escXml(metadatos.title)}${m.group(2)}',
+      );
+    }
+    if (metadatos.volume.isNotEmpty) {
+      tituloHtml = tituloHtml.replaceAll(
+        RegExp(r'<h2\s+class="subtitulo\s+sigil_not_in_toc">.*?</h2>', caseSensitive: false, dotAll: true),
+        '<h2 class="subtitulo sigil_not_in_toc">Volumen ${_escXml(metadatos.volume)}<br/><small>[Novela Ligera]</small></h2>',
+      );
+    }
+    if (metadatos.author.isNotEmpty) {
+      tituloHtml = tituloHtml.replaceAll(
+        RegExp(r'<p\s+class="salto1"><b>Autor:</b>.*?</p>', caseSensitive: false),
+        '<p class="salto1"><b>Autor:</b> ${_escXml(metadatos.author)}</p>',
+      );
+    }
+    if (metadatos.illustrator.isNotEmpty) {
+      tituloHtml = tituloHtml.replaceAll(
+        RegExp(r'<p><b>Ilustraciones:</b>.*?</p>', caseSensitive: false),
+        '<p><b>Ilustraciones:</b> ${_escXml(metadatos.illustrator)}</p>',
+      );
+    }
+    if (metadatos.translator.isNotEmpty) {
+      tituloHtml = tituloHtml.replaceAll(
+        RegExp(r'<p><b>Traducción al español:</b>.*?</p>', caseSensitive: false),
+        '<p><b>Traducción al español:</b> ${_escXml(metadatos.translator)}</p>',
+      );
+    }
+    archivos['OEBPS/Text/titulo.xhtml'] = Uint8List.fromList(utf8.encode(tituloHtml));
+  }
+
+  // Modificar cubierta.xhtml si hay imagen asociada
+  final cubiertaBytes = archivos['OEBPS/Text/cubierta.xhtml'];
+  if (cubiertaBytes != null && secciones != null) {
+    final coverSec = secciones.where((s) => s.kind == SectionKind.cover && s.associatedImage != null && s.associatedImage!.isNotEmpty).firstOrNull;
+    if (coverSec != null) {
+      String cubiertaHtml = utf8.decode(cubiertaBytes);
+      cubiertaHtml = cubiertaHtml.replaceAll(
+        RegExp(r'''src=["'](?:\.\./)?Images/[^"']+["']''', caseSensitive: false),
+        'src="../Images/${coverSec.associatedImage}"',
+      );
+      archivos['OEBPS/Text/cubierta.xhtml'] = Uint8List.fromList(utf8.encode(cubiertaHtml));
+    }
+  }
+
+  // Modificar sinopsis.xhtml / resumen.xhtml si se proporcionó sinopsis
+  if (metadatos != null && metadatos.synopsis.trim().isNotEmpty) {
+    String? sinopsisKey = archivos.containsKey('OEBPS/Text/sinopsis.xhtml')
+        ? 'OEBPS/Text/sinopsis.xhtml'
+        : (archivos.containsKey('OEBPS/Text/resumen.xhtml') ? 'OEBPS/Text/resumen.xhtml' : null);
+    if (sinopsisKey != null) {
+      final parrafos = metadatos.synopsis.split(RegExp(r'\n\s*\n|\n')).where((p) => p.trim().isNotEmpty);
+      final pTags = parrafos.map((p) => '    <p>${_escXml(p.trim())}</p>').join('\n');
+      final nuevoHtml = '''<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" lang="es" xml:lang="es">
+<head>
+  <title>Sinopsis</title>
+  <link rel="stylesheet" type="text/css" href="../Styles/style.css"/>
+  <meta charset="utf-8"/>
+</head>
+<body xml:lang="es" lang="es" epub:type="frontmatter">
+  <section epub:type="synopsis" aria-label="Sinopsis">
+    <h1 class="sigil_not_in_toc">Sinopsis</h1>
+$pTags
+  </section>
+</body>
+</html>''';
+      archivos[sinopsisKey] = Uint8List.fromList(utf8.encode(nuevoHtml));
+    }
   }
 
   // 2. Modificar toc.xhtml
