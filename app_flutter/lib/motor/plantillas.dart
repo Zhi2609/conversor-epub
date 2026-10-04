@@ -31,23 +31,47 @@ enum TipoEspecial {
 }
 
 TipoEspecial? detectarTipoEspecial(String titulo) {
-  final norm = titulo.toLowerCase().trim().replaceAll('ó', 'o').replaceAll('í', 'i');
-  if (norm.startsWith('prologo')) return TipoEspecial.prologo;
-  if (norm.startsWith('epilogo del autor')) return TipoEspecial.autor;
-  if (norm.startsWith('epilogo')) return TipoEspecial.epilogo;
-  if (norm.startsWith('interludio')) return TipoEspecial.interludio;
-  if (norm.startsWith('palabras del traductor') ||
-      norm.startsWith('palabras de traductor') ||
-      norm.startsWith('nota del traductor') ||
-      norm.startsWith('notas del traductor')) {
-    return TipoEspecial.traductor;
+  String limpiar(String s) => s
+      .toLowerCase()
+      .trim()
+      .replaceAll('ó', 'o')
+      .replaceAll('í', 'i')
+      .replaceFirst(RegExp(r'^[\s|｜\[\(【<#]+'), '')
+      .trim();
+
+  TipoEspecial? comprobar(String norm) {
+    if (norm.startsWith('prologo')) return TipoEspecial.prologo;
+    if (norm.startsWith('epilogo del autor')) return TipoEspecial.autor;
+    if (norm.startsWith('epilogo')) return TipoEspecial.epilogo;
+    if (norm.startsWith('interludio')) return TipoEspecial.interludio;
+    if (norm.startsWith('palabras del traductor') ||
+        norm.startsWith('palabras de traductor') ||
+        norm.startsWith('nota del traductor') ||
+        norm.startsWith('notas del traductor')) {
+      return TipoEspecial.traductor;
+    }
+    if (norm.startsWith('palabras del autor') ||
+        norm.startsWith('palabras finales') ||
+        norm.startsWith('postfacio') ||
+        norm.startsWith('nota del autor')) {
+      return TipoEspecial.autor;
+    }
+    return null;
   }
-  if (norm.startsWith('palabras del autor') ||
-      norm.startsWith('palabras finales') ||
-      norm.startsWith('postfacio') ||
-      norm.startsWith('nota del autor')) {
-    return TipoEspecial.autor;
+
+  final norm = limpiar(titulo);
+  final directo = comprobar(norm);
+  if (directo != null) return directo;
+
+  // Si tiene separadores por barra vertical (ej: "Volumen 1 | Prólogo", "Parte 1 | Interludio")
+  if (norm.contains('|') || norm.contains('｜')) {
+    final segmentos = norm.split(RegExp(r'\s*[|｜]\s*'));
+    for (final seg in segmentos) {
+      final res = comprobar(limpiar(seg));
+      if (res != null) return res;
+    }
   }
+
   return null;
 }
 
@@ -92,39 +116,58 @@ class PartesTitulo {
 }
 
 final _rePrologo = RegExp(
-  r'^\s*(pr[oó]logo(?:\s*(?:[ivxlcdm]+|\d+))?)\s*[:—–\-.]*\s*(.*)$',
+  r'^\s*(pr[oó]logo(?:\s*(?:[ivxlcdm]+|\d+))?)\s*[:—–\-.|｜/]*\s*(.*)$',
   caseSensitive: false,
 );
 
 final _reEpilogo = RegExp(
-  r'^\s*(ep[ií]logo(?:\s*(?:[ivxlcdm]+|\d+))?)\s*[:—–\-.]*\s*(.*)$',
+  r'^\s*(ep[ií]logo(?:\s*(?:[ivxlcdm]+|\d+))?)\s*[:—–\-.|｜/]*\s*(.*)$',
   caseSensitive: false,
 );
 
 final _reInterludio = RegExp(
-  r'^\s*(interludio(?:\s*(?:[ivxlcdm]+|\d+))?)\s*[:—–\-.]*\s*(.*)$',
+  r'^\s*(interludio(?:\s*(?:[ivxlcdm]+|\d+))?)\s*[:—–\-.|｜/]*\s*(.*)$',
   caseSensitive: false,
 );
 
 final _reTraductor = RegExp(
-  r'^\s*(palabras\s+del?\s+traductor|notas?\s+del\s+traductor)\b\s*[:—–\-.]*\s*(.*)$',
+  r'^\s*(palabras\s+del?\s+traductor|notas?\s+del\s+traductor)\b\s*[:—–\-.|｜/]*\s*(.*)$',
   caseSensitive: false,
 );
 
 final _reAutor = RegExp(
-  r'^\s*(palabras\s+finales|palabras\s+del\s+autor|postfacio|nota\s+del\s+autor|ep[ií]logo\s+del\s+autor)\b\s*[:—–\-.]*\s*(.*)$',
+  r'^\s*(palabras\s+finales|palabras\s+del\s+autor|postfacio|nota\s+del\s+autor|ep[ií]logo\s+del\s+autor)\b\s*[:—–\-.|｜/]*\s*(.*)$',
   caseSensitive: false,
 );
 
 final _reCapitulo = RegExp(
-  r'^\s*(cap[ií]tulo\s*(?:[ivxlcdm]+|\d+))\s*[:—–\-.]*\s*(.*)$',
+  r'^\s*(cap[ií]tulo\s*(?:[ivxlcdm]+|\d+))\s*[:—–\-.|｜/]*\s*(.*)$',
   caseSensitive: false,
 );
 
 final _reNumeroPunto = RegExp(
-  r'^\s*(\d+)\s*[:.—–\-]\s*(.*)$',
+  r'^\s*(\d+)\s*[:.—–\-|｜/]\s*(.*)$',
   caseSensitive: false,
 );
+
+String _limpiarSubtitulo(String raw) {
+  var s = raw.trim();
+  // Quitar separadores residuales al inicio
+  s = s.replaceFirst(RegExp(r'^[:—–\-.|｜/\s]+'), '').trim();
+
+  // Quitar comillas envolventes completas si las tiene (ej. “Subtítulo.” o "Subtítulo" o «Subtítulo»)
+  final reEnvolvente = RegExp(r'^["“«](.*?)["”»][.]?$');
+  final match = reEnvolvente.firstMatch(s);
+  if (match != null) {
+    s = match.group(1)!.trim();
+  }
+
+  // Si termina en punto final aislado (ej. "Subtítulo.")
+  if (s.endsWith('.') && !s.endsWith('...')) {
+    s = s.substring(0, s.length - 1).trim();
+  }
+  return s;
+}
 
 PartesTitulo descomponerTitulo(String titulo, {int? numeroPorDefecto}) {
   String t = titulo.trim();
@@ -132,11 +175,11 @@ PartesTitulo descomponerTitulo(String titulo, {int? numeroPorDefecto}) {
   var m = _rePrologo.firstMatch(t);
   if (m != null) {
     String etiqueta = m.group(1)!.trim();
-    String sub = m.group(2)!.trim();
+    String sub = _limpiarSubtitulo(m.group(2)!);
     return PartesTitulo(
       etiqueta: etiqueta,
       subtitulo: sub.isNotEmpty ? sub : null,
-      tituloCompleto: t,
+      tituloCompleto: sub.isNotEmpty ? '$etiqueta: $sub' : etiqueta,
       esPrologo: true,
     );
   }
@@ -144,11 +187,11 @@ PartesTitulo descomponerTitulo(String titulo, {int? numeroPorDefecto}) {
   m = _reEpilogo.firstMatch(t);
   if (m != null && !t.toLowerCase().startsWith('epilogo del autor') && !t.toLowerCase().startsWith('epílogo del autor')) {
     String etiqueta = m.group(1)!.trim();
-    String sub = m.group(2)!.trim();
+    String sub = _limpiarSubtitulo(m.group(2)!);
     return PartesTitulo(
       etiqueta: etiqueta,
       subtitulo: sub.isNotEmpty ? sub : null,
-      tituloCompleto: t,
+      tituloCompleto: sub.isNotEmpty ? '$etiqueta: $sub' : etiqueta,
       esEpilogo: true,
     );
   }
@@ -156,11 +199,11 @@ PartesTitulo descomponerTitulo(String titulo, {int? numeroPorDefecto}) {
   m = _reInterludio.firstMatch(t);
   if (m != null) {
     String etiqueta = m.group(1)!.trim();
-    String sub = m.group(2)!.trim();
+    String sub = _limpiarSubtitulo(m.group(2)!);
     return PartesTitulo(
       etiqueta: etiqueta,
       subtitulo: sub.isNotEmpty ? sub : null,
-      tituloCompleto: t,
+      tituloCompleto: sub.isNotEmpty ? '$etiqueta: $sub' : etiqueta,
       esInterludio: true,
     );
   }
@@ -168,11 +211,11 @@ PartesTitulo descomponerTitulo(String titulo, {int? numeroPorDefecto}) {
   m = _reTraductor.firstMatch(t);
   if (m != null) {
     String etiqueta = m.group(1)!.trim();
-    String sub = m.group(2)!.trim();
+    String sub = _limpiarSubtitulo(m.group(2)!);
     return PartesTitulo(
       etiqueta: etiqueta,
       subtitulo: sub.isNotEmpty ? sub : null,
-      tituloCompleto: t,
+      tituloCompleto: sub.isNotEmpty ? '$etiqueta: $sub' : etiqueta,
       esTraductor: true,
     );
   }
@@ -180,11 +223,11 @@ PartesTitulo descomponerTitulo(String titulo, {int? numeroPorDefecto}) {
   m = _reAutor.firstMatch(t);
   if (m != null) {
     String etiqueta = m.group(1)!.trim();
-    String sub = m.group(2)!.trim();
+    String sub = _limpiarSubtitulo(m.group(2)!);
     return PartesTitulo(
       etiqueta: etiqueta,
       subtitulo: sub.isNotEmpty ? sub : null,
-      tituloCompleto: t,
+      tituloCompleto: sub.isNotEmpty ? '$etiqueta: $sub' : etiqueta,
       esAutor: true,
     );
   }
@@ -192,19 +235,19 @@ PartesTitulo descomponerTitulo(String titulo, {int? numeroPorDefecto}) {
   m = _reCapitulo.firstMatch(t);
   if (m != null) {
     String etiqueta = m.group(1)!.trim();
-    String sub = m.group(2)!.trim();
+    String sub = _limpiarSubtitulo(m.group(2)!);
     return PartesTitulo(
       etiqueta: etiqueta,
       subtitulo: sub.isNotEmpty ? sub : null,
-      tituloCompleto: t,
+      tituloCompleto: sub.isNotEmpty ? '$etiqueta: $sub' : etiqueta,
     );
   }
 
-  // Título que empieza con número seguido de punto/dos puntos (ej: "0. Una Oferta Dudosa", "2: Palacio Real")
+  // Título que empieza con número seguido de punto/dos puntos/barra (ej: "0. Una Oferta Dudosa", "2: Palacio Real", "1 | Inicio")
   m = _reNumeroPunto.firstMatch(t);
   if (m != null) {
     int numDetectado = int.tryParse(m.group(1)!) ?? (numeroPorDefecto ?? 0);
-    String sub = m.group(2)!.trim();
+    String sub = _limpiarSubtitulo(m.group(2)!);
     return PartesTitulo(
       etiqueta: 'Capítulo $numDetectado',
       subtitulo: sub.isNotEmpty ? sub : null,

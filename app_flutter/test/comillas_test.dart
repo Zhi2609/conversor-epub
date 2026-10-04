@@ -5,6 +5,7 @@ import 'package:conversor_epub/motor/plantillas.dart';
 import 'package:conversor_epub/motor/render.dart';
 import 'package:conversor_epub/motor/modelo.dart';
 import 'package:conversor_epub/motor/imagenes.dart';
+import 'package:conversor_epub/motor/division.dart';
 
 void main() {
   group('TestComillasCanonicas', () {
@@ -469,6 +470,72 @@ void main() {
       expect(RegExp(r'05\.jpg".*?</figure>\s*<hr class="sigil_split_marker"\s*/>\s*<figure', dotAll: true).hasMatch(res), isTrue);
       // La imagen 04 debe tener su split marker
       expect(RegExp(r'04\.jpg".*?</figure>\s*<hr class="sigil_split_marker"\s*/>\s*<header', dotAll: true).hasMatch(res), isTrue);
+    });
+
+    test('descomponerTitulo y detectarTipoEspecial con barra vertical (|) limpian subtitulo', () {
+      final partesCap = descomponerTitulo('Capítulo 1 | “La madre de mi novia es una actriz AV en activo con copa J”.');
+      expect(partesCap.etiqueta, 'Capítulo 1');
+      expect(partesCap.subtitulo, 'La madre de mi novia es una actriz AV en activo con copa J');
+      expect(partesCap.tituloCompleto, 'Capítulo 1: La madre de mi novia es una actriz AV en activo con copa J');
+
+      final partesPro = descomponerTitulo('Prólogo | “Nuestro hotel es un baño multiusos.”');
+      expect(partesPro.esPrologo, isTrue);
+      expect(partesPro.etiqueta, 'Prólogo');
+      expect(partesPro.subtitulo, 'Nuestro hotel es un baño multiusos');
+      expect(partesPro.tituloCompleto, 'Prólogo: Nuestro hotel es un baño multiusos');
+
+      expect(detectarTipoEspecial('Volumen 1 | Prólogo'), TipoEspecial.prologo);
+      expect(detectarTipoEspecial('| Prólogo |'), TipoEspecial.prologo);
+      expect(detectarTipoEspecial('Prólogo | Título'), TipoEspecial.prologo);
+      expect(detectarTipoEspecial('Parte 1 | Epílogo'), TipoEspecial.epilogo);
+    });
+
+    test('dividirEnCapitulos detecta prólogo en párrafo normal (<p>) antes de un <h1>', () {
+      const htmlConPrologoEnP = '''
+<p>Prólogo | “Nuestro hotel es un baño multiusos.”</p>
+<p>Ese día, estábamos en el parque...</p>
+<p>Continuación del texto...</p>
+<h1 id="capitulo-1">Capítulo 1 | “La madre de mi novia...”</h1>
+<p>Texto del capítulo 1...</p>
+<h1 id="capitulo-2">Capítulo 2 | “La invitación...”</h1>
+<p>Texto del capítulo 2...</p>
+''';
+
+      final capitulos = dividirEnCapitulos(htmlConPrologoEnP, startNum: 1);
+      expect(capitulos.length, 3);
+
+      // El primer capítulo debe ser el prólogo extraído del <p>
+      expect(capitulos[0].titulo, 'Prólogo | “Nuestro hotel es un baño multiusos.”');
+      expect(capitulos[0].htmlCuerpo.contains('Prólogo | “Nuestro hotel es un baño multiusos.”'), isFalse);
+      expect(capitulos[0].htmlCuerpo.contains('Ese día, estábamos en el parque...'), isTrue);
+
+      // Los siguientes capítulos conservan sus títulos y contenidos
+      expect(capitulos[1].titulo, 'Capítulo 1 | “La madre de mi novia...”');
+      expect(capitulos[2].titulo, 'Capítulo 2 | “La invitación...”');
+
+      // Al clasificar y renumerar, el prólogo toma prologo.xhtml y Capítulo 1 es C01.xhtml
+      clasificarYRenumerarCapitulos(capitulos, startNum: 1);
+      expect(capitulos[0].archivo, 'prologo.xhtml');
+      expect(capitulos[0].plantillaNombre, 'prologo.xhtml');
+      expect(capitulos[1].archivo, 'C01.xhtml');
+      expect(capitulos[2].archivo, 'C02.xhtml');
+    });
+
+    test('dividirEnCapitulos divide documentos sin ningún <h1> usando párrafos <p>', () {
+      const htmlSinH1 = '''
+<p>Prólogo | El Inicio</p>
+<p>Texto prólogo...</p>
+<p>Capítulo 1 | El Despertar</p>
+<p>Texto cap 1...</p>
+<p>Capítulo 2 | La Aventura</p>
+<p>Texto cap 2...</p>
+''';
+
+      final capitulos = dividirEnCapitulos(htmlSinH1, startNum: 1);
+      expect(capitulos.length, 3);
+      expect(capitulos[0].titulo, 'Prólogo | El Inicio');
+      expect(capitulos[1].titulo, 'Capítulo 1 | El Despertar');
+      expect(capitulos[2].titulo, 'Capítulo 2 | La Aventura');
     });
   });
 }

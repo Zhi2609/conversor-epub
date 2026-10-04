@@ -443,3 +443,21 @@ Las nuevas entradas se añaden al final de cada sesión de trabajo.
   - `flutter analyze`: **0 incidencias**.
   - Binario nativo compilado exitosamente en `build/linux/x64/release/bundle/ConversorEpubs`.
 
+      16:35 — Detección Automática de Prólogos en Párrafos y Soporte de Separadores Pipe (|)
+- **Detección de Prólogos en Párrafos (`motor/division.dart`)**:
+  - En documentos de Word donde el traductor no aplicó estilo de encabezado (`Heading 1`) al prólogo y lo dejó como texto normal (`<p>Prólogo | ...</p>`) antes del primer `<h1>`, la función `dividirEnCapitulos` ahora inspecciona inteligentemente el primer párrafo de contenido previo.
+  - Si el primer párrafo coincide con una sección especial o patrón de título (`_pareceTitulo`), se extrae como el título real del capítulo y se remueve del cuerpo para evitar duplicaciones.
+  - Al clasificar y renumerar, el prólogo recibe automáticamente `prologo.xhtml` y el verdadero Capítulo 1 mantiene la numeración `C01.xhtml`.
+- **Soporte de División de Documentos sin `<h1>`**:
+  - Si un manuscrito carece por completo de etiquetas `<h1>-<h3>`, `dividirEnCapitulos` busca párrafos estructurados de títulos (`<p>Capítulo X...</p>`, `<p>Prólogo...</p>`) y divide el documento automáticamente.
+- **Soporte de Barra Vertical / Pipe (`|` y `｜`) en Títulos (`motor/plantillas.dart`)**:
+  - Actualizadas las expresiones regulares `_rePrologo`, `_reEpilogo`, `_reInterludio`, `_reTraductor`, `_reAutor`, `_reCapitulo` y `_reNumeroPunto` para reconocer `|`, `｜` y `/` como delimitadores canónicos entre etiqueta y subtítulo.
+  - `detectarTipoEspecial` ahora analiza tanto el string completo como los segmentos divididos por `|` (ej: `Volumen 1 | Prólogo` o `| Prólogo |`).
+  - Implementada `_limpiarSubtitulo` para remover barras verticales residuales, comillas envolventes (`“...”`, `«...»`, `"..."`) y puntos finales aislados del subtítulo.
+- **Pruebas y Análisis**:
+  - Añadidos tests unitarios para títulos con barra vertical y detección de prólogo en párrafos en `test/comillas_test.dart`.
+  - Suite de pruebas: **34/34 pruebas pasando**.
+  - `flutter analyze`: 0 incidencias.
+  - Binario nativo reconstruido exitosamente en `build/linux/x64/release/bundle/ConversorEpubs`.
+
+

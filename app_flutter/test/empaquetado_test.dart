@@ -35,8 +35,14 @@ void main() {
     late Uint8List bytesBase;
 
     setUp(() {
-      final fileBase = File('../Base3_v1.15.0.epub');
-      expect(fileBase.existsSync(), isTrue, reason: 'Base3_v1.15.0.epub debe existir en la raíz');
+      File fileBase = File('assets/Base3_v1.15.0.epub');
+      if (!fileBase.existsSync()) {
+        fileBase = File('../assets/Base3_v1.15.0.epub');
+      }
+      if (!fileBase.existsSync()) {
+        fileBase = File('../Base3_v1.15.0.epub');
+      }
+      expect(fileBase.existsSync(), isTrue, reason: 'Base3_v1.15.0.epub debe existir en assets o en la raíz');
       bytesBase = fileBase.readAsBytesSync();
     });
 
