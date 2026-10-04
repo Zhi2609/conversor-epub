@@ -33,7 +33,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   List<SectionItem> _secciones = [];
   BookMetadata _metadatos = const BookMetadata();
   SectionItem? _seccionSeleccionada;
-  int _tabPanelIzquierdo = 0; // 0: Secciones, 1: Metadatos
+  int _modoWorkstation = 0; // 0: Plantilla & Estructura, 1: Metadatos Editoriales
 
   String _mensajeEstado = 'Sin archivo cargado';
   String? _rutaArchivoCargado;
@@ -496,6 +496,36 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               ),
             ),
           ],
+          if (_resultado != null) ...[
+            const Spacer(),
+            Container(
+              padding: const EdgeInsets.all(3),
+              decoration: BoxDecoration(
+                color: const Color(0xFF11111B),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFF313244)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _botonSelectorModo(
+                    titulo: 'Plantilla & Estructura',
+                    icono: Icons.view_quilt_outlined,
+                    activo: _modoWorkstation == 0,
+                    onTap: () => setState(() => _modoWorkstation = 0),
+                  ),
+                  const SizedBox(width: 4),
+                  _botonSelectorModo(
+                    titulo: 'Metadatos Editoriales',
+                    icono: Icons.badge_outlined,
+                    activo: _modoWorkstation == 1,
+                    onTap: () => setState(() => _modoWorkstation = 1),
+                  ),
+                ],
+              ),
+            ),
+            const Spacer(),
+          ],
         ],
       ),
       actions: [
@@ -685,62 +715,30 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   Widget _construirWorkstation() {
+    if (_modoWorkstation == 1) {
+      return FormularioMetadatos(
+        metadatos: _metadatos,
+        onChanged: (nuevos) => setState(() => _metadatos = nuevos),
+      );
+    }
+
     return Row(
       children: [
-        // Columna Izquierda: Panel de Secciones y Metadatos (390px)
+        // Columna Izquierda: Panel de Secciones (390px)
         Container(
           width: 390,
           decoration: const BoxDecoration(
             color: Color(0xFF181825),
             border: Border(right: BorderSide(color: Color(0xFF313244))),
           ),
-          child: Column(
-            children: [
-              // Selector de Pestañas Izquierda (Secciones / Metadatos)
-              Container(
-                padding: const EdgeInsets.all(6),
-                color: const Color(0xFF11111B),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: _tabBoton(
-                        titulo: 'Secciones (${_secciones.length})',
-                        icono: Icons.list_alt,
-                        activo: _tabPanelIzquierdo == 0,
-                        onTap: () => setState(() => _tabPanelIzquierdo = 0),
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: _tabBoton(
-                        titulo: 'Metadatos',
-                        icono: Icons.menu_book,
-                        activo: _tabPanelIzquierdo == 1,
-                        onTap: () => setState(() => _tabPanelIzquierdo = 1),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // Contenido según pestaña
-              Expanded(
-                child: _tabPanelIzquierdo == 0
-                    ? PanelSecciones(
-                        secciones: _secciones,
-                        seccionSeleccionada: _seccionSeleccionada,
-                        onSeleccionar: (sec) => setState(() => _seccionSeleccionada = sec),
-                        onReordenar: _onReordenarSecciones,
-                        onActualizar: _onActualizarSeccion,
-                        onAgregarSeccion: _onAgregarSeccion,
-                        onEliminarSeccion: _onEliminarSeccion,
-                      )
-                    : FormularioMetadatos(
-                        metadatos: _metadatos,
-                        onChanged: (nuevos) => setState(() => _metadatos = nuevos),
-                      ),
-              ),
-            ],
+          child: PanelSecciones(
+            secciones: _secciones,
+            seccionSeleccionada: _seccionSeleccionada,
+            onSeleccionar: (sec) => setState(() => _seccionSeleccionada = sec),
+            onReordenar: _onReordenarSecciones,
+            onActualizar: _onActualizarSeccion,
+            onAgregarSeccion: _onAgregarSeccion,
+            onEliminarSeccion: _onEliminarSeccion,
           ),
         ),
 
@@ -756,7 +754,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
-  Widget _tabBoton({
+  Widget _botonSelectorModo({
     required String titulo,
     required IconData icono,
     required bool activo,
@@ -765,27 +763,28 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(6),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 8),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
         decoration: BoxDecoration(
-          color: activo ? const Color(0xFF1E1E2E) : Colors.transparent,
+          color: activo ? const Color(0xFF89B4FA) : Colors.transparent,
           borderRadius: BorderRadius.circular(6),
-          border: Border.all(
-            color: activo ? const Color(0xFF89B4FA) : Colors.transparent,
-            width: 1,
-          ),
         ),
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icono, size: 14, color: activo ? const Color(0xFF89B4FA) : const Color(0xFFA6ADC8)),
-            const SizedBox(width: 6),
+            Icon(
+              icono,
+              size: 15,
+              color: activo ? const Color(0xFF11111B) : const Color(0xFFA6ADC8),
+            ),
+            const SizedBox(width: 8),
             Text(
               titulo,
               style: TextStyle(
                 fontSize: 12,
-                fontWeight: activo ? FontWeight.bold : FontWeight.normal,
-                color: activo ? const Color(0xFFCDD6F4) : const Color(0xFFA6ADC8),
+                fontWeight: activo ? FontWeight.bold : FontWeight.w500,
+                color: activo ? const Color(0xFF11111B) : const Color(0xFFCDD6F4),
               ),
             ),
           ],

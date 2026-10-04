@@ -200,8 +200,8 @@ ResultadoEmpaquetado empaquetarEpub({
     opf = opf.replaceAll(_reModifiedOpf, '<meta property="dcterms:modified">$fechaUtc</meta>');
 
     if (metadatos != null) {
-      if (metadatos.displayTitle.isNotEmpty) {
-        opf = opf.replaceAll(RegExp(r'<dc:title>.*?</dc:title>', caseSensitive: false), '<dc:title>${_escXml(metadatos.displayTitle)}</dc:title>');
+      if (metadatos.effectiveTitle.isNotEmpty) {
+        opf = opf.replaceAll(RegExp(r'<dc:title>.*?</dc:title>', caseSensitive: false), '<dc:title>${_escXml(metadatos.effectiveTitle)}</dc:title>');
       }
       if (metadatos.language.isNotEmpty) {
         opf = opf.replaceAll(RegExp(r'<dc:language>.*?</dc:language>', caseSensitive: false), '<dc:language>${_escXml(metadatos.language)}</dc:language>');
@@ -209,24 +209,155 @@ ResultadoEmpaquetado empaquetarEpub({
       if (metadatos.synopsis.isNotEmpty) {
         opf = opf.replaceAll(RegExp(r'<dc:description>.*?</dc:description>', caseSensitive: false), '<dc:description>${_escXml(metadatos.synopsis)}</dc:description>');
       }
+      if (metadatos.bookType.isNotEmpty) {
+        opf = opf.replaceAll(RegExp(r'<dc:type>.*?</dc:type>', caseSensitive: false), '<dc:type>${_escXml(metadatos.bookType)}</dc:type>');
+      }
+
+      // Autor (creator01)
       if (metadatos.author.isNotEmpty) {
         opf = opf.replaceAll(RegExp(r'<dc:creator\s+id="creator01">.*?</dc:creator>', caseSensitive: false), '<dc:creator id="creator01">${_escXml(metadatos.author)}</dc:creator>');
       }
+      if (metadatos.authorJapanese.isNotEmpty) {
+        opf = opf.replaceAll(
+          RegExp(r'<meta\s+property="alternate-script"\s+refines="#creator01"[^>]*>.*?</meta>', caseSensitive: false),
+          '<meta property="alternate-script" refines="#creator01" xml:lang="ja">${_escXml(metadatos.authorJapanese)}</meta>',
+        );
+      } else {
+        opf = opf.replaceAll(
+          RegExp(r'\s*<meta\s+property="alternate-script"\s+refines="#creator01"[^>]*>.*?</meta>', caseSensitive: false),
+          '',
+        );
+      }
+      if (metadatos.authorFileAs.isNotEmpty) {
+        opf = opf.replaceAll(
+          RegExp(r'<meta\s+property="file-as"\s+refines="#creator01"[^>]*>.*?</meta>', caseSensitive: false),
+          '<meta property="file-as" refines="#creator01">${_escXml(metadatos.authorFileAs)}</meta>',
+        );
+      } else if (metadatos.author.isNotEmpty) {
+        opf = opf.replaceAll(
+          RegExp(r'<meta\s+property="file-as"\s+refines="#creator01"[^>]*>.*?</meta>', caseSensitive: false),
+          '<meta property="file-as" refines="#creator01">${_escXml(metadatos.author)}</meta>',
+        );
+      }
+
+      // Ilustrador (creator02)
       if (metadatos.illustrator.isNotEmpty) {
         opf = opf.replaceAll(RegExp(r'<dc:creator\s+id="creator02">.*?</dc:creator>', caseSensitive: false), '<dc:creator id="creator02">${_escXml(metadatos.illustrator)}</dc:creator>');
+        if (metadatos.illustratorJapanese.isNotEmpty) {
+          opf = opf.replaceAll(
+            RegExp(r'<meta\s+property="alternate-script"\s+refines="#creator02"[^>]*>.*?</meta>', caseSensitive: false),
+            '<meta property="alternate-script" refines="#creator02" xml:lang="ja">${_escXml(metadatos.illustratorJapanese)}</meta>',
+          );
+        } else {
+          opf = opf.replaceAll(
+            RegExp(r'\s*<meta\s+property="alternate-script"\s+refines="#creator02"[^>]*>.*?</meta>', caseSensitive: false),
+            '',
+          );
+        }
+        if (metadatos.illustratorFileAs.isNotEmpty) {
+          opf = opf.replaceAll(
+            RegExp(r'<meta\s+property="file-as"\s+refines="#creator02"[^>]*>.*?</meta>', caseSensitive: false),
+            '<meta property="file-as" refines="#creator02">${_escXml(metadatos.illustratorFileAs)}</meta>',
+          );
+        } else {
+          opf = opf.replaceAll(
+            RegExp(r'<meta\s+property="file-as"\s+refines="#creator02"[^>]*>.*?</meta>', caseSensitive: false),
+            '<meta property="file-as" refines="#creator02">${_escXml(metadatos.illustrator)}</meta>',
+          );
+        }
+      } else {
+        opf = opf.replaceAll(RegExp(r'\s*<dc:creator\s+id="creator02">.*?</dc:creator>', caseSensitive: false), '');
+        opf = opf.replaceAll(RegExp(r'\s*<meta\b[^>]*refines="#creator02"[^>]*>.*?</meta>', caseSensitive: false), '');
       }
+
+      // Traductor (contrib1)
       if (metadatos.translator.isNotEmpty) {
         opf = opf.replaceAll(RegExp(r'<dc:contributor\s+id="contrib1">.*?</dc:contributor>', caseSensitive: false), '<dc:contributor id="contrib1">${_escXml(metadatos.translator)}</dc:contributor>');
       }
+
+      // Corrector / mrk (contrib2)
+      final corrector = metadatos.proofreader.isNotEmpty ? metadatos.proofreader : 'Zhi';
+      opf = opf.replaceAll(RegExp(r'<dc:contributor\s+id="contrib2">.*?</dc:contributor>', caseSensitive: false), '<dc:contributor id="contrib2">${_escXml(corrector)}</dc:contributor>');
+
+      // Distribuidor (contrib3) siempre 'ZeePubs' (canónico inmutable)
+      opf = opf.replaceAll(
+        RegExp(r'<dc:contributor\s+id="contrib3">.*?</dc:contributor>', caseSensitive: false),
+        '<dc:contributor id="contrib3">${BookMetadata.defaultDistributor}</dc:contributor>',
+      );
+
+      // Editorial / Publicador
       if (metadatos.publisher.isNotEmpty) {
         opf = opf.replaceAll(RegExp(r'<dc:publisher>.*?</dc:publisher>', caseSensitive: false), '<dc:publisher>${_escXml(metadatos.publisher)}</dc:publisher>');
+      } else {
+        opf = opf.replaceAll(RegExp(r'\s*<dc:publisher>.*?</dc:publisher>', caseSensitive: false), '');
       }
+
+      // Subjects (Taxonomía / Demografía y Géneros)
+      if (metadatos.subjects.isNotEmpty) {
+        final nuevosSubjects = metadatos.subjects
+            .where((s) => s.trim().isNotEmpty)
+            .map((s) => '    <dc:subject>${_escXml(s.trim())}</dc:subject>')
+            .join('\n');
+        final reTodosSubjects = RegExp(r'(?:\s*<dc:subject>.*?</dc:subject>)+', caseSensitive: false);
+        if (reTodosSubjects.hasMatch(opf)) {
+          opf = opf.replaceFirst(reTodosSubjects, '\n$nuevosSubjects');
+        }
+      }
+
+      // Identificadores: isbn13, isbn10, amazon-id, uri-id
+      if (metadatos.isbn13.isNotEmpty) {
+        opf = opf.replaceAll(
+          RegExp(r'<dc:identifier\s+id="isbn13">.*?</dc:identifier>', caseSensitive: false),
+          '<dc:identifier id="isbn13">urn:isbn:${_escXml(metadatos.isbn13)}</dc:identifier>',
+        );
+      } else {
+        opf = opf.replaceAll(RegExp(r'\s*<dc:identifier\s+id="isbn13">.*?</dc:identifier>', caseSensitive: false), '');
+        opf = opf.replaceAll(RegExp(r'\s*<meta\b[^>]*refines="#isbn13"[^>]*>.*?</meta>', caseSensitive: false), '');
+      }
+
+      if (metadatos.isbn10.isNotEmpty) {
+        opf = opf.replaceAll(
+          RegExp(r'<dc:identifier\s+id="isbn10">.*?</dc:identifier>', caseSensitive: false),
+          '<dc:identifier id="isbn10">urn:isbn:${_escXml(metadatos.isbn10)}</dc:identifier>',
+        );
+      } else {
+        opf = opf.replaceAll(RegExp(r'\s*<dc:identifier\s+id="isbn10">.*?</dc:identifier>', caseSensitive: false), '');
+        opf = opf.replaceAll(RegExp(r'\s*<meta\b[^>]*refines="#isbn10"[^>]*>.*?</meta>', caseSensitive: false), '');
+      }
+
+      if (metadatos.amazonId.isNotEmpty) {
+        opf = opf.replaceAll(
+          RegExp(r'<dc:identifier\s+id="amazon-id">.*?</dc:identifier>', caseSensitive: false),
+          '<dc:identifier id="amazon-id">urn:amazon:${_escXml(metadatos.amazonId)}</dc:identifier>',
+        );
+      } else {
+        opf = opf.replaceAll(RegExp(r'\s*<dc:identifier\s+id="amazon-id">.*?</dc:identifier>', caseSensitive: false), '');
+        opf = opf.replaceAll(RegExp(r'\s*<meta\b[^>]*refines="#amazon-id"[^>]*>.*?</meta>', caseSensitive: false), '');
+      }
+
+      if (metadatos.projectUrl.isNotEmpty) {
+        opf = opf.replaceAll(
+          RegExp(r'<dc:identifier\s+id="uri-id">.*?</dc:identifier>', caseSensitive: false),
+          '<dc:identifier id="uri-id">urn:uri:${_escXml(metadatos.projectUrl)}</dc:identifier>',
+        );
+      } else {
+        opf = opf.replaceAll(RegExp(r'\s*<dc:identifier\s+id="uri-id">.*?</dc:identifier>', caseSensitive: false), '');
+        opf = opf.replaceAll(RegExp(r'\s*<meta\b[^>]*refines="#uri-id"[^>]*>.*?</meta>', caseSensitive: false), '');
+      }
+
+      // Series y Colección
       if (metadatos.series.isNotEmpty) {
         opf = opf.replaceAll(RegExp(r'<meta\s+id="serie"\s+property="belongs-to-collection">.*?</meta>', caseSensitive: false), '<meta id="serie" property="belongs-to-collection">${_escXml(metadatos.series)}</meta>');
         opf = opf.replaceAll(RegExp(r'<meta\s+property="group-position"\s+refines="#serie">.*?</meta>', caseSensitive: false), '<meta property="group-position" refines="#serie">${_escXml(metadatos.volume.isNotEmpty ? metadatos.volume : '1')}</meta>');
         opf = opf.replaceAll(RegExp(r'<meta\s+content=".*?"\s+name="calibre:series"/>', caseSensitive: false), '<meta content="${_escXml(metadatos.series)}" name="calibre:series"/>');
         opf = opf.replaceAll(RegExp(r'<meta\s+content=".*?"\s+name="calibre:series_index"/>', caseSensitive: false), '<meta content="${_escXml(metadatos.volume.isNotEmpty ? metadatos.volume : '1')}" name="calibre:series_index"/>');
       }
+
+      // Calibre rating: inmutable = 9
+      opf = opf.replaceAll(
+        RegExp(r'<meta\s+content=".*?"\s+name="calibre:rating"/>', caseSensitive: false),
+        '<meta content="${BookMetadata.calibreRating}" name="calibre:rating"/>',
+      );
     }
 
     // Limpiar manifest
@@ -397,27 +528,46 @@ ResultadoEmpaquetado empaquetarEpub({
       );
     }
     if (metadatos.volume.isNotEmpty) {
+      final tipoLibro = metadatos.bookType.isNotEmpty ? metadatos.bookType : 'Novela Ligera';
       tituloHtml = tituloHtml.replaceAll(
         RegExp(r'<h2\s+class="subtitulo\s+sigil_not_in_toc">.*?</h2>', caseSensitive: false, dotAll: true),
-        '<h2 class="subtitulo sigil_not_in_toc">Volumen ${_escXml(metadatos.volume)}<br/><small>[Novela Ligera]</small></h2>',
+        '<h2 class="subtitulo sigil_not_in_toc">Volumen ${_escXml(metadatos.volume)}<br/><small>[$tipoLibro]</small></h2>',
       );
     }
-    if (metadatos.author.isNotEmpty) {
+    if (metadatos.author.isNotEmpty || metadatos.authorJapanese.isNotEmpty) {
+      final autorStr = metadatos.authorJapanese.isNotEmpty
+          ? '<ruby>${_escXml(metadatos.authorJapanese)}<rp>(</rp><rt>${_escXml(metadatos.author)}</rt><rp>)</rp></ruby>'
+          : _escXml(metadatos.author);
       tituloHtml = tituloHtml.replaceAll(
         RegExp(r'<p\s+class="salto1"><b>Autor:</b>.*?</p>', caseSensitive: false),
-        '<p class="salto1"><b>Autor:</b> ${_escXml(metadatos.author)}</p>',
+        '<p class="salto1"><b>Autor:</b> $autorStr</p>',
       );
     }
-    if (metadatos.illustrator.isNotEmpty) {
+    if (metadatos.illustrator.isNotEmpty || metadatos.illustratorJapanese.isNotEmpty) {
+      final ilustradorStr = metadatos.illustratorJapanese.isNotEmpty
+          ? '<ruby>${_escXml(metadatos.illustratorJapanese)}<rp>(</rp><rt>${_escXml(metadatos.illustrator)}</rt><rp>)</rp></ruby>'
+          : _escXml(metadatos.illustrator);
       tituloHtml = tituloHtml.replaceAll(
         RegExp(r'<p><b>Ilustraciones:</b>.*?</p>', caseSensitive: false),
-        '<p><b>Ilustraciones:</b> ${_escXml(metadatos.illustrator)}</p>',
+        '<p><b>Ilustraciones:</b> $ilustradorStr</p>',
       );
     }
     if (metadatos.translator.isNotEmpty) {
       tituloHtml = tituloHtml.replaceAll(
         RegExp(r'<p><b>Traducción al español:</b>.*?</p>', caseSensitive: false),
         '<p><b>Traducción al español:</b> ${_escXml(metadatos.translator)}</p>',
+      );
+    }
+    if (metadatos.proofreader.isNotEmpty) {
+      tituloHtml = tituloHtml.replaceAll(
+        RegExp(r'<p><b>Corrección:</b>.*?</p>', caseSensitive: false),
+        '<p><b>Corrección:</b> ${_escXml(metadatos.proofreader)}</p>',
+      );
+    }
+    if (metadatos.projectUrl.isNotEmpty) {
+      tituloHtml = tituloHtml.replaceAll(
+        RegExp(r'<p\s+class="salto1"><b>Página Web</b><br/>\s*<a\s+href="[^"]*">.*?</a></p>', caseSensitive: false),
+        '<p class="salto1"><b>Página Web</b><br/>\n        <a href="${_escXml(metadatos.projectUrl)}">${_escXml(metadatos.projectUrl)}</a></p>',
       );
     }
     archivos['OEBPS/Text/titulo.xhtml'] = Uint8List.fromList(utf8.encode(tituloHtml));

@@ -177,5 +177,100 @@ void main() {
       expect(itemrefs.first.linear, 'yes');
       expect(itemrefs.last.linear, 'no');
     });
+
+    test('Inyecta metadatos completos de Base3 con Kanji, Ruby, Identificadores y Constantes', () {
+      final metadatos = BookMetadata(
+        title: 'Tate no Yuusha no Nariagari',
+        series: 'Tate no Yuusha no Nariagari',
+        volume: '01',
+        groupTag: 'SIGLAS-GRUPO',
+        author: 'Aneko Yusagi',
+        authorJapanese: 'アネコ ユサギ',
+        authorFileAs: 'Yusagi, Aneko',
+        illustrator: 'Minami Seira',
+        illustratorJapanese: '弥南 せいら',
+        illustratorFileAs: 'Seira, Minami',
+        translator: 'Traductor Épico',
+        proofreader: 'Zhi',
+        publisher: 'Grupo Traductor',
+        projectUrl: 'https://grupotraductor.com/tate-no-yuusha',
+        bookType: 'Novela Ligera',
+        subjects: ['Shounen', 'Acción', 'Isekai', 'Fantasía'],
+        synopsis: 'Iwatani Naofumi es convocado a otro mundo...',
+        isbn13: '978-4-04-066123-4',
+        isbn10: '4-04-066123-4',
+        amazonId: 'B00EXAMPLE',
+        bookId: '12345678-1234-7123-8123-123456789abc',
+      );
+
+      final caps = [
+        ArchivoEpubEntrada(nombre: 'C01.xhtml', contenidoHtml: '<p>Capítulo 1</p>'),
+      ];
+
+      final res = empaquetarEpub(
+        bytesBaseEpub: bytesBase,
+        capitulosYEspeciales: caps,
+        ordenSpine: ['C01.xhtml'],
+        entradasToc: [(archivo: 'C01.xhtml', titulo: 'Capítulo 1')],
+        metadatos: metadatos,
+      );
+
+      final zip = ZipDecoder().decodeBytes(res.bytesEpub);
+      final mapArchivos = {for (var f in zip.files) f.name: f.content as List<int>};
+
+      // 1. Verificar content.opf
+      final opf = utf8.decode(mapArchivos['OEBPS/content.opf']!);
+
+      // Título con grupo
+      expect(opf.contains('<dc:title>Tate no Yuusha no Nariagari - Volumen 01 [SIGLAS-GRUPO]</dc:title>'), isTrue);
+
+      // Autor latino, japonés (alternate-script) e indexación (file-as)
+      expect(opf.contains('<dc:creator id="creator01">Aneko Yusagi</dc:creator>'), isTrue);
+      expect(opf.contains('<meta property="alternate-script" refines="#creator01" xml:lang="ja">アネコ ユサギ</meta>'), isTrue);
+      expect(opf.contains('<meta property="file-as" refines="#creator01">Yusagi, Aneko</meta>'), isTrue);
+
+      // Ilustrador latino, japonés e indexación
+      expect(opf.contains('<dc:creator id="creator02">Minami Seira</dc:creator>'), isTrue);
+      expect(opf.contains('<meta property="alternate-script" refines="#creator02" xml:lang="ja">弥南 せいら</meta>'), isTrue);
+      expect(opf.contains('<meta property="file-as" refines="#creator02">Seira, Minami</meta>'), isTrue);
+
+      // Roles y colaboradores
+      expect(opf.contains('<dc:contributor id="contrib1">Traductor Épico</dc:contributor>'), isTrue);
+      expect(opf.contains('<dc:contributor id="contrib2">Zhi</dc:contributor>'), isTrue);
+      expect(opf.contains('<meta property="role" refines="#contrib2" scheme="marc:relators">mrk</meta>'), isTrue);
+
+      // Constantes canónicas inmutables
+      expect(opf.contains('<dc:contributor id="contrib3">ZeePubs</dc:contributor>'), isTrue);
+      expect(opf.contains('<meta property="role" refines="#contrib3" scheme="marc:relators">dst</meta>'), isTrue);
+      expect(opf.contains('<meta content="9" name="calibre:rating"/>'), isTrue);
+
+      // Tipo y subjects
+      expect(opf.contains('<dc:type>Novela Ligera</dc:type>'), isTrue);
+      expect(opf.contains('<dc:subject>Shounen</dc:subject>'), isTrue);
+      expect(opf.contains('<dc:subject>Acción</dc:subject>'), isTrue);
+      expect(opf.contains('<dc:subject>Isekai</dc:subject>'), isTrue);
+      expect(opf.contains('<dc:subject>Fantasía</dc:subject>'), isTrue);
+
+      // Identificadores
+      expect(opf.contains('<dc:identifier id="isbn13">urn:isbn:978-4-04-066123-4</dc:identifier>'), isTrue);
+      expect(opf.contains('<dc:identifier id="isbn10">urn:isbn:4-04-066123-4</dc:identifier>'), isTrue);
+      expect(opf.contains('<dc:identifier id="amazon-id">urn:amazon:B00EXAMPLE</dc:identifier>'), isTrue);
+      expect(opf.contains('<dc:identifier id="uri-id">urn:uri:https://grupotraductor.com/tate-no-yuusha</dc:identifier>'), isTrue);
+
+      // 2. Verificar titulo.xhtml con tags <ruby>
+      final titulo = utf8.decode(mapArchivos['OEBPS/Text/titulo.xhtml']!);
+      expect(titulo.contains('<ruby>アネコ ユサギ<rp>(</rp><rt>Aneko Yusagi</rt><rp>)</rp></ruby>'), isTrue);
+      expect(titulo.contains('<ruby>弥南 せいら<rp>(</rp><rt>Minami Seira</rt><rp>)</rp></ruby>'), isTrue);
+      expect(titulo.contains('<b>Corrección:</b> Zhi</p>'), isTrue);
+      expect(titulo.contains('<a href="https://grupotraductor.com/tate-no-yuusha">https://grupotraductor.com/tate-no-yuusha</a>'), isTrue);
+    });
+
+    test('BookMetadata.fromFileName deduce título, volumen y [SIGLAS]', () {
+      final meta = BookMetadata.fromFileName('/libros/Overlord - Vol 14 [NL-FANS].docx');
+      expect(meta.series, 'Overlord');
+      expect(meta.volume, '14');
+      expect(meta.groupTag, 'NL-FANS');
+      expect(meta.effectiveTitle, 'Overlord - Volumen 14 [NL-FANS]');
+    });
   });
 }
