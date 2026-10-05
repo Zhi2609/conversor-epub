@@ -503,49 +503,28 @@ List<Chapter> seccionesACapitulos(List<SectionItem> secciones) {
   final caps = <Chapter>[];
   for (final s in secciones) {
     if (!s.enabled) continue;
-    // Solo secciones con contenido narrativo o que son capítulos
-    if (s.kind == SectionKind.cover ||
-        s.kind == SectionKind.synopsis ||
-        s.kind == SectionKind.illustrations ||
-        s.kind == SectionKind.authorProfile ||
-        s.kind == SectionKind.titlePage ||
-        s.kind == SectionKind.credits ||
-        s.kind == SectionKind.logos ||
-        s.kind == SectionKind.tocVisual ||
-        s.kind == SectionKind.tocList ||
-        s.kind == SectionKind.epigraph ||
-        s.kind == SectionKind.preface ||
-        s.kind == SectionKind.backCover ||
-        s.kind == SectionKind.notes ||
-        s.kind == SectionKind.tocNav ||
-        s.kind == SectionKind.colophon) {
-      continue;
-    }
+    // Solo procesar secciones de contenido narrativo
+    const narrativeKinds = {
+      SectionKind.prologue,
+      SectionKind.chapter,
+      SectionKind.interlude,
+      SectionKind.part,
+      SectionKind.extra,
+      SectionKind.epilogue,
+      SectionKind.author,
+      SectionKind.translator,
+    };
+    if (!narrativeKinds.contains(s.kind)) continue;
 
-    TipoEspecial? tipoForzado;
-    String? plantillaNombre;
-    if (s.kind == SectionKind.prologue) {
-      plantillaNombre = 'prologo.xhtml';
-      tipoForzado = TipoEspecial.prologo;
-    }
-    if (s.kind == SectionKind.epilogue) {
-      plantillaNombre = 'epilogo.xhtml';
-      tipoForzado = TipoEspecial.epilogo;
-    }
-    if (s.kind == SectionKind.author) {
-      plantillaNombre = 'autor.xhtml';
-      tipoForzado = TipoEspecial.autor;
-    }
-    if (s.kind == SectionKind.translator) {
-      plantillaNombre = 'traductor.xhtml';
-      tipoForzado = TipoEspecial.traductor;
-    }
-    if (s.kind == SectionKind.interlude) {
-      tipoForzado = TipoEspecial.interludio;
-    }
-    if (s.kind == SectionKind.extra) {
-      tipoForzado = TipoEspecial.extra;
-    }
+    final (plantillaNombre, tipoForzado) = switch (s.kind) {
+      SectionKind.prologue => ('prologo.xhtml', TipoEspecial.prologo),
+      SectionKind.epilogue => ('epilogo.xhtml', TipoEspecial.epilogo),
+      SectionKind.author => ('autor.xhtml', TipoEspecial.autor),
+      SectionKind.translator => ('traductor.xhtml', TipoEspecial.traductor),
+      SectionKind.interlude => (null, TipoEspecial.interludio),
+      SectionKind.extra => (null, TipoEspecial.extra),
+      _ => (null, null),
+    };
 
     caps.add(Chapter(
       titulo: s.effectiveHeading,

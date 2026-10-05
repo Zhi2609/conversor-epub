@@ -58,10 +58,7 @@ class SearchReplaceEngine {
         final matchedText = text.substring(start, end);
 
         // Calcular número de línea (1-indexado)
-        int line = 1;
-        for (int i = 0; i < start; i++) {
-          if (text.codeUnitAt(i) == 10) line++; // '\n'
-        }
+        final line = '\n'.allMatches(text.substring(0, start)).length + 1;
 
         // Snippet contextual (hasta 30 caracteres antes y después)
         final snippetStart = max(0, start - 30);
@@ -101,11 +98,7 @@ class SearchReplaceEngine {
       return section;
     }
 
-    final newContent = text.substring(0, match.startOffset) +
-        replacement +
-        text.substring(match.endOffset);
-
-    return section.copyWith(htmlContent: newContent);
+    return section.copyWith(htmlContent: text.replaceRange(match.startOffset, match.endOffset, replacement));
   }
 
   /// Reemplaza todas las coincidencias del patrón en todas las secciones (o la indicada).

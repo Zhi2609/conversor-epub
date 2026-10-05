@@ -3,6 +3,14 @@ import 'package:path/path.dart' as p;
 
 final _random = Random.secure();
 
+/// Escapa caracteres especiales reservados en XML/XHTML.
+String escXml(String text) => text
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&apos;');
+
 /// RFC 9562: 48 bits de marca de tiempo en milisegundos, versión 7, variante 10.
 /// Ordenable cronológicamente y canónico para BookId en ePub 3.
 String uuidV7([DateTime? at]) {
@@ -78,11 +86,11 @@ List<String> ordenarSubjectsCanonico(Iterable<String> subjects) {
   // Orden alfabético insensible a mayúsculas/minúsculas
   resto.sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
 
-  final res = <String>[];
-  if (demoEdad != null) res.add(demoEdad);
-  if (demoAudiencia != null) res.add(demoAudiencia);
-  res.addAll(resto);
-  return res;
+  return [
+    ?demoEdad,
+    ?demoAudiencia,
+    ...resto,
+  ];
 }
 
 /// Formatea un ISBN-13 si se introdujo como 13 dígitos continuos sin guiones:
@@ -91,7 +99,7 @@ String formatearIsbn13(String raw) {
   final limpio = raw.trim();
   if (limpio.contains('-')) return limpio;
   final soloDigitos = limpio.replaceAll(RegExp(r'\s+'), '');
-  if (soloDigitos.length == 13 && RegExp(r'^\d{13}$').hasMatch(soloDigitos)) {
+  if (RegExp(r'^\d{13}$').hasMatch(soloDigitos)) {
     return '${soloDigitos.substring(0, 3)}-${soloDigitos.substring(3, 5)}-${soloDigitos.substring(5, 9)}-${soloDigitos.substring(9, 12)}-${soloDigitos.substring(12, 13)}';
   }
   return limpio;
@@ -103,7 +111,7 @@ String formatearIsbn10(String raw) {
   final limpio = raw.trim();
   if (limpio.contains('-')) return limpio;
   final soloDigitos = limpio.replaceAll(RegExp(r'\s+'), '');
-  if (soloDigitos.length == 10 && RegExp(r'^\d{9}[\dX]$', caseSensitive: false).hasMatch(soloDigitos)) {
+  if (RegExp(r'^\d{9}[\dX]$', caseSensitive: false).hasMatch(soloDigitos)) {
     return '${soloDigitos.substring(0, 2)}-${soloDigitos.substring(2, 6)}-${soloDigitos.substring(6, 9)}-${soloDigitos.substring(9, 10).toUpperCase()}';
   }
   return limpio;
@@ -289,12 +297,8 @@ class BookMetadata {
   }
 
   /// Título de la novela en español efectivo (para portada, título.xhtml y archivo generado)
-  String get effectiveTitleSpanish {
-    if (titleSpanish.trim().isNotEmpty) return titleSpanish.trim();
-    if (title.trim().isNotEmpty) return title.trim();
-    if (series.trim().isNotEmpty) return series.trim();
-    return 'Novela';
-  }
+  String get effectiveTitleSpanish =>
+      [titleSpanish, title, series].firstWhere((t) => t.trim().isNotEmpty, orElse: () => 'Novela').trim();
 
   /// Título formal para encabezado o metadatos completos (<dc:title>).
   /// En Base3: "Nombre de la novela en romaji - Volumen 01"

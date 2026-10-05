@@ -547,7 +547,7 @@ class _FormularioMetadatosState extends State<FormularioMetadatos> {
                               const Text('Fecha de Publicación (dc:date)', style: TextStyle(fontSize: 10, color: Color(0xFFA6ADC8))),
                               Text(
                                 meta.date != null
-                                    ? '${meta.date!.year}-${meta.date!.month.toString().padLeft(2, '0')}-${meta.date!.day.toString().padLeft(2, '0')}'
+                                    ? meta.date!.toIso8601String().split('T').first
                                     : 'Sin fecha asignada',
                                 style: const TextStyle(fontSize: 12, color: Color(0xFFCDD6F4)),
                               ),

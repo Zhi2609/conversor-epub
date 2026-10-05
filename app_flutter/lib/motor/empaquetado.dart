@@ -5,14 +5,7 @@ import 'package:archive/archive.dart';
 import 'metadatos.dart';
 import 'secciones.dart';
 
-String _escXml(String text) {
-  return text
-      .replaceAll('&', '&amp;')
-      .replaceAll('<', '&lt;')
-      .replaceAll('>', '&gt;')
-      .replaceAll('"', '&quot;')
-      .replaceAll("'", '&apos;');
-}
+String _escXml(String text) => escXml(text);
 
 class ArchivoEpubEntrada {
   final String nombre;
@@ -34,15 +27,7 @@ class EntradaImagenEpub {
   });
 }
 
-class ResultadoEmpaquetado {
-  final List<int> bytesEpub;
-  final List<String> avisos;
-
-  const ResultadoEmpaquetado({
-    required this.bytesEpub,
-    required this.avisos,
-  });
-}
+typedef ResultadoEmpaquetado = ({List<int> bytesEpub, List<String> avisos});
 
 String generarUuidV4() {
   final rnd = Random.secure();
@@ -50,12 +35,8 @@ String generarUuidV4() {
   bytes[6] = (bytes[6] & 0x0f) | 0x40; // Versión 4
   bytes[8] = (bytes[8] & 0x3f) | 0x80; // Variante RFC 4122
 
-  String hex(int b) => b.toRadixString(16).padLeft(2, '0');
-  return '${bytes.sublist(0, 4).map(hex).join()}-'
-      '${bytes.sublist(4, 6).map(hex).join()}-'
-      '${bytes.sublist(6, 8).map(hex).join()}-'
-      '${bytes.sublist(8, 10).map(hex).join()}-'
-      '${bytes.sublist(10, 16).map(hex).join()}';
+  final hex = bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+  return '${hex.substring(0, 8)}-${hex.substring(8, 12)}-${hex.substring(12, 16)}-${hex.substring(16, 20)}-${hex.substring(20)}';
 }
 
 final _reUuidOpf = RegExp(r'<dc:identifier\s+id="BookId">.*?</dc:identifier>', caseSensitive: false);
@@ -541,13 +522,11 @@ ResultadoEmpaquetado empaquetarEpub({
         (m) => '${m.group(1)}${_escXml(titEspanol)}${m.group(2)}',
       );
     }
+    final reSubtitle = RegExp(r'<br\s*/?>\s*<span\s+epub:type="subtitle"[^>]*>.*?</span>', caseSensitive: false);
     if (metadatos.subtitle.trim().isNotEmpty) {
       final subSpan = '<br/><span epub:type="subtitle" role="doc-subtitle">${_escXml(metadatos.subtitle.trim())}</span>';
-      if (RegExp(r'<br\s*/?>\s*<span\s+epub:type="subtitle"[^>]*>.*?</span>', caseSensitive: false).hasMatch(tituloHtml)) {
-        tituloHtml = tituloHtml.replaceAll(
-          RegExp(r'<br\s*/?>\s*<span\s+epub:type="subtitle"[^>]*>.*?</span>', caseSensitive: false),
-          subSpan,
-        );
+      if (reSubtitle.hasMatch(tituloHtml)) {
+        tituloHtml = tituloHtml.replaceAll(reSubtitle, subSpan);
       } else {
         tituloHtml = tituloHtml.replaceAllMapped(
           RegExp(r'(<span\s+class="grande"\s+epub:type="title">.*?</span>)', caseSensitive: false),
@@ -555,10 +534,7 @@ ResultadoEmpaquetado empaquetarEpub({
         );
       }
     } else {
-      tituloHtml = tituloHtml.replaceAll(
-        RegExp(r'\s*<br\s*/?>\s*<span\s+epub:type="subtitle"[^>]*>.*?</span>', caseSensitive: false),
-        '',
-      );
+      tituloHtml = tituloHtml.replaceAll(reSubtitle, '');
     }
     if (metadatos.volume.isNotEmpty) {
       final tipoLibro = metadatos.bookType.isNotEmpty ? metadatos.bookType : 'Novela Ligera';
@@ -814,5 +790,5 @@ $pTags
   }
 
   final zipData = ZipEncoder().encodeBytes(archiveFinal);
-  return ResultadoEmpaquetado(bytesEpub: zipData, avisos: avisos);
+  return (bytesEpub: zipData, avisos: avisos);
 }

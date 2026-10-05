@@ -23,7 +23,8 @@ class AjustesApp {
     final candidatos = [
       p.join(Directory.current.path, 'Base3_v1.15.0.epub'),
       p.join(Directory.current.parent.path, 'Base3_v1.15.0.epub'),
-      '/home/zhi/Documentos/conversor-epub/Base3_v1.15.0.epub',
+      p.join(Directory.current.path, 'assets', 'Base3_v1.15.0.epub'),
+      p.join(Directory.current.parent.path, 'assets', 'Base3_v1.15.0.epub'),
     ];
 
     for (final c in candidatos) {
