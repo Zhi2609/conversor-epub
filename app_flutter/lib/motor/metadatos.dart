@@ -145,7 +145,7 @@ class BookMetadata {
 
   // Equipo y Publicación
   final String translator; // Rol trl
-  final String proofreader; // Rol mrk (por defecto 'Zhi')
+  final String proofreader; // Corrector(a) de la novela (aparece en título.xhtml como "Corrección:")
   final String publisher; // Editorial / Grupo Traductor
   final String projectUrl; // uri-id (URL web oficial)
 
@@ -164,7 +164,8 @@ class BookMetadata {
 
   // Constantes canónicas inmutables de Base3
   static const int calibreRating = 9;
-  static const String defaultDistributor = 'ZeePubs';
+  static const String defaultMarkupEditor = 'Zhi'; // Maquetador del epub (Rol mrk)
+  static const String defaultDistributor = 'ZeePubs'; // Distribuidor (Rol dst)
 
   const BookMetadata({
     this.title = '',
@@ -182,7 +183,7 @@ class BookMetadata {
     this.illustratorJapanese = '',
     this.illustratorFileAs = '',
     this.translator = '',
-    this.proofreader = 'Zhi',
+    this.proofreader = '',
     this.publisher = '',
     this.projectUrl = '',
     this.bookType = 'Novela Ligera',

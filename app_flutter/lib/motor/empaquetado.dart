@@ -40,7 +40,7 @@ String generarUuidV4() {
 }
 
 final _reUuidOpf = RegExp(r'<dc:identifier\s+id="BookId">.*?</dc:identifier>', caseSensitive: false);
-final _reModifiedOpf = RegExp(r'<meta\s+property="dcterms:modified">.*?</meta>', caseSensitive: false);
+final _reModifiedOpf = RegExp(r'<(?:opf:)?meta\s+property="dcterms:modified">.*?</(?:opf:)?meta>', caseSensitive: false);
 final _reManifest = RegExp(r'<manifest>(.*?)</manifest>', dotAll: true, caseSensitive: false);
 final _reSpine = RegExp(r'<spine\b[^>]*>(.*?)</spine>', dotAll: true, caseSensitive: false);
 final _reItemOpf = RegExp(r'<item\b[^>]*>', dotAll: true, caseSensitive: false);
@@ -67,8 +67,8 @@ ResultadoEmpaquetado empaquetarEpub({
 
   for (final file in archiveBase.files) {
     if (file.name == 'mimetype' || file.name.endsWith('/')) continue;
-    // Omitir Section000X.xhtml de muestra de la base
-    if (RegExp(r'OEBPS/Text/Section\d+\.xhtml', caseSensitive: false).hasMatch(file.name)) {
+    // Omitir Section000X.xhtml o capitulo0X.xhtml de muestra de la base
+    if (RegExp(r'OEBPS/Text/(?:Section\d+|capitulo0\d)\.xhtml', caseSensitive: false).hasMatch(file.name)) {
       continue;
     }
     archivos[file.name] = file.content;
@@ -93,6 +93,10 @@ ResultadoEmpaquetado empaquetarEpub({
   for (final des in deshabilitados) {
     archivos.removeWhere((k, _) => k.toLowerCase().endsWith('/$des') || k.toLowerCase().endsWith(des));
   }
+
+  // contenido-2.xhtml y creditos.xhtml se eliminan canónicamente de Base3 1.16+
+  archivos.remove('OEBPS/Text/contenido-2.xhtml');
+  archivos.remove('OEBPS/Text/creditos.xhtml');
 
   // Eliminar de archivos base los especiales que no existen en el manuscrito
   if (!tienePrologo || deshabilitados.contains('prologo.xhtml')) {
@@ -177,12 +181,16 @@ ResultadoEmpaquetado empaquetarEpub({
     final uuidFinal = uuidCustom ?? (metadatos?.bookId.isNotEmpty == true ? metadatos!.bookId : generarUuidV4());
     opf = opf.replaceAll(_reUuidOpf, '<dc:identifier id="BookId">urn:uuid:$uuidFinal</dc:identifier>');
 
+    final prefijoMeta = opf.contains('<opf:meta') ? 'opf:meta' : 'meta';
     final fechaUtc = '${(fechaModificacion ?? (metadatos?.date?.toUtc()) ?? DateTime.now().toUtc()).toIso8601String().split('.').first}Z';
-    opf = opf.replaceAll(_reModifiedOpf, '<meta property="dcterms:modified">$fechaUtc</meta>');
+    opf = opf.replaceAll(_reModifiedOpf, '<$prefijoMeta property="dcterms:modified">$fechaUtc</$prefijoMeta>');
 
     if (metadatos != null) {
       if (metadatos.effectiveTitle.isNotEmpty) {
-        opf = opf.replaceAll(RegExp(r'<dc:title>.*?</dc:title>', caseSensitive: false), '<dc:title>${_escXml(metadatos.effectiveTitle)}</dc:title>');
+        opf = opf.replaceAllMapped(
+          RegExp(r'<dc:title(\b[^>]*)>.*?</dc:title>', caseSensitive: false),
+          (m) => '<dc:title${m.group(1)}>${_escXml(metadatos.effectiveTitle)}</dc:title>',
+        );
       }
       if (metadatos.date != null) {
         final fechaDateUtc = '${metadatos.date!.toUtc().toIso8601String().split('.').first}Z';
@@ -208,79 +216,84 @@ ResultadoEmpaquetado empaquetarEpub({
       if (metadatos.author.isNotEmpty) {
         opf = opf.replaceAll(RegExp(r'<dc:creator\s+id="creator01">.*?</dc:creator>', caseSensitive: false), '<dc:creator id="creator01">${_escXml(metadatos.author)}</dc:creator>');
       }
+      final reAutorAltScript = RegExp(r'<(?:opf:)?meta\b[^>]*(?:property="alternate-script"[^>]*refines="#creator01"|refines="#creator01"[^>]*property="alternate-script")[^>]*>.*?</(?:opf:)?meta>', caseSensitive: false);
       if (metadatos.authorJapanese.isNotEmpty) {
-        opf = opf.replaceAll(
-          RegExp(r'<meta\s+property="alternate-script"\s+refines="#creator01"[^>]*>.*?</meta>', caseSensitive: false),
-          '<meta property="alternate-script" refines="#creator01" xml:lang="ja">${_escXml(metadatos.authorJapanese)}</meta>',
-        );
+        if (reAutorAltScript.hasMatch(opf)) {
+          opf = opf.replaceAll(reAutorAltScript, '<$prefijoMeta property="alternate-script" refines="#creator01" xml:lang="ja">${_escXml(metadatos.authorJapanese)}</$prefijoMeta>');
+        }
       } else {
-        opf = opf.replaceAll(
-          RegExp(r'\s*<meta\s+property="alternate-script"\s+refines="#creator01"[^>]*>.*?</meta>', caseSensitive: false),
-          '',
-        );
+        opf = opf.replaceAll(RegExp(r'\s*' + reAutorAltScript.pattern, caseSensitive: false), '');
       }
+
+      final reAutorFileAs = RegExp(r'<(?:opf:)?meta\b[^>]*(?:property="file-as"[^>]*refines="#creator01"|refines="#creator01"[^>]*property="file-as")[^>]*>.*?</(?:opf:)?meta>', caseSensitive: false);
       if (metadatos.authorFileAs.isNotEmpty) {
-        opf = opf.replaceAll(
-          RegExp(r'<meta\s+property="file-as"\s+refines="#creator01"[^>]*>.*?</meta>', caseSensitive: false),
-          '<meta property="file-as" refines="#creator01">${_escXml(metadatos.authorFileAs)}</meta>',
-        );
+        if (reAutorFileAs.hasMatch(opf)) {
+          opf = opf.replaceAll(reAutorFileAs, '<$prefijoMeta property="file-as" refines="#creator01">${_escXml(metadatos.authorFileAs)}</$prefijoMeta>');
+        }
       } else if (metadatos.author.isNotEmpty) {
-        opf = opf.replaceAll(
-          RegExp(r'<meta\s+property="file-as"\s+refines="#creator01"[^>]*>.*?</meta>', caseSensitive: false),
-          '<meta property="file-as" refines="#creator01">${_escXml(metadatos.author)}</meta>',
-        );
+        if (reAutorFileAs.hasMatch(opf)) {
+          opf = opf.replaceAll(reAutorFileAs, '<$prefijoMeta property="file-as" refines="#creator01">${_escXml(metadatos.author)}</$prefijoMeta>');
+        }
       }
 
       // Ilustrador (creator02)
+      final reIlusAltScript = RegExp(r'<(?:opf:)?meta\b[^>]*(?:property="alternate-script"[^>]*refines="#creator02"|refines="#creator02"[^>]*property="alternate-script")[^>]*>.*?</(?:opf:)?meta>', caseSensitive: false);
+      final reIlusFileAs = RegExp(r'<(?:opf:)?meta\b[^>]*(?:property="file-as"[^>]*refines="#creator02"|refines="#creator02"[^>]*property="file-as")[^>]*>.*?</(?:opf:)?meta>', caseSensitive: false);
       if (metadatos.illustrator.isNotEmpty) {
         opf = opf.replaceAll(RegExp(r'<dc:creator\s+id="creator02">.*?</dc:creator>', caseSensitive: false), '<dc:creator id="creator02">${_escXml(metadatos.illustrator)}</dc:creator>');
         if (metadatos.illustratorJapanese.isNotEmpty) {
-          opf = opf.replaceAll(
-            RegExp(r'<meta\s+property="alternate-script"\s+refines="#creator02"[^>]*>.*?</meta>', caseSensitive: false),
-            '<meta property="alternate-script" refines="#creator02" xml:lang="ja">${_escXml(metadatos.illustratorJapanese)}</meta>',
-          );
+          if (reIlusAltScript.hasMatch(opf)) {
+            opf = opf.replaceAll(reIlusAltScript, '<$prefijoMeta property="alternate-script" refines="#creator02" xml:lang="ja">${_escXml(metadatos.illustratorJapanese)}</$prefijoMeta>');
+          }
         } else {
-          opf = opf.replaceAll(
-            RegExp(r'\s*<meta\s+property="alternate-script"\s+refines="#creator02"[^>]*>.*?</meta>', caseSensitive: false),
-            '',
-          );
+          opf = opf.replaceAll(RegExp(r'\s*' + reIlusAltScript.pattern, caseSensitive: false), '');
         }
         if (metadatos.illustratorFileAs.isNotEmpty) {
-          opf = opf.replaceAll(
-            RegExp(r'<meta\s+property="file-as"\s+refines="#creator02"[^>]*>.*?</meta>', caseSensitive: false),
-            '<meta property="file-as" refines="#creator02">${_escXml(metadatos.illustratorFileAs)}</meta>',
-          );
+          if (reIlusFileAs.hasMatch(opf)) {
+            opf = opf.replaceAll(reIlusFileAs, '<$prefijoMeta property="file-as" refines="#creator02">${_escXml(metadatos.illustratorFileAs)}</$prefijoMeta>');
+          }
         } else {
-          opf = opf.replaceAll(
-            RegExp(r'<meta\s+property="file-as"\s+refines="#creator02"[^>]*>.*?</meta>', caseSensitive: false),
-            '<meta property="file-as" refines="#creator02">${_escXml(metadatos.illustrator)}</meta>',
-          );
+          if (reIlusFileAs.hasMatch(opf)) {
+            opf = opf.replaceAll(reIlusFileAs, '<$prefijoMeta property="file-as" refines="#creator02">${_escXml(metadatos.illustrator)}</$prefijoMeta>');
+          }
         }
       } else {
         opf = opf.replaceAll(RegExp(r'\s*<dc:creator\s+id="creator02">.*?</dc:creator>', caseSensitive: false), '');
-        opf = opf.replaceAll(RegExp(r'\s*<meta\b[^>]*refines="#creator02"[^>]*>.*?</meta>', caseSensitive: false), '');
+        opf = opf.replaceAll(RegExp(r'\s*<(?:opf:)?meta\b[^>]*refines="#creator02"[^>]*>.*?</(?:opf:)?meta>', caseSensitive: false), '');
       }
 
-      // Traductor (contrib1)
+      // Traductor (contrib01 o contrib1)
       if (metadatos.translator.isNotEmpty) {
-        opf = opf.replaceAll(RegExp(r'<dc:contributor\s+id="contrib1">.*?</dc:contributor>', caseSensitive: false), '<dc:contributor id="contrib1">${_escXml(metadatos.translator)}</dc:contributor>');
+        opf = opf.replaceAllMapped(
+          RegExp(r'<dc:contributor\s+id="(contrib0?1)">.*?</dc:contributor>', caseSensitive: false),
+          (m) => '<dc:contributor id="${m.group(1)}">${_escXml(metadatos.translator)}</dc:contributor>',
+        );
+        opf = opf.replaceAllMapped(
+          RegExp(r'(<(?:opf:)?meta\b[^>]*refines="#contrib0?1"[^>]*property="file-as"[^>]*>).*?(</(?:opf:)?meta>)', caseSensitive: false),
+          (m) => '${m.group(1)}${_escXml(metadatos.translator)}${m.group(2)}',
+        );
       }
 
-      // Corrector / mrk (contrib2)
-      final corrector = metadatos.proofreader.isNotEmpty ? metadatos.proofreader : 'Zhi';
-      opf = opf.replaceAll(RegExp(r'<dc:contributor\s+id="contrib2">.*?</dc:contributor>', caseSensitive: false), '<dc:contributor id="contrib2">${_escXml(corrector)}</dc:contributor>');
+      // Maquetador del epub / mrk (contrib02 o contrib2) siempre 'Zhi' (canónico inmutable)
+      opf = opf.replaceAllMapped(
+        RegExp(r'<dc:contributor\s+id="(contrib0?2)">.*?</dc:contributor>', caseSensitive: false),
+        (m) => '<dc:contributor id="${m.group(1)}">${BookMetadata.defaultMarkupEditor}</dc:contributor>',
+      );
 
-      // Distribuidor (contrib3) siempre 'ZeePubs' (canónico inmutable)
-      opf = opf.replaceAll(
-        RegExp(r'<dc:contributor\s+id="contrib3">.*?</dc:contributor>', caseSensitive: false),
-        '<dc:contributor id="contrib3">${BookMetadata.defaultDistributor}</dc:contributor>',
+      // Distribuidor (contrib03 o contrib3) siempre 'ZeePubs' (canónico inmutable)
+      opf = opf.replaceAllMapped(
+        RegExp(r'<dc:contributor\s+id="(contrib0?3)">.*?</dc:contributor>', caseSensitive: false),
+        (m) => '<dc:contributor id="${m.group(1)}">${BookMetadata.defaultDistributor}</dc:contributor>',
       );
 
       // Editorial / Publicador
       if (metadatos.publisher.isNotEmpty) {
-        opf = opf.replaceAll(RegExp(r'<dc:publisher>.*?</dc:publisher>', caseSensitive: false), '<dc:publisher>${_escXml(metadatos.publisher)}</dc:publisher>');
+        opf = opf.replaceAllMapped(
+          RegExp(r'<dc:publisher(\b[^>]*)>.*?</dc:publisher>', caseSensitive: false),
+          (m) => '<dc:publisher${m.group(1)}>${_escXml(metadatos.publisher)}</dc:publisher>',
+        );
       } else {
-        opf = opf.replaceAll(RegExp(r'\s*<dc:publisher>.*?</dc:publisher>', caseSensitive: false), '');
+        opf = opf.replaceAll(RegExp(r'\s*<dc:publisher\b[^>]*>.*?</dc:publisher>', caseSensitive: false), '');
       }
 
       // Subjects (Taxonomía / Demografía y Géneros según orden estricto de ZeePubs)
@@ -305,7 +318,7 @@ ResultadoEmpaquetado empaquetarEpub({
         );
       } else {
         opf = opf.replaceAll(RegExp(r'\s*<dc:identifier\s+id="isbn13">.*?</dc:identifier>', caseSensitive: false), '');
-        opf = opf.replaceAll(RegExp(r'\s*<meta\b[^>]*refines="#isbn13"[^>]*>.*?</meta>', caseSensitive: false), '');
+        opf = opf.replaceAll(RegExp(r'\s*<(?:opf:)?meta\b[^>]*refines="#isbn13"[^>]*>.*?</(?:opf:)?meta>', caseSensitive: false), '');
       }
 
       if (metadatos.isbn10.isNotEmpty) {
@@ -316,7 +329,7 @@ ResultadoEmpaquetado empaquetarEpub({
         );
       } else {
         opf = opf.replaceAll(RegExp(r'\s*<dc:identifier\s+id="isbn10">.*?</dc:identifier>', caseSensitive: false), '');
-        opf = opf.replaceAll(RegExp(r'\s*<meta\b[^>]*refines="#isbn10"[^>]*>.*?</meta>', caseSensitive: false), '');
+        opf = opf.replaceAll(RegExp(r'\s*<(?:opf:)?meta\b[^>]*refines="#isbn10"[^>]*>.*?</(?:opf:)?meta>', caseSensitive: false), '');
       }
 
       if (metadatos.amazonId.isNotEmpty) {
@@ -326,31 +339,48 @@ ResultadoEmpaquetado empaquetarEpub({
         );
       } else {
         opf = opf.replaceAll(RegExp(r'\s*<dc:identifier\s+id="amazon-id">.*?</dc:identifier>', caseSensitive: false), '');
-        opf = opf.replaceAll(RegExp(r'\s*<meta\b[^>]*refines="#amazon-id"[^>]*>.*?</meta>', caseSensitive: false), '');
+        opf = opf.replaceAll(RegExp(r'\s*<(?:opf:)?meta\b[^>]*refines="#amazon-id"[^>]*>.*?</(?:opf:)?meta>', caseSensitive: false), '');
       }
 
       if (metadatos.projectUrl.isNotEmpty) {
+        final uriValor = metadatos.projectUrl.startsWith('urn:uri:') ? metadatos.projectUrl : 'urn:uri:${metadatos.projectUrl}';
         opf = opf.replaceAll(
           RegExp(r'<dc:identifier\s+id="uri-id">.*?</dc:identifier>', caseSensitive: false),
-          '<dc:identifier id="uri-id">urn:uri:${_escXml(metadatos.projectUrl)}</dc:identifier>',
+          '<dc:identifier id="uri-id">${_escXml(uriValor)}</dc:identifier>',
         );
       } else {
         opf = opf.replaceAll(RegExp(r'\s*<dc:identifier\s+id="uri-id">.*?</dc:identifier>', caseSensitive: false), '');
-        opf = opf.replaceAll(RegExp(r'\s*<meta\b[^>]*refines="#uri-id"[^>]*>.*?</meta>', caseSensitive: false), '');
+        opf = opf.replaceAll(RegExp(r'\s*<(?:opf:)?meta\b[^>]*refines="#uri-id"[^>]*>.*?</(?:opf:)?meta>', caseSensitive: false), '');
       }
 
       // Series y Colección
       if (metadatos.series.isNotEmpty) {
-        opf = opf.replaceAll(RegExp(r'<meta\s+id="serie"\s+property="belongs-to-collection">.*?</meta>', caseSensitive: false), '<meta id="serie" property="belongs-to-collection">${_escXml(metadatos.series)}</meta>');
-        opf = opf.replaceAll(RegExp(r'<meta\s+property="group-position"\s+refines="#serie">.*?</meta>', caseSensitive: false), '<meta property="group-position" refines="#serie">${_escXml(metadatos.volume.isNotEmpty ? metadatos.volume : '1')}</meta>');
-        opf = opf.replaceAll(RegExp(r'<meta\s+content=".*?"\s+name="calibre:series"/>', caseSensitive: false), '<meta content="${_escXml(metadatos.series)}" name="calibre:series"/>');
-        opf = opf.replaceAll(RegExp(r'<meta\s+content=".*?"\s+name="calibre:series_index"/>', caseSensitive: false), '<meta content="${_escXml(metadatos.volume.isNotEmpty ? metadatos.volume : '1')}" name="calibre:series_index"/>');
+        opf = opf.replaceAll(
+          RegExp(r'<(?:opf:)?meta\b[^>]*(?:id="serie"[^>]*property="belongs-to-collection"|property="belongs-to-collection"[^>]*id="serie")[^>]*>.*?</(?:opf:)?meta>', caseSensitive: false),
+          '<$prefijoMeta id="serie" property="belongs-to-collection">${_escXml(metadatos.series)}</$prefijoMeta>',
+        );
+        opf = opf.replaceAll(
+          RegExp(r'<(?:opf:)?meta\b[^>]*(?:property="group-position"[^>]*refines="#serie"|refines="#serie"[^>]*property="group-position")[^>]*>.*?</(?:opf:)?meta>', caseSensitive: false),
+          '<$prefijoMeta property="group-position" refines="#serie">${_escXml(metadatos.volume.isNotEmpty ? metadatos.volume : '1')}</$prefijoMeta>',
+        );
+        opf = opf.replaceAll(
+          RegExp(r'<(?:opf:)?meta\b[^>]*(?:property="collection-type"[^>]*refines="#serie"|refines="#serie"[^>]*property="collection-type")[^>]*>.*?</(?:opf:)?meta>', caseSensitive: false),
+          '<$prefijoMeta refines="#serie" property="collection-type">series</$prefijoMeta>',
+        );
+        opf = opf.replaceAll(
+          RegExp(r'<(?:opf:)?meta\b[^>]*name="calibre:series"[^>]*/>', caseSensitive: false),
+          '<$prefijoMeta content="${_escXml(metadatos.series)}" name="calibre:series"/>',
+        );
+        opf = opf.replaceAll(
+          RegExp(r'<(?:opf:)?meta\b[^>]*name="calibre:series_index"[^>]*/>', caseSensitive: false),
+          '<$prefijoMeta content="${_escXml(metadatos.volume.isNotEmpty ? metadatos.volume : '1')}" name="calibre:series_index"/>',
+        );
       }
 
       // Calibre rating: inmutable = 9
       opf = opf.replaceAll(
-        RegExp(r'<meta\s+content=".*?"\s+name="calibre:rating"/>', caseSensitive: false),
-        '<meta content="${BookMetadata.calibreRating}" name="calibre:rating"/>',
+        RegExp(r'<(?:opf:)?meta\b[^>]*name="calibre:rating"[^>]*/>', caseSensitive: false),
+        '<$prefijoMeta content="${BookMetadata.calibreRating}" name="calibre:rating"/>',
       );
     }
 
@@ -367,7 +397,13 @@ ResultadoEmpaquetado empaquetarEpub({
         }
 
         final item = match.group(0)!;
-        if (item.contains('Section000') || item.contains('Section0001') || item.contains('Section0002')) {
+        if (item.contains('Section000') ||
+            item.contains('Section0001') ||
+            item.contains('Section0002') ||
+            item.contains('capitulo01.xhtml') ||
+            item.contains('capitulo02.xhtml') ||
+            item.contains('contenido-2.xhtml') ||
+            item.contains('creditos.xhtml')) {
           continue;
         }
         if ((!tienePrologo || deshabilitados.contains('prologo.xhtml')) && item.contains('prologo.xhtml')) continue;
@@ -428,7 +464,8 @@ ResultadoEmpaquetado empaquetarEpub({
       if (secciones != null) {
         final lineasSpine = <String>[];
         for (final s in secciones.where((s) => s.enabled)) {
-          final idref = (s.fileName == 'contenido-1.xhtml') ? 'contenido.xhtml' : s.fileName;
+          if (s.fileName == 'contenido-2.xhtml' || s.fileName == 'creditos.xhtml') continue;
+          final idref = s.fileName;
           if (s.fileName == 'cubierta.xhtml') {
             lineasSpine.add('    <itemref idref="$idref" linear="yes"/>');
           } else if (s.fileName == 'toc.xhtml') {
@@ -459,12 +496,18 @@ ResultadoEmpaquetado empaquetarEpub({
 
         final itemref = match.group(0)!;
         if (itemref.contains('Section000') ||
+            itemref.contains('capitulo01') ||
+            itemref.contains('capitulo02') ||
             itemref.contains('prologo') ||
             itemref.contains('epilogo') ||
             itemref.contains('autor') ||
             itemref.contains('traductor') ||
             itemref.contains('notas')) {
           despuesDeNarrativa = true;
+          continue;
+        }
+
+        if (itemref.contains('contenido-2.xhtml') || itemref.contains('creditos.xhtml')) {
           continue;
         }
 
@@ -518,7 +561,7 @@ ResultadoEmpaquetado empaquetarEpub({
     final titEspanol = metadatos.effectiveTitleSpanish;
     if (titEspanol.isNotEmpty) {
       tituloHtml = tituloHtml.replaceAllMapped(
-        RegExp(r'(<span\s+class="grande"\s+epub:type="title">).*?(</span>)', caseSensitive: false),
+        RegExp(r'(<span\s+class="(?:grande|large)"\s+epub:type="title">).*?(</span>)', caseSensitive: false),
         (m) => '${m.group(1)}${_escXml(titEspanol)}${m.group(2)}',
       );
     }
@@ -529,7 +572,7 @@ ResultadoEmpaquetado empaquetarEpub({
         tituloHtml = tituloHtml.replaceAll(reSubtitle, subSpan);
       } else {
         tituloHtml = tituloHtml.replaceAllMapped(
-          RegExp(r'(<span\s+class="grande"\s+epub:type="title">.*?</span>)', caseSensitive: false),
+          RegExp(r'(<span\s+class="(?:grande|large)"\s+epub:type="title">.*?</span>)', caseSensitive: false),
           (m) => '${m.group(1)}\n$subSpan',
         );
       }
@@ -538,18 +581,24 @@ ResultadoEmpaquetado empaquetarEpub({
     }
     if (metadatos.volume.isNotEmpty) {
       final tipoLibro = metadatos.bookType.isNotEmpty ? metadatos.bookType : 'Novela Ligera';
-      tituloHtml = tituloHtml.replaceAll(
-        RegExp(r'<h2\s+class="subtitulo\s+sigil_not_in_toc">.*?</h2>', caseSensitive: false, dotAll: true),
-        '<h2 class="subtitulo sigil_not_in_toc">Volumen ${_escXml(metadatos.volume)}<br/><small>[$tipoLibro]</small></h2>',
-      );
+      final matchH2 = RegExp(r'<h2\s+class="((?:subtitulo|subtitle)\s+sigil_not_in_toc)"([^>]*)>.*?</h2>', caseSensitive: false, dotAll: true).firstMatch(tituloHtml);
+      if (matchH2 != null) {
+        final clases = matchH2.group(1)!;
+        final extraAttrs = matchH2.group(2)!;
+        tituloHtml = tituloHtml.replaceRange(
+          matchH2.start,
+          matchH2.end,
+          '<h2 class="$clases"$extraAttrs>Volumen ${_escXml(metadatos.volume)}<br/><small>[$tipoLibro]</small></h2>',
+        );
+      }
     }
     if (metadatos.author.isNotEmpty || metadatos.authorJapanese.isNotEmpty) {
       final autorStr = metadatos.authorJapanese.isNotEmpty
           ? '<ruby>${_escXml(metadatos.authorJapanese)}<rp>(</rp><rt>${_escXml(metadatos.author)}</rt><rp>)</rp></ruby>'
           : _escXml(metadatos.author);
       tituloHtml = tituloHtml.replaceAll(
-        RegExp(r'<p\s+class="salto1"><b>Autor:</b>.*?</p>', caseSensitive: false),
-        '<p class="salto1"><b>Autor:</b> $autorStr</p>',
+        RegExp(r'<p\s+class="(?:salto1|space-1)"><b>Autor:</b>.*?</p>', caseSensitive: false),
+        '<p class="space-1"><b>Autor:</b> $autorStr</p>',
       );
     }
     if (metadatos.illustrator.isNotEmpty || metadatos.illustratorJapanese.isNotEmpty) {
@@ -562,21 +611,21 @@ ResultadoEmpaquetado empaquetarEpub({
       );
     }
     if (metadatos.translator.isNotEmpty) {
-      tituloHtml = tituloHtml.replaceAll(
-        RegExp(r'<p><b>Traducción al español:</b>.*?</p>', caseSensitive: false),
-        '<p><b>Traducción al español:</b> ${_escXml(metadatos.translator)}</p>',
+      tituloHtml = tituloHtml.replaceAllMapped(
+        RegExp(r'<p(\s+class="[^"]*")?><b>Traducción al español:</b>.*?</p>', caseSensitive: false),
+        (m) => '<p${m.group(1) ?? ''}><b>Traducción al español:</b> ${_escXml(metadatos.translator)}</p>',
       );
     }
     if (metadatos.proofreader.isNotEmpty) {
-      tituloHtml = tituloHtml.replaceAll(
-        RegExp(r'<p><b>Corrección:</b>.*?</p>', caseSensitive: false),
-        '<p><b>Corrección:</b> ${_escXml(metadatos.proofreader)}</p>',
+      tituloHtml = tituloHtml.replaceAllMapped(
+        RegExp(r'<p(\s+class="[^"]*")?><b>Corrección:</b>.*?</p>', caseSensitive: false),
+        (m) => '<p${m.group(1) ?? ''}><b>Corrección:</b> ${_escXml(metadatos.proofreader)}</p>',
       );
     }
     if (metadatos.projectUrl.isNotEmpty) {
       tituloHtml = tituloHtml.replaceAll(
-        RegExp(r'<p\s+class="salto1"><b>Página Web</b><br/>\s*<a\s+href="[^"]*">.*?</a></p>', caseSensitive: false),
-        '<p class="salto1"><b>Página Web</b><br/>\n        <a href="${_escXml(metadatos.projectUrl)}">${_escXml(metadatos.projectUrl)}</a></p>',
+        RegExp(r'<p\s+class="(?:salto1|space-1)"><b>Página Web</b><br/>\s*<a\s+href="[^"]*">.*?</a></p>', caseSensitive: false),
+        '<p class="space-1"><b>Página Web</b><br/>\n        <a href="${_escXml(metadatos.projectUrl)}">${_escXml(metadatos.projectUrl)}</a></p>',
       );
     }
     archivos['OEBPS/Text/titulo.xhtml'] = Uint8List.fromList(utf8.encode(tituloHtml));
@@ -588,11 +637,39 @@ ResultadoEmpaquetado empaquetarEpub({
     final coverSec = secciones.where((s) => s.kind == SectionKind.cover && s.associatedImage != null && s.associatedImage!.isNotEmpty).firstOrNull;
     if (coverSec != null) {
       String cubiertaHtml = utf8.decode(cubiertaBytes);
-      cubiertaHtml = cubiertaHtml.replaceAll(
-        RegExp(r'''src=["'](?:\.\./)?Images/[^"']+["']''', caseSensitive: false),
-        'src="../Images/${coverSec.associatedImage}"',
-      );
+      if (cubiertaHtml.contains('src="')) {
+        cubiertaHtml = cubiertaHtml.replaceAll(
+          RegExp(r'''src=["'](?:\.\./)?Images/[^"']+["']''', caseSensitive: false),
+          'src="../Images/${coverSec.associatedImage}"',
+        );
+      } else {
+        cubiertaHtml = cubiertaHtml.replaceAll(
+          '<!-- Aquí va la imagen de cubierta -->',
+          '<figure class="fill">\n      <img role="doc-cover" src="../Images/${coverSec.associatedImage}" alt="Cubierta"/>\n    </figure>',
+        );
+      }
       archivos['OEBPS/Text/cubierta.xhtml'] = Uint8List.fromList(utf8.encode(cubiertaHtml));
+    }
+  }
+
+  // Modificar resumen.xhtml si hay imagen asociada en la sección de ilustraciones
+  final resumenBytes = archivos['OEBPS/Text/resumen.xhtml'];
+  if (resumenBytes != null && secciones != null) {
+    final illSec = secciones.where((s) => s.kind == SectionKind.illustrations && s.associatedImage != null && s.associatedImage!.isNotEmpty).firstOrNull;
+    if (illSec != null) {
+      String resumenHtml = utf8.decode(resumenBytes);
+      if (resumenHtml.contains('src="')) {
+        resumenHtml = resumenHtml.replaceAll(
+          RegExp(r'''src=["'](?:\.\./)?Images/[^"']+["']''', caseSensitive: false),
+          'src="../Images/${illSec.associatedImage}"',
+        );
+      } else {
+        resumenHtml = resumenHtml.replaceAll(
+          '<!-- Aquí van las imágenes -->',
+          '<figure class="fill break-after" id="resumen_0001">\n      <img alt="" src="../Images/${illSec.associatedImage}"/>\n    </figure>',
+        );
+      }
+      archivos['OEBPS/Text/resumen.xhtml'] = Uint8List.fromList(utf8.encode(resumenHtml));
     }
   }
 
@@ -602,27 +679,28 @@ ResultadoEmpaquetado empaquetarEpub({
         ? 'OEBPS/Text/sinopsis.xhtml'
         : (archivos.containsKey('OEBPS/Text/resumen.xhtml') ? 'OEBPS/Text/resumen.xhtml' : null);
     if (sinopsisKey != null) {
-      final parrafos = metadatos.synopsis.split(RegExp(r'\n\s*\n|\n')).where((p) => p.trim().isNotEmpty);
-      final pTags = parrafos.map((p) => '    <p>${_escXml(p.trim())}</p>').join('\n');
+      final parrafos = metadatos.synopsis.split(RegExp(r'\n\s*\n|\n')).where((p) => p.trim().isNotEmpty).toList();
+      final pTags = parrafos.asMap().entries.map((entry) {
+        final pClass = entry.key == 0 ? ' class="no-indent"' : '';
+        return '    <p$pClass>${_escXml(entry.value.trim())}</p>';
+      }).join('\n');
       final nuevoHtml = '''<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" lang="es" xml:lang="es">
 <head>
-  <title>Sinopsis</title>
-  <link rel="stylesheet" type="text/css" href="../Styles/style.css"/>
   <meta charset="utf-8"/>
+  <title>Sinopsis</title>
+  <link href="../Styles/style.css" rel="stylesheet" type="text/css"/>
 </head>
-<body xml:lang="es" lang="es" epub:type="bodymatter">
-  <section epub:type="abstract" id="abstract" aria-label="Sinopsis">
-    <blockquote class="aviso">
-      <p class="grande centrado"><b>Advertencia:</b></p>
-      <p class="salto0">Esta novela contiene material y/o lenguaje que para algunos podría resultar ofensivo, explícito y vulgar, si usted es una persona sensible, se recomienda abstenerse de leerlo.</p>
+<body epub:type="frontmatter">
+  <section epub:type="abstract" role="doc-abstract" aria-labelledby="encabezado">
+    <blockquote class="warning">
+      <p class="large align-center"><b>Advertencia:</b></p>
+      <p class="space-0">Esta novela contiene material y/o lenguaje que para algunos podría resultar ofensivo, explícito y vulgar, si usted es una persona sensible, se recomienda abstenerse de leerlo.</p>
     </blockquote>
-    <hr class="sigil_split_marker"/>
+    <hr class="transition"/>
     <!-- Borrar todo lo anterior si no se requiere -->
-    <header>
-      <h1 class="sigil_not_in_toc">Sinopsis</h1>
-    </header>
+    <h1 class="sigil_not_in_toc" id="encabezado">Sinopsis</h1>
 $pTags
   </section>
 </body>
@@ -663,6 +741,7 @@ $pTags
             href.contains('resumen.xhtml') ||
             href.contains('perfil.xhtml') ||
             href.contains('titulo.xhtml') ||
+            href.contains('contenido.xhtml') ||
             href.contains('contenido-1.xhtml') ||
             href.contains('epigrafe.xhtml') ||
             href.contains('prefacio.xhtml')) {
@@ -691,6 +770,7 @@ $pTags
         final liCompleto = match.group(0)!;
         if (liCompleto.contains('prologo.xhtml') ||
             liCompleto.contains('Section000') ||
+            liCompleto.contains('capitulo0') ||
             liCompleto.contains('bodymatter') ||
             liCompleto.contains('epilogo.xhtml') ||
             liCompleto.contains('autor.xhtml') ||

@@ -73,7 +73,7 @@ void main() {
           ? 'OEBPS/Text/sinopsis.xhtml'
           : 'OEBPS/Text/resumen.xhtml';
       final sinopsisHtml = utf8.decode(mapArchivos[sinopsisKey]!);
-      expect(sinopsisHtml.contains('<p>Esta es una sinopsis emocionante sobre un héroe.</p>'), isTrue);
+      expect(sinopsisHtml.contains('Esta es una sinopsis emocionante sobre un héroe.</p>'), isTrue);
       expect(sinopsisHtml.contains('<p>Un nuevo mundo lo espera.</p>'), isTrue);
     });
 
@@ -162,9 +162,7 @@ void main() {
         'cubierta.xhtml',
         'sinopsis.xhtml',
         'titulo.xhtml',
-        'creditos.xhtml',
         'logos.xhtml',
-        'contenido-2.xhtml',
         'prologo.xhtml',
         'C01.xhtml',
         'epilogo.xhtml',
@@ -430,5 +428,102 @@ void main() {
       expect(titulo.contains('Aquí va el subtítulo'), isFalse);
       expect(titulo.contains('epub:type="subtitle"'), isFalse);
     });
+
+    test('Empaqueta con Base3_v1.16.0.epub preservando fuentes de Zhi, CSS dual y sintaxis 1.16', () {
+      File fileBase16 = File('assets/Base3_v1.16.0.epub');
+      if (!fileBase16.existsSync()) {
+        fileBase16 = File('../assets/Base3_v1.16.0.epub');
+      }
+      expect(fileBase16.existsSync(), isTrue, reason: 'Base3_v1.16.0.epub debe existir');
+      final bytes16 = fileBase16.readAsBytesSync();
+
+      const meta = BookMetadata(
+        titleSpanish: 'Cómo no Invocar a un Señor Demonio',
+        titleJapanese: 'Isekai Maou to Shoukan Shoujo no Dorei Majutsu',
+        series: 'How NOT to Summon a Demon Lord [NL]',
+        volume: '01',
+        groupTag: 'Kyuden Translations',
+        author: 'Yukiya Murasaki',
+        authorJapanese: 'むらさきゆきや',
+        illustrator: 'Takahiro Tsurusaki',
+        illustratorJapanese: '鶴崎 貴大',
+        synopsis: 'Un jugador es transportado a su MMORPG favorito como su personaje Diablo.\nAllí conoce a dos chicas que intentan esclavizarlo.',
+      );
+
+      final res = empaquetarEpub(
+        bytesBaseEpub: bytes16,
+        capitulosYEspeciales: [
+          ArchivoEpubEntrada(nombre: 'C01.xhtml', contenidoHtml: '<p class="no-indent">Capítulo de prueba</p>'),
+        ],
+        ordenSpine: ['C01.xhtml'],
+        entradasToc: [(archivo: 'C01.xhtml', titulo: 'Capítulo 1')],
+        metadatos: meta,
+      );
+
+      final zip = ZipDecoder().decodeBytes(res.bytesEpub);
+      final mapArchivos = {for (var f in zip.files) f.name: f.content as List<int>};
+
+      // 1. Fuentes decorativas de Zhi preservadas
+      final fuentesRequeridas = [
+        'OEBPS/Fonts/Castellar.ttf',
+        'OEBPS/Fonts/IMFellEnglish-Italic.ttf',
+        'OEBPS/Fonts/Inkfree.ttf',
+        'OEBPS/Fonts/Jokerman-Regular.ttf',
+        'OEBPS/Fonts/Monotype-Corsiva.ttf',
+        'OEBPS/Fonts/Oswald-Regular.ttf',
+      ];
+      for (final f in fuentesRequeridas) {
+        expect(mapArchivos.containsKey(f), isTrue, reason: 'Fuente $f debe existir en Base 1.16');
+      }
+
+      // 2. CSS Personal de Zhi con alias duales en style.css
+      final css = utf8.decode(mapArchivos['OEBPS/Styles/style.css']!);
+      expect(css.contains('CSS PERSONAL DE ZHI'), isTrue);
+      expect(css.contains('.rule') && css.contains('.regla'), isTrue);
+      expect(css.contains('blockquote.mystic') && css.contains('blockquote.mistico'), isTrue);
+      expect(css.contains('.warning-box') && css.contains('.aviso'), isTrue);
+      expect(css.contains('.gp-info'), isTrue);
+      expect(css.contains('.gp-warning'), isTrue);
+      expect(css.contains('.gp-gold-info'), isTrue);
+
+      // 3. content.opf usa <opf:meta>
+      final opf = utf8.decode(mapArchivos['OEBPS/content.opf']!);
+      expect(opf.contains('property="alternate-script"') && opf.contains('refines="#creator01"') && opf.contains('むらさきゆきや'), isTrue);
+      expect(opf.contains('<opf:meta id="serie" property="belongs-to-collection">How NOT to Summon a Demon Lord [NL]</opf:meta>'), isTrue);
+      expect(opf.contains('<opf:meta content="How NOT to Summon a Demon Lord [NL]" name="calibre:series"/>'), isTrue);
+
+      // 4. titulo.xhtml tiene estructura 1.16 (subtitle y role="doc-subtitle")
+      final titulo = utf8.decode(mapArchivos['OEBPS/Text/titulo.xhtml']!);
+      expect(titulo.contains('<h2 class="subtitle sigil_not_in_toc" role="doc-subtitle">Volumen 01<br/><small>[Novela Ligera]</small></h2>'), isTrue);
+      expect(titulo.contains('<span class="large" epub:type="title">Cómo no Invocar a un Señor Demonio</span>'), isTrue);
+
+      // 5. Corrección de novela y Epub (maquetador) están claramente separados
+      expect(titulo.contains('<p><b>Corrección:</b> Corrector Apellido</p>'), isTrue);
+      expect(titulo.contains('<p class="space-1"><b>Epub:</b> Zhi (<a href="https://www.facebook.com/ZeePubs">ZeePubs</a>)</p>'), isTrue);
+
+      // 6. Base 1.16 contiene imágenes de muestra y código HTML (no deja cubierta ni resumen vacíos)
+      expect(mapArchivos.containsKey('OEBPS/Images/cover.jpg'), isTrue);
+      expect(mapArchivos.containsKey('OEBPS/Images/02.jpg'), isTrue);
+      expect(mapArchivos.containsKey('OEBPS/Images/03.jpg'), isTrue);
+      expect(mapArchivos.containsKey('OEBPS/Images/grupo.png'), isTrue);
+      expect(mapArchivos.containsKey('OEBPS/Images/zeepubs.png'), isTrue);
+
+      final cubierta = utf8.decode(mapArchivos['OEBPS/Text/cubierta.xhtml']!);
+      expect(cubierta.contains('src="../Images/cover.jpg"'), isTrue);
+      expect(cubierta.contains('<figure class="fill">'), isTrue);
+
+      final resumen = utf8.decode(mapArchivos['OEBPS/Text/resumen.xhtml']!);
+      expect(resumen.contains('src="../Images/02.jpg"'), isTrue);
+      expect(resumen.contains('src="../Images/03.jpg"'), isTrue);
+      expect(resumen.contains('<figure class="fill break-after" id="resumen_0001">'), isTrue);
+
+      final contenido = utf8.decode(mapArchivos['OEBPS/Text/contenido.xhtml']!);
+      expect(contenido.contains('src="../Images/02.jpg"'), isTrue);
+
+      final logos = utf8.decode(mapArchivos['OEBPS/Text/logos.xhtml']!);
+      expect(logos.contains('src="../Images/grupo.png"'), isTrue);
+      expect(logos.contains('src="../Images/zeepubs.png"'), isTrue);
+    });
   });
 }
+

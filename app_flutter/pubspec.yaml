@@ -62,6 +62,7 @@ flutter:
     - assets/Conv_Xhtml/
     - assets/Plantillas/
     - assets/ConversorEpub.png
+    - assets/Base3_v1.16.0.epub
     - assets/Base3_v1.15.0.epub
 
   # An image asset can refer to one or more resolution-specific "variants", see

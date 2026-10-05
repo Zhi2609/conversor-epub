@@ -481,8 +481,8 @@ class _FormularioMetadatosState extends State<FormularioMetadatos> {
                 Expanded(
                   child: _campoTexto(
                     controller: _proofreaderCtrl,
-                    label: 'Corrector / Formateador (Rol mrk)',
-                    hint: 'Por defecto: Zhi',
+                    label: 'Corrector(a) de la novela',
+                    hint: 'Ej: Corrector Apellido',
                     icon: Icons.rate_review_outlined,
                     onChanged: (v) => _actualizar(meta.copyWith(proofreader: v)),
                   ),

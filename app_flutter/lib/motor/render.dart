@@ -8,9 +8,9 @@ final _reMarcadorContenido = RegExp(r'<!--\s*Aquí va el contenido\s*-->(.*?)</s
 
 final _reComentarioFigureConHeader = RegExp(
   r'<!--Si usa figure,.*?'
-  r'(<h1 class="oculto".*?</header>)'
+  r'(<h1 class="(?:oculto|hidden)".*?)'
   r'\s*-->\s*'
-  r'(<header>.*?</header>)',
+  r'(?:<header>.*?</header>|<h1\b[^>]*>.*?</h1>)',
   dotAll: true,
   caseSensitive: false,
 );
@@ -48,9 +48,9 @@ String _absorberPrimeraFigura(String cuerpo, bool tituloEsImagen, String? numero
   if (!tituloEsImagen) return cuerpo;
   final numImg = numeroImagenTitulo ?? r'\d+';
   final rePrimeraFigura = RegExp(
-    '^\\s*(?:<hr\\s+class="sigil_split_marker"\\s*/?>\\s*)*'
-    '<figure class="dimg"><img\\b[^>]*src="[^"]*?(?:Images/|image0*)$numImg\\.[^"]*"[^>]*></figure>'
-    '\\s*(?:<hr\\s+class="sigil_split_marker"\\s*/?>\\s*)*',
+    '^(?:\\s*<hr\\s+class="[^"]*"\\s*/?>\\s*)*'
+    '<figure class="[^"]*"><img\\b[^>]*src="[^"]*?(?:Images/|image0*)$numImg\\.[^"]*"[^>]*></figure>'
+    '(?:\\s*<hr\\s+class="[^"]*"\\s*/?>\\s*)*',
     caseSensitive: false,
   );
   return cuerpo.replaceFirst(rePrimeraFigura, '');
@@ -79,7 +79,7 @@ String renderCapitulo(
   if (partes.subtitulo != null && partes.subtitulo!.isNotEmpty) {
     html = html.replaceAll('Título del capítulo', partes.subtitulo!);
   } else {
-    html = html.replaceAll(RegExp(r'\s*<br/>\s*<span class="versalita">.*?</span>', dotAll: true), '');
+    html = html.replaceAll(RegExp(r'\s*<br/>\s*<span class="(?:versalita|small)">.*?</span>', dotAll: true), '');
     html = html.replaceAll('Título del capítulo', '');
   }
 
@@ -124,7 +124,7 @@ String renderCapituloEspecial(
     if (partes.subtitulo != null && partes.subtitulo!.isNotEmpty) {
       html = html.replaceAll('Título del capítulo', partes.subtitulo!);
     } else {
-      html = html.replaceAll(RegExp(r'\s*<br/>\s*<span class="versalita">.*?</span>', dotAll: true), '');
+      html = html.replaceAll(RegExp(r'\s*<br/>\s*<span class="(?:versalita|small)">.*?</span>', dotAll: true), '');
       html = html.replaceAll('Título del capítulo', '');
     }
   } else if (partes.esEpilogo) {
@@ -134,16 +134,16 @@ String renderCapituloEspecial(
     if (partes.subtitulo != null && partes.subtitulo!.isNotEmpty) {
       html = html.replaceAll('Título del capítulo', partes.subtitulo!);
     } else {
-      html = html.replaceAll(RegExp(r'\s*<br/>\s*<span class="versalita">.*?</span>', dotAll: true), '');
+      html = html.replaceAll(RegExp(r'\s*<br/>\s*<span class="(?:versalita|small)">.*?</span>', dotAll: true), '');
       html = html.replaceAll('Título del capítulo', '');
     }
   } else if (partes.esAutor) {
-    html = html.replaceAll('<h1>Palabras del autor</h1>', '<h1>${partes.etiqueta}</h1>');
-    html = html.replaceAll('<title>Palabras finales</title>', '<title>${partes.etiqueta}</title>');
+    html = html.replaceAllMapped(RegExp(r'<h1(\b[^>]*)>Palabras del autor</h1>'), (m) => '<h1${m.group(1)}>${partes.etiqueta}</h1>');
+    html = html.replaceAll(RegExp(r'<title>(?:Palabras del autor|Palabras finales)</title>'), '<title>${partes.etiqueta}</title>');
     html = html.replaceAll('Palabras del autor: Título del capítulo', tituloCompleto);
     html = html.replaceAll('Título del capítulo', partes.subtitulo ?? '');
   } else if (partes.esTraductor) {
-    html = html.replaceAll('<h1>Palabras del traductor</h1>', '<h1>${partes.etiqueta}</h1>');
+    html = html.replaceAllMapped(RegExp(r'<h1(\b[^>]*)>Palabras del traductor</h1>'), (m) => '<h1${m.group(1)}>${partes.etiqueta}</h1>');
     html = html.replaceAll('<title>Palabras del traductor</title>', '<title>${partes.etiqueta}</title>');
     html = html.replaceAll('Palabras del traductor: Título del capítulo', tituloCompleto);
     html = html.replaceAll('Título del capítulo', partes.subtitulo ?? '');

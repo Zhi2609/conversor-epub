@@ -586,10 +586,6 @@ class _HomeScreenState extends State<HomeScreen> {
       lista.add(ArchivoEpubEntrada(nombre: archivo, contenidoHtml: htmlFinal));
     }
 
-    final titulos = _controladoresTitulos.map((c) => c.text.trim()).toList();
-    final tocHtml = renderTablaContenidos(_resultado!.capitulos, titulos);
-    lista.add(ArchivoEpubEntrada(nombre: 'contenido-2.xhtml', contenidoHtml: tocHtml));
-
     return lista;
   }
 
@@ -638,7 +634,12 @@ class _HomeScreenState extends State<HomeScreen> {
       if (_rutaBaseEpub.isNotEmpty && File(_rutaBaseEpub).existsSync()) {
         bytesBase = File(_rutaBaseEpub).readAsBytesSync();
       } else {
-        final byteData = await rootBundle.load('assets/Base3_v1.15.0.epub');
+        ByteData byteData;
+        try {
+          byteData = await rootBundle.load('assets/Base3_v1.16.0.epub');
+        } catch (_) {
+          byteData = await rootBundle.load('assets/Base3_v1.15.0.epub');
+        }
         bytesBase = byteData.buffer.asUint8List(byteData.offsetInBytes, byteData.lengthInBytes);
       }
 
@@ -799,7 +800,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           child: Text(
                             hayBase
                                 ? '${p.basename(_rutaBaseEpub)} (Personalizado)'
-                                : 'Base3_v1.15.0.epub (Integrado en la App)',
+                                : 'Base3_v1.16.0.epub (Integrado en la App)',
                             style: const TextStyle(color: Color(0xFFCDD6F4), fontSize: 11, fontFamily: 'monospace'),
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -992,7 +993,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     children: [
                       Expanded(
                         child: Text(
-                          hayBase ? _rutaBaseEpub : 'Base3_v1.15.0.epub (Integrado en la App)',
+                          hayBase ? _rutaBaseEpub : 'Base3_v1.16.0.epub (Integrado en la App)',
                           style: TextStyle(
                             color: hayBase ? const Color(0xFF89B4FA) : const Color(0xFFA6E3A1),
                             fontSize: 11,

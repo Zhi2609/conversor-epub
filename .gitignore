@@ -29,6 +29,7 @@ temp_*.py
 temp_*.md
 temp_md.md
 *.tmp
+/*.epub
 
 # Editores y Sistemas Operativos
 .vscode/

@@ -39,7 +39,6 @@ class PanelSecciones extends StatelessWidget {
       case SectionKind.colophon:
         return const Color(0xFFA6ADC8);
       case SectionKind.tocVisual:
-      case SectionKind.tocList:
       case SectionKind.tocNav:
         return const Color(0xFF94E2D5);
       case SectionKind.prologue:

@@ -57,8 +57,8 @@ void main() {
           contenidoHtml: '<html><body><section><h1>Capítulo 2</h1><p>Texto C02</p></section></body></html>',
         ),
         const ArchivoEpubEntrada(
-          nombre: 'contenido-2.xhtml',
-          contenidoHtml: '<html><body><section><h1>Contenido</h1></section></body></html>',
+          nombre: 'contenido.xhtml',
+          contenidoHtml: '<html><body><section><div class="duo"><img src="../Images/toc.jpg" alt="toc"/></div></section></body></html>',
         ),
       ];
 
@@ -84,19 +84,23 @@ void main() {
       final mimetypeContent = utf8.decode(archive.files.first.content);
       expect(mimetypeContent, equals('application/epub+zip'));
 
-      // 2. Section0001/Section0002 deben haber sido eliminados
+      // 2. Section000X o capitulo0X deben haber sido eliminados
       final nombresArchivos = archive.files.map((f) => f.name).toList();
       expect(nombresArchivos.any((n) => n.contains('Section0001')), isFalse);
       expect(nombresArchivos.any((n) => n.contains('Section0002')), isFalse);
+      expect(nombresArchivos.any((n) => n.contains('capitulo01')), isFalse);
+      expect(nombresArchivos.any((n) => n.contains('capitulo02')), isFalse);
 
       // 3. Prologo y notas eliminados porque no se incluyeron en el libro
       expect(nombresArchivos.any((n) => n.contains('prologo.xhtml')), isFalse);
       expect(nombresArchivos.any((n) => n.contains('notas.xhtml')), isFalse);
 
-      // 4. C01, C02 y contenido-2 están presentes en OEBPS/Text/
+      // 4. C01, C02 y contenido están presentes en OEBPS/Text/ (contenido-2 y creditos eliminados)
       expect(nombresArchivos, contains('OEBPS/Text/C01.xhtml'));
       expect(nombresArchivos, contains('OEBPS/Text/C02.xhtml'));
-      expect(nombresArchivos, contains('OEBPS/Text/contenido-2.xhtml'));
+      expect(nombresArchivos, contains('OEBPS/Text/contenido.xhtml'));
+      expect(nombresArchivos, isNot(contains('OEBPS/Text/contenido-2.xhtml')));
+      expect(nombresArchivos, isNot(contains('OEBPS/Text/creditos.xhtml')));
 
       // 5. content.opf tiene el UUID nuevo y spine correcto
       final opfFile = archive.findFile('OEBPS/content.opf');
@@ -107,9 +111,11 @@ void main() {
       expect(opfContent, contains('<item id="C01.xhtml" href="Text/C01.xhtml"'));
       expect(opfContent, contains('<item id="C02.xhtml" href="Text/C02.xhtml"'));
       expect(opfContent, isNot(contains('Section0001.xhtml')));
-      expect(opfContent, isNot(contains('Section0002.xhtml')));
+      expect(opfContent, isNot(contains('capitulo01.xhtml')));
       expect(opfContent, isNot(contains('prologo.xhtml')));
       expect(opfContent, isNot(contains('notas.xhtml')));
+      expect(opfContent, isNot(contains('contenido-2.xhtml')));
+      expect(opfContent, isNot(contains('creditos.xhtml')));
 
       // Spine contiene C01 y C02
       expect(opfContent, contains('<itemref idref="C01.xhtml"/>'));

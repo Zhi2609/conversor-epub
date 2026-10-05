@@ -19,8 +19,7 @@ enum SectionKind {
   titlePage('Página de título', BookMatter.front, 'titulo.xhtml'),
   credits('Créditos', BookMatter.front, 'creditos.xhtml'),
   logos('Logos editoriales', BookMatter.front, 'logos.xhtml'),
-  tocVisual('Índice visual', BookMatter.front, 'contenido-1.xhtml'),
-  tocList('Tabla de contenido', BookMatter.front, 'contenido-2.xhtml'),
+  tocVisual('Índice visual', BookMatter.front, 'contenido.xhtml'),
   epigraph('Epígrafe', BookMatter.front, 'epigrafe.xhtml'),
   preface('Prefacio', BookMatter.front, 'prefacio.xhtml'),
   notice('Advertencia', BookMatter.front, 'aviso.xhtml'),
@@ -145,16 +144,14 @@ List<SectionItem> convertirResultadoASecciones(
 
   // Posición 2: Sinopsis
   final tieneSinopsis = sinopsisTexto != null && sinopsisTexto.trim().isNotEmpty;
-  final htmlSinopsisDefault = '''<blockquote class="aviso">
-  <p class="grande centrado"><b>Advertencia:</b></p>
-  <p class="salto0">Esta novela contiene material y/o lenguaje que para algunos podría resultar ofensivo, explícito y vulgar, si usted es una persona sensible, se recomienda abstenerse de leerlo.</p>
+  final htmlSinopsisDefault = '''<blockquote class="warning">
+  <p class="large align-center"><b>Advertencia:</b></p>
+  <p class="space-0">Esta novela contiene material y/o lenguaje que para algunos podría resultar ofensivo, explícito y vulgar, si usted es una persona sensible, se recomienda abstenerse de leerlo.</p>
 </blockquote>
-<hr class="sigil_split_marker"/>
+<hr class="transition"/>
 <!-- Borrar todo lo anterior si no se requiere -->
-<header>
-  <h1 class="sigil_not_in_toc">Sinopsis</h1>
-</header>
-<p>${tieneSinopsis ? sinopsisTexto : 'Aquí va el contenido de la sinopsis...'}</p>''';
+<h1 class="sigil_not_in_toc" id="encabezado">Sinopsis</h1>
+<p class="no-indent">${tieneSinopsis ? sinopsisTexto : 'Aquí va el contenido de la sinopsis...'}</p>''';
 
   secciones.add(SectionItem(
     id: 'sec_synopsis',
@@ -201,18 +198,7 @@ List<SectionItem> convertirResultadoASecciones(
     enabled: true,
   ));
 
-  // Posición 6: Créditos de traducción (creditos.xhtml)
-  secciones.add(SectionItem(
-    id: 'sec_credits',
-    kind: SectionKind.credits,
-    matter: BookMatter.front,
-    title: 'Créditos',
-    fileName: 'creditos.xhtml',
-    inToc: true,
-    enabled: true,
-  ));
-
-  // Posición 7: Logos editoriales (logos.xhtml)
+  // Posición 6: Logos editoriales (logos.xhtml)
   secciones.add(SectionItem(
     id: 'sec_logos',
     kind: SectionKind.logos,
@@ -223,29 +209,18 @@ List<SectionItem> convertirResultadoASecciones(
     enabled: true,
   ));
 
-  // Posición 8: Índice visual (contenido-1.xhtml)
+  // Posición 7: Índice visual (contenido.xhtml)
   secciones.add(SectionItem(
     id: 'sec_toc_visual',
     kind: SectionKind.tocVisual,
     matter: BookMatter.front,
     title: 'Índice visual',
-    fileName: 'contenido-1.xhtml',
+    fileName: 'contenido.xhtml',
     inToc: false,
     enabled: false,
   ));
 
-  // Posición 9: Tabla de contenido textual (contenido-2.xhtml)
-  secciones.add(SectionItem(
-    id: 'sec_toc_list',
-    kind: SectionKind.tocList,
-    matter: BookMatter.front,
-    title: 'Tabla de contenido',
-    fileName: 'contenido-2.xhtml',
-    inToc: true,
-    enabled: true,
-  ));
-
-  // Posición 10: Epígrafe (epigrafe.xhtml)
+  // Posición 9: Epígrafe (epigrafe.xhtml)
   secciones.add(SectionItem(
     id: 'sec_epigraph',
     kind: SectionKind.epigraph,

@@ -129,14 +129,14 @@ String formatearNota(Nota nota) {
   String archivo = nota.capArchivo ?? 'C${(nota.capNum ?? 1).toString().padLeft(2, '0')}.xhtml';
   String texto = _textoConImagenes(nota.texto, nota.num);
   
-  String div = '<div class="nota">\n'
+  String div = '<div class="note footnote nota">\n'
                ' <p id="nt$numFmt">\n'
                '   <a href="$archivo#rf$numFmt"><sup>❮$numFmt❯</sup> $texto</a>\n'
                ' </p>\n'
                '</div>';
                
   if (texto.contains('<img')) {
-    return '<hr class="sigil_split_marker" />\n$div\n<hr class="sigil_split_marker" />';
+    return '<hr class="transition" />\n$div\n<hr class="transition" />';
   }
   return div;
 }

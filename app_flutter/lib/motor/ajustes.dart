@@ -21,6 +21,10 @@ class AjustesApp {
     } catch (_) {}
 
     final candidatos = [
+      p.join(Directory.current.path, 'Base3_v1.16.0.epub'),
+      p.join(Directory.current.parent.path, 'Base3_v1.16.0.epub'),
+      p.join(Directory.current.path, 'assets', 'Base3_v1.16.0.epub'),
+      p.join(Directory.current.parent.path, 'assets', 'Base3_v1.16.0.epub'),
       p.join(Directory.current.path, 'Base3_v1.15.0.epub'),
       p.join(Directory.current.parent.path, 'Base3_v1.15.0.epub'),
       p.join(Directory.current.path, 'assets', 'Base3_v1.15.0.epub'),

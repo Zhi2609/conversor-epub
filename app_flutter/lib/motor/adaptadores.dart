@@ -197,9 +197,7 @@ Future<DocumentosResult> documentosMarkdown(String ruta) async {
     texto = texto.replaceAllMapped(_reImagen, (m) {
       String num = m.group(1)!;
       String nombre = num.isNotEmpty ? '${num.padLeft(2, '0')}.jpg' : '';
-      String html = '<hr class="sigil_split_marker" />\n'
-                    '    <figure class="dimg"><img src="../Images/$nombre" alt="" /></figure>\n'
-                    '    <hr class="sigil_split_marker" />';
+      String html = '<figure class="fill break-before break-after"><img src="../Images/$nombre" alt="" /></figure>';
       int indice = imagenes.length;
       imagenes.add(html);
       return '\x00IMG_$indice\x00';

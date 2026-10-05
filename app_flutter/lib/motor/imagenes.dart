@@ -1,6 +1,6 @@
-final String separadorXhtml = '<p class="hr centrado grande"><b>※ ・ ※ ・ ※</b></p>';
+final String separadorXhtml = '<p class="hr align-center large centrado grande"><b>※ ・ ※ ・ ※</b></p>';
 
-final _reImgPandocP = RegExp(r'<p[^>]*>\s*<img\b[^>]*src="[^"]*?image0*(\d+)\.[a-zA-Z]+"[^>]*>\s*</p>', caseSensitive: false);
+final _reImgPandocP = RegExp(r'<p[^>]*>\s*<img\b[^>]*src="[^"]*?(?:Images/|image0*)(\d+)\.[a-zA-Z]+"[^>]*>\s*</p>', caseSensitive: false);
 final _reImgPandoc = RegExp(r'<img\b[^>]*src="[^"]*?image0*(\d+)\.[a-zA-Z]+"[^>]*>', caseSensitive: false);
 final _reImagenTagP = RegExp(r'<p[^>]*>\s*\[IMAGEN\s*0*(\d+)\]\s*</p>', caseSensitive: false);
 final _reImagenTag = RegExp(r'\[IMAGEN\s*0*(\d+)\]', caseSensitive: false);
@@ -10,13 +10,11 @@ final _reSeparador = RegExp(r'\[(?:HR|SEPARADOR)\]', caseSensitive: false);
 String _reemplazoImagen(Match match) {
   int num = int.parse(match.group(1)!);
   String numFmt = num.toString().padLeft(2, '0');
-  return '<hr class="sigil_split_marker" />\n'
-      '<figure class="dimg"><img src="../Images/$numFmt.jpg" alt=""/></figure>\n'
-      '<hr class="sigil_split_marker" />';
+  return '<figure class="fill break-before break-after"><img src="../Images/$numFmt.jpg" alt=""/></figure>';
 }
 
 final _reHrDuplicados = RegExp(
-  r'(<hr\s+class="sigil_split_marker"\s*/?>)(\s*(?:<!--.*?-->\s*)*<hr\s+class="sigil_split_marker"\s*/?>)+',
+  r'(<hr\s+class="[^"]*"\s*/?>)(\s*(?:<!--.*?-->\s*)*<hr\s+class="[^"]*"\s*/?>)+',
   caseSensitive: false,
 );
 
@@ -28,6 +26,20 @@ final _reFiguraImg = RegExp(
   r'<figure[^>]*>\s*<img\b[^>]*src="[^"]*?(?:Images/|image0*)(\d+)\.[a-zA-Z]+"[^>]*>\s*</figure>',
   caseSensitive: false,
 );
+
+final _reFiguraExistente = RegExp(
+  r'<figure\b([^>]*)>\s*(<img\b[^>]*>)\s*</figure>',
+  caseSensitive: false,
+  dotAll: true,
+);
+
+String _normalizarFigura(Match match) {
+  final attrs = match.group(1) ?? '';
+  final img = match.group(2)!;
+  final idMatch = RegExp(r'\bid="([^"]*)"', caseSensitive: false).firstMatch(attrs);
+  final idAttr = idMatch != null ? ' id="${idMatch.group(1)}"' : '';
+  return '<figure class="fill break-before break-after"$idAttr>$img</figure>';
+}
 
 String? extraerPrimeraImagen(String html) {
   final match = _reFiguraImg.firstMatch(html);
@@ -60,6 +72,7 @@ ProcesarResult procesarImagenes(String html) {
   html = html.replaceAllMapped(_reImgPandoc, reemplazo);
   html = html.replaceAllMapped(_reImagenTagP, reemplazo);
   html = html.replaceAllMapped(_reImagenTag, reemplazo);
+  html = html.replaceAllMapped(_reFiguraExistente, _normalizarFigura);
   html = limpiarHrDuplicados(html);
   return (html: html, count: contador);
 }

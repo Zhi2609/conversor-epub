@@ -332,6 +332,16 @@ void main() {
       expect(imgProc.count, 2);
     });
 
+    test('procesarImagenes genera y normaliza imagenes con clase fill break-before break-after preservando id', () {
+      final imgProc = procesarImagenes('<p>[IMAGEN 7]</p>');
+      expect(imgProc.html, contains('<figure class="fill break-before break-after"><img src="../Images/07.jpg" alt=""/></figure>'));
+      expect(imgProc.count, 1);
+
+      const htmlExistente = '<figure class="dimg" id="C01_0001"><img src="../Images/05.jpg" alt=""/></figure>';
+      final normalizado = procesarImagenes(htmlExistente);
+      expect(normalizado.html, contains('<figure class="fill break-before break-after" id="C01_0001"><img src="../Images/05.jpg" alt=""/></figure>'));
+    });
+
     test('renderCapitulo con tituloEsImagen false limpia comentario de figure', () {
       const template = '''
 <section epub:type="chapter" role="doc-chapter" id="chapter">
