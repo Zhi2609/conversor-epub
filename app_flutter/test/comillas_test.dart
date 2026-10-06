@@ -6,6 +6,7 @@ import 'package:conversor_epub/motor/render.dart';
 import 'package:conversor_epub/motor/modelo.dart';
 import 'package:conversor_epub/motor/imagenes.dart';
 import 'package:conversor_epub/motor/division.dart';
+import 'package:conversor_epub/motor/notas.dart';
 
 void main() {
   group('TestComillasCanonicas', () {
@@ -247,7 +248,7 @@ void main() {
 
       expect(toc.contains('<body xml:lang="es" lang="es" epub:type="frontmatter">'), isTrue);
       expect(toc.contains('<section epub:type="toc" role="doc-toc" id="toc" aria-label="Contenido">'), isTrue);
-      expect(toc.contains('<h1 class="oculto sigil_not_in_toc" title="Contenido"></h1>'), isTrue);
+      expect(toc.contains(RegExp(r'<h1 class="(?:oculto|hidden) sigil_not_in_toc" title="Contenido"></h1>')), isTrue);
       expect(toc.contains('<div class="nivel-1">\n      <a href="prologo_01.xhtml">Prólogo I: Expulsión</a>\n    </div>'), isTrue);
       expect(toc.contains('<div class="nivel-1">\n      <a href="C01.xhtml">Capítulo 1: De Encantador a Espadachín</a>\n    </div>'), isTrue);
       expect(toc.contains('<div class="nivel-1">\n      <a href="interludio_01.xhtml">Interludio 1: El Nuevo Grupo del Héroe</a>\n    </div>'), isTrue);
@@ -340,6 +341,41 @@ void main() {
       const htmlExistente = '<figure class="dimg" id="C01_0001"><img src="../Images/05.jpg" alt=""/></figure>';
       final normalizado = procesarImagenes(htmlExistente);
       expect(normalizado.html, contains('<figure class="fill break-before break-after" id="C01_0001"><img src="../Images/05.jpg" alt=""/></figure>'));
+    });
+
+    test('procesarSeparadores genera y normaliza separadores con clase text align-center large', () {
+      final sepProc = procesarSeparadores('<p>[HR]</p>\n<p>[SEPARADOR]</p>');
+      expect(sepProc.html, contains('<p class="text align-center large"><b>※ ・ ※ ・ ※</b></p>'));
+      expect(sepProc.count, 2);
+
+      const sepLegacy = '<p class="hr align-center large centrado grande"><b>※ ・ ※ ・ ※</b></p>';
+      final sepNormalizado = procesarSeparadores(sepLegacy);
+      expect(sepNormalizado.html, equals('<p class="text align-center large"><b>※ ・ ※ ・ ※</b></p>'));
+
+      const sepDiamantes = '<p class="hr align-center large"><b>◇ ・ ◇ ・ ◇</b></p>';
+      final sepDiamantesNorm = procesarSeparadores(sepDiamantes);
+      expect(sepDiamantesNorm.html, equals('<p class="text align-center large"><b>◇ ・ ◇ ・ ◇</b></p>'));
+    });
+
+    test('limpiarTextoHtml normaliza estilos y clases obsoletas a align-center y large', () {
+      final res = limpiarTextoHtml('<p style="text-align: center;">Texto centrado</p><p class="centrado">Otro</p><p class="grande">Grande</p>');
+      expect(res, contains('class="align-center"'));
+      expect(res, contains('class="large"'));
+      expect(res.contains('class="centrado"'), isFalse);
+      expect(res.contains('class="grande"'), isFalse);
+    });
+
+    test('formatearNota y formatearLlamada generan aside.note con semántica EPUB 3', () {
+      final llamada = formatearLlamada(1);
+      expect(llamada, contains('epub:type="noteref"'));
+      expect(llamada, contains('role="doc-noteref"'));
+
+      final nota = Nota(num: 1, texto: 'Explicación del juego de palabras.', capNum: 2, capArchivo: 'C02.xhtml');
+      final notaHtml = formatearNota(nota);
+      expect(notaHtml, contains('<aside class="note" epub:type="endnote" id="nt01">'));
+      expect(notaHtml, contains('<a href="C02.xhtml#rf01" role="doc-backlink"><sup>❮01❯</sup></a>'));
+      expect(notaHtml.contains('footnote'), isFalse);
+      expect(notaHtml.contains('nota'), isFalse);
     });
 
     test('renderCapitulo con tituloEsImagen false limpia comentario de figure', () {

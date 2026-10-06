@@ -1,6 +1,8 @@
 import 'dart:math';
 import 'package:path/path.dart' as p;
 
+export 'lector_epub_metadatos.dart';
+
 final _random = Random.secure();
 
 /// Escapa caracteres especiales reservados en XML/XHTML.
@@ -297,6 +299,28 @@ class BookMetadata {
     );
   }
 
+  /// Valor numérico puro para índices de colección y Calibre (sin ceros de relleno):
+  /// ej: "02" -> "2", "2" -> "2", "10" -> "10", "2.5" -> "2.5"
+  String get volumeIndex {
+    final limpio = volume.trim().replaceAll(RegExp(r'^[Vv]ol(?:umen|\.?)?\s*', caseSensitive: false), '').trim();
+    if (limpio.isEmpty) return '1';
+    final n = int.tryParse(limpio);
+    if (n != null) return n.toString();
+    final d = double.tryParse(limpio);
+    if (d != null) return d.toString().replaceFirst(RegExp(r'\.0$'), '');
+    return limpio;
+  }
+
+  /// Valor formateado con padding de dos dígitos para títulos, encabezados y nombres de archivo:
+  /// ej: "2" -> "02", "02" -> "02", "10" -> "10"
+  String get volumePadded {
+    final limpio = volume.trim().replaceAll(RegExp(r'^[Vv]ol(?:umen|\.?)?\s*', caseSensitive: false), '').trim();
+    if (limpio.isEmpty) return '01';
+    final n = int.tryParse(limpio);
+    if (n != null) return n.toString().padLeft(2, '0');
+    return limpio;
+  }
+
   /// Título de la novela en español efectivo (para portada, título.xhtml y archivo generado)
   String get effectiveTitleSpanish =>
       [titleSpanish, title, series].firstWhere((t) => t.trim().isNotEmpty, orElse: () => 'Novela').trim();
@@ -309,8 +333,9 @@ class BookMetadata {
         ? titleJapanese.trim()
         : effectiveTitleSpanish;
     if (volume.isNotEmpty) {
-      if (!RegExp(r'-\s*Vol(?:umen|\.?)?\s*' + RegExp.escape(volume), caseSensitive: false).hasMatch(baseTitle)) {
-        return '$baseTitle - Volumen $volume';
+      if (!RegExp(r'-\s*Vol(?:umen|\.?)?\s*' + RegExp.escape(volumePadded), caseSensitive: false).hasMatch(baseTitle) &&
+          !RegExp(r'-\s*Vol(?:umen|\.?)?\s*' + RegExp.escape(volumeIndex), caseSensitive: false).hasMatch(baseTitle)) {
+        return '$baseTitle - Volumen $volumePadded';
       }
     }
     return baseTitle;
@@ -337,12 +362,7 @@ class BookMetadata {
     String nombre = effectiveTitleSpanish;
     nombre = nombre.replaceAll(RegExp(r'\s*\[[^\]]+\]\s*$'), '').trim();
 
-    String volStr = 'V01';
-    final volLimpio = volume.trim().replaceAll(RegExp(r'^[Vv]ol(?:umen|\.?)?\s*', caseSensitive: false), '').trim();
-    if (volLimpio.isNotEmpty) {
-      final n = int.tryParse(volLimpio);
-      volStr = n != null ? 'V${n.toString().padLeft(2, '0')}' : 'V$volLimpio';
-    }
+    final volStr = 'V$volumePadded';
 
     final tag = groupTag.trim().isNotEmpty
         ? groupTag.trim().replaceAll(RegExp(r'^\[|\]$'), '')

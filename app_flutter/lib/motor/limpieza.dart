@@ -2,7 +2,26 @@ import 'dart:core';
 
 final _reRestaurarHtml = RegExp(r'&lt;(/?)(p|b|i|hr|br|div|span)([^&]*)&gt;');
 final _reSpanBasura = RegExp(r'<span\b[^>]*(?:class|style|id)="[^"]*"[^>]*>');
-final _reAtributosBasura = RegExp(r'\s(?:id(?!=["' "'" r']rf\d+")|style|class(?!=["' "'" r']mistico))="[^"]*"');
+final _reClassAttr = RegExp(r'\sclass="([^"]*)"');
+final _reStyleAttr = RegExp(r'\sstyle="[^"]*"');
+final _reIdJunkAttr = RegExp(r'\sid(?!=["' "'" r']rf\d+)="[^"]*"');
+
+const _clasesPermitidas = {
+  'mistico', 'mystic',
+  'align-center', 'align-left', 'align-right',
+  'large', 'small',
+  'text', 'fill',
+  'break-before', 'break-after',
+  'no-indent', 'warning',
+  'sigil_not_in_toc', 'hidden',
+};
+
+String _filtrarClases(Match m) {
+  final clases = m.group(1)!.trim().split(RegExp(r'\s+'));
+  final filtradas = clases.where((c) => _clasesPermitidas.contains(c)).toList();
+  if (filtradas.isEmpty) return '';
+  return ' class="${filtradas.join(' ')}"';
+}
 final _reDirLtr = RegExp(r'\sdir="ltr"');
 final _reLangEs = RegExp(r'\slang="es"');
 final _reVacioBI = RegExp(r'<(b|i)></\1>');
@@ -176,12 +195,16 @@ String _alinearComillasYEtiquetas(String html) {
 
 String _eliminarBasura(String html) {
   html = html.replaceAll(_reColgroup, '');
-  html = html.replaceAll(_reStyleCenter, ' class="centrado"');
+  html = html.replaceAll(_reStyleCenter, ' class="align-center"');
+  html = html.replaceAll(RegExp(r'\bclass="centrado"'), 'class="align-center"');
+  html = html.replaceAll(RegExp(r'\bclass="grande"'), 'class="large"');
   html = html.replaceAll(_reSpanBasura, '');
   html = html.replaceAll('</span>', '');
   html = html.replaceAll(_reDirLtr, '');
   html = html.replaceAll(_reLangEs, '');
-  html = html.replaceAll(_reAtributosBasura, '');
+  html = html.replaceAll(_reIdJunkAttr, '');
+  html = html.replaceAll(_reStyleAttr, '');
+  html = html.replaceAllMapped(_reClassAttr, _filtrarClases);
   html = html.replaceAll(_reVacioBI, '');
   html = html.replaceAll(_reDivVacio, '');
   html = html.replaceAll(_reHVacio, '');

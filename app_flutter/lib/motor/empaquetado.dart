@@ -94,9 +94,8 @@ ResultadoEmpaquetado empaquetarEpub({
     archivos.removeWhere((k, _) => k.toLowerCase().endsWith('/$des') || k.toLowerCase().endsWith(des));
   }
 
-  // contenido-2.xhtml y creditos.xhtml se eliminan canónicamente de Base3 1.16+
+  // contenido-2.xhtml se elimina canónicamente de Base3 1.16+
   archivos.remove('OEBPS/Text/contenido-2.xhtml');
-  archivos.remove('OEBPS/Text/creditos.xhtml');
 
   // Eliminar de archivos base los especiales que no existen en el manuscrito
   if (!tienePrologo || deshabilitados.contains('prologo.xhtml')) {
@@ -361,7 +360,7 @@ ResultadoEmpaquetado empaquetarEpub({
         );
         opf = opf.replaceAll(
           RegExp(r'<(?:opf:)?meta\b[^>]*(?:property="group-position"[^>]*refines="#serie"|refines="#serie"[^>]*property="group-position")[^>]*>.*?</(?:opf:)?meta>', caseSensitive: false),
-          '<$prefijoMeta property="group-position" refines="#serie">${_escXml(metadatos.volume.isNotEmpty ? metadatos.volume : '1')}</$prefijoMeta>',
+          '<$prefijoMeta property="group-position" refines="#serie">${_escXml(metadatos.volumeIndex)}</$prefijoMeta>',
         );
         opf = opf.replaceAll(
           RegExp(r'<(?:opf:)?meta\b[^>]*(?:property="collection-type"[^>]*refines="#serie"|refines="#serie"[^>]*property="collection-type")[^>]*>.*?</(?:opf:)?meta>', caseSensitive: false),
@@ -373,7 +372,7 @@ ResultadoEmpaquetado empaquetarEpub({
         );
         opf = opf.replaceAll(
           RegExp(r'<(?:opf:)?meta\b[^>]*name="calibre:series_index"[^>]*/>', caseSensitive: false),
-          '<$prefijoMeta content="${_escXml(metadatos.volume.isNotEmpty ? metadatos.volume : '1')}" name="calibre:series_index"/>',
+          '<$prefijoMeta content="${_escXml(metadatos.volumeIndex)}" name="calibre:series_index"/>',
         );
       }
 
@@ -402,8 +401,7 @@ ResultadoEmpaquetado empaquetarEpub({
             item.contains('Section0002') ||
             item.contains('capitulo01.xhtml') ||
             item.contains('capitulo02.xhtml') ||
-            item.contains('contenido-2.xhtml') ||
-            item.contains('creditos.xhtml')) {
+            item.contains('contenido-2.xhtml')) {
           continue;
         }
         if ((!tienePrologo || deshabilitados.contains('prologo.xhtml')) && item.contains('prologo.xhtml')) continue;
@@ -464,7 +462,7 @@ ResultadoEmpaquetado empaquetarEpub({
       if (secciones != null) {
         final lineasSpine = <String>[];
         for (final s in secciones.where((s) => s.enabled)) {
-          if (s.fileName == 'contenido-2.xhtml' || s.fileName == 'creditos.xhtml') continue;
+          if (s.fileName == 'contenido-2.xhtml') continue;
           final idref = s.fileName;
           if (s.fileName == 'cubierta.xhtml') {
             lineasSpine.add('    <itemref idref="$idref" linear="yes"/>');
@@ -507,7 +505,7 @@ ResultadoEmpaquetado empaquetarEpub({
           continue;
         }
 
-        if (itemref.contains('contenido-2.xhtml') || itemref.contains('creditos.xhtml')) {
+        if (itemref.contains('contenido-2.xhtml')) {
           continue;
         }
 
@@ -588,7 +586,7 @@ ResultadoEmpaquetado empaquetarEpub({
         tituloHtml = tituloHtml.replaceRange(
           matchH2.start,
           matchH2.end,
-          '<h2 class="$clases"$extraAttrs>Volumen ${_escXml(metadatos.volume)}<br/><small>[$tipoLibro]</small></h2>',
+          '<h2 class="$clases"$extraAttrs>Volumen ${_escXml(metadatos.volumePadded)}<br/><small>[$tipoLibro]</small></h2>',
         );
       }
     }
@@ -722,13 +720,19 @@ $pTags
 
       if (secciones != null) {
         final itemsToc = <String>[];
+        final hrefsVistos = <String>{};
         for (final ent in entradasToc) {
+          final normHref = ent.archivo.split('#').first.toLowerCase();
+          if (normHref == 'toc.xhtml') continue;
+          if (hrefsVistos.contains(normHref)) continue;
+          hrefsVistos.add(normHref);
           itemsToc.add('      <li>\n        <a href="${ent.archivo}">${_escXml(ent.titulo)}</a>\n      </li>');
         }
         return '$prefix\n${itemsToc.join('\n')}\n    $suffix';
       }
 
-      final itemsFijos = <String>[];
+      final itemsToc = <String>[];
+      final hrefsVistos = <String>{};
       final reLi = RegExp(r'<li>\s*<a\b[^>]*href="([^"]*)"[^>]*>(.*?)</a>\s*</li>', dotAll: true, caseSensitive: false);
 
       for (final match in reLi.allMatches(olContenido)) {
@@ -745,16 +749,25 @@ $pTags
             href.contains('contenido-1.xhtml') ||
             href.contains('epigrafe.xhtml') ||
             href.contains('prefacio.xhtml')) {
-          itemsFijos.add('      <li>\n        <a href="$href">$texto</a>\n      </li>');
+          final normHref = href.split('#').first.toLowerCase();
+          // Si entradasToc ya incluye este archivo expresamente, priorizar entradasToc
+          if (entradasToc.any((e) => e.archivo.split('#').first.toLowerCase() == normHref)) continue;
+          if (hrefsVistos.contains(normHref)) continue;
+          hrefsVistos.add(normHref);
+          itemsToc.add('      <li>\n        <a href="$href">$texto</a>\n      </li>');
         }
       }
 
-      final itemsNarrativa = <String>[];
       for (final ent in entradasToc) {
-        itemsNarrativa.add('      <li>\n        <a href="${ent.archivo}">${ent.titulo}</a>\n      </li>');
+        final normHref = ent.archivo.split('#').first.toLowerCase();
+        if (deshabilitados.contains(normHref)) continue;
+        if (normHref == 'toc.xhtml') continue;
+        if (hrefsVistos.contains(normHref)) continue;
+        hrefsVistos.add(normHref);
+        itemsToc.add('      <li>\n        <a href="${ent.archivo}">${_escXml(ent.titulo)}</a>\n      </li>');
       }
 
-      return '$prefix\n${[...itemsFijos, ...itemsNarrativa].join('\n')}\n    $suffix';
+      return '$prefix\n${itemsToc.join('\n')}\n    $suffix';
     });
 
     // Actualizar nav landmarks ol
@@ -775,7 +788,10 @@ $pTags
             liCompleto.contains('epilogo.xhtml') ||
             liCompleto.contains('autor.xhtml') ||
             liCompleto.contains('traductor.xhtml') ||
-            liCompleto.contains('notas.xhtml')) {
+            liCompleto.contains('notas.xhtml') ||
+            liCompleto.contains('epub:type="toc"') ||
+            liCompleto.contains("epub:type='toc'") ||
+            liCompleto.contains('href="#toc"')) {
           continue;
         }
         if (deshabilitados.any((d) => liCompleto.toLowerCase().contains(d))) {
@@ -819,10 +835,25 @@ $pTags
         itemsLandmarks.add('      <li>\n        <a href="notas.xhtml" epub:type="endnotes">Notas</a>\n      </li>');
       }
 
-      // toc landmark
+      // Landmark de tabla de contenidos (único canónico según EPUB 3)
       itemsLandmarks.add('      <li>\n        <a href="#toc" epub:type="toc">Índice de contenido</a>\n      </li>');
 
-      return '$prefix\n${itemsLandmarks.join('\n')}\n    $suffix';
+      // Deduplicar landmarks por epub:type para garantizar que ningún tipo se repita
+      final landmarksDeduplicados = <String>[];
+      final tiposVistos = <String>{};
+      final reEpubType = RegExp(r'epub:type="([^"]+)"', caseSensitive: false);
+
+      for (final item in itemsLandmarks) {
+        final mType = reEpubType.firstMatch(item);
+        if (mType != null) {
+          final t = mType.group(1)!.toLowerCase();
+          if (tiposVistos.contains(t)) continue;
+          tiposVistos.add(t);
+        }
+        landmarksDeduplicados.add(item);
+      }
+
+      return '$prefix\n${landmarksDeduplicados.join('\n')}\n    $suffix';
     });
 
     archivos['OEBPS/Text/toc.xhtml'] = Uint8List.fromList(utf8.encode(toc));

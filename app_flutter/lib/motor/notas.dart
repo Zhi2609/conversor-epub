@@ -27,7 +27,7 @@ const archivoNotas = 'notas.xhtml';
 
 String formatearLlamada(int num) {
   String numFmt = num.toString().padLeft(2, '0');
-  return '<a href="$archivoNotas#nt$numFmt" id="rf$numFmt">'
+  return '<a href="$archivoNotas#nt$numFmt" id="rf$numFmt" epub:type="noteref" role="doc-noteref">'
          '<sup>❮$numFmt❯</sup></a>';
 }
 
@@ -129,14 +129,12 @@ String formatearNota(Nota nota) {
   String archivo = nota.capArchivo ?? 'C${(nota.capNum ?? 1).toString().padLeft(2, '0')}.xhtml';
   String texto = _textoConImagenes(nota.texto, nota.num);
   
-  String div = '<div class="note footnote nota">\n'
-               ' <p id="nt$numFmt">\n'
-               '   <a href="$archivo#rf$numFmt"><sup>❮$numFmt❯</sup> $texto</a>\n'
-               ' </p>\n'
-               '</div>';
-               
+  String aside = '<aside class="note" epub:type="endnote" id="nt$numFmt">\n'
+                 '  <p><a href="$archivo#rf$numFmt" role="doc-backlink"><sup>❮$numFmt❯</sup></a> $texto</p>\n'
+                 '</aside>';
+                 
   if (texto.contains('<img')) {
-    return '<hr class="transition" />\n$div\n<hr class="transition" />';
+    return '<hr class="transition" />\n$aside\n<hr class="transition" />';
   }
-  return div;
+  return aside;
 }

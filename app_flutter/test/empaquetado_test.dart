@@ -95,12 +95,12 @@ void main() {
       expect(nombresArchivos.any((n) => n.contains('prologo.xhtml')), isFalse);
       expect(nombresArchivos.any((n) => n.contains('notas.xhtml')), isFalse);
 
-      // 4. C01, C02 y contenido están presentes en OEBPS/Text/ (contenido-2 y creditos eliminados)
+      // 4. C01, C02 y contenido están presentes en OEBPS/Text/ (contenido-2 eliminado, creditos preservado)
       expect(nombresArchivos, contains('OEBPS/Text/C01.xhtml'));
       expect(nombresArchivos, contains('OEBPS/Text/C02.xhtml'));
       expect(nombresArchivos, contains('OEBPS/Text/contenido.xhtml'));
       expect(nombresArchivos, isNot(contains('OEBPS/Text/contenido-2.xhtml')));
-      expect(nombresArchivos, isNot(contains('OEBPS/Text/creditos.xhtml')));
+      expect(nombresArchivos, contains('OEBPS/Text/creditos.xhtml'));
 
       // 5. content.opf tiene el UUID nuevo y spine correcto
       final opfFile = archive.findFile('OEBPS/content.opf');
@@ -115,7 +115,7 @@ void main() {
       expect(opfContent, isNot(contains('prologo.xhtml')));
       expect(opfContent, isNot(contains('notas.xhtml')));
       expect(opfContent, isNot(contains('contenido-2.xhtml')));
-      expect(opfContent, isNot(contains('creditos.xhtml')));
+      expect(opfContent, contains('creditos.xhtml'));
 
       // Spine contiene C01 y C02
       expect(opfContent, contains('<itemref idref="C01.xhtml"/>'));
@@ -190,6 +190,50 @@ void main() {
 
       // Avisos: debe avisar que inexistente.jpg no existe
       expect(res.avisos.any((a) => a.contains('inexistente.jpg')), isTrue);
+    });
+
+    test('toc.xhtml no duplica referencias a toc ni a landmarks', () {
+      final bytesBase = File('assets/Base3_v1.16.0.epub').readAsBytesSync();
+      final res = empaquetarEpub(
+        bytesBaseEpub: bytesBase,
+        capitulosYEspeciales: [
+          const ArchivoEpubEntrada(nombre: 'C01.xhtml', contenidoHtml: '<p>Capítulo 1</p>'),
+        ],
+        ordenSpine: ['C01.xhtml'],
+        entradasToc: [
+          (archivo: 'contenido.xhtml', titulo: 'Tabla de Contenidos'),
+          (archivo: 'C01.xhtml', titulo: 'Capítulo 1'),
+        ],
+      );
+
+      final archive = ZipDecoder().decodeBytes(res.bytesEpub);
+      final tocFile = archive.findFile('OEBPS/Text/toc.xhtml');
+      expect(tocFile, isNotNull);
+      final tocContent = utf8.decode(tocFile!.content);
+
+      // 1. En landmarks debe haber exactamente una referencia a #toc y una con epub:type="toc"
+      final matchLandmarks = RegExp(r'<nav\b[^>]*id="landmarks"[^>]*>.*?</nav>', dotAll: true, caseSensitive: false).firstMatch(tocContent);
+      expect(matchLandmarks, isNotNull);
+      final landmarksHtml = matchLandmarks!.group(0)!;
+
+      final countTocHref = RegExp(r'href="#toc"').allMatches(landmarksHtml).length;
+      expect(countTocHref, equals(1), reason: 'No debe haber más de un enlace href="#toc" en landmarks');
+
+      final countTocType = RegExp(r'epub:type="toc"').allMatches(landmarksHtml).length;
+      expect(countTocType, equals(1), reason: 'No debe haber más de un landmark con epub:type="toc"');
+
+      // 2. En nav toc no debe haber entradas duplicadas para contenido.xhtml
+      final matchNavToc = RegExp(r'<nav\b[^>]*id="toc"[^>]*>.*?</nav>', dotAll: true, caseSensitive: false).firstMatch(tocContent);
+      expect(matchNavToc, isNotNull);
+      final navTocHtml = matchNavToc!.group(0)!;
+
+      final countContenido = RegExp(r'href="contenido\.xhtml"').allMatches(navTocHtml).length;
+      expect(countContenido, equals(1), reason: 'contenido.xhtml no debe duplicarse en nav toc');
+
+      // 3. No debe haber ningún landmark con tipo repetido
+      final tiposLandmarks = RegExp(r'epub:type="([^"]+)"').allMatches(landmarksHtml).map((m) => m.group(1)!).toList();
+      final setTipos = tiposLandmarks.toSet();
+      expect(tiposLandmarks.length, equals(setTipos.length), reason: 'Cada epub:type en landmarks debe ser único');
     });
   });
 }

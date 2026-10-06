@@ -33,20 +33,21 @@ void main() {
 
       final secciones = convertirResultadoASecciones(resultado, sinopsisTexto: 'Esta es la sinopsis.');
 
-      // Front: 9 preliminares canónicos de Base 0.16.0 (sin creditos.xhtml ni contenido-2.xhtml)
+      // Front: 10 preliminares canónicos de Base (con creditos.xhtml, sin contenido-2.xhtml)
       final front = secciones.where((s) => s.matter == BookMatter.front).toList();
-      expect(front.length, 9);
+      expect(front.length, 10);
       expect(front[0].kind, SectionKind.cover);
       expect(front[1].kind, SectionKind.synopsis);
       expect(front[1].enabled, isTrue);
       expect(front[2].kind, SectionKind.illustrations);
       expect(front[3].kind, SectionKind.authorProfile);
       expect(front[4].kind, SectionKind.titlePage);
-      expect(front[5].kind, SectionKind.logos);
-      expect(front[6].kind, SectionKind.tocVisual);
-      expect(front[6].fileName, 'contenido.xhtml');
-      expect(front[7].kind, SectionKind.epigraph);
-      expect(front[8].kind, SectionKind.preface);
+      expect(front[5].kind, SectionKind.credits);
+      expect(front[6].kind, SectionKind.logos);
+      expect(front[7].kind, SectionKind.tocVisual);
+      expect(front[7].fileName, 'contenido.xhtml');
+      expect(front[8].kind, SectionKind.epigraph);
+      expect(front[9].kind, SectionKind.preface);
 
       // Body: Prólogo, Capítulo 1, Capítulo 2
       final body = secciones.where((s) => s.matter == BookMatter.body).toList();

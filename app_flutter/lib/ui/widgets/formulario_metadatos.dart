@@ -1,4 +1,7 @@
+import 'dart:io';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:path/path.dart' as p;
 import '../../motor/metadatos.dart';
 
 class FormularioMetadatos extends StatefulWidget {
@@ -222,6 +225,46 @@ class _FormularioMetadatosState extends State<FormularioMetadatos> {
     }
   }
 
+  Future<void> _importarDesdeEpubAnterior() async {
+    final res = await FilePicker.platform.pickFiles(
+      dialogTitle: 'Selecciona el ePub del volumen anterior',
+      type: FileType.custom,
+      allowedExtensions: ['epub'],
+    );
+    if (res == null || res.files.isEmpty || res.files.first.path == null) return;
+    try {
+      final file = File(res.files.first.path!);
+      final bytes = file.readAsBytesSync();
+      final metaImportada = extraerMetadatosDeEpub(bytes, incrementarVolumen: true);
+      _disposeControllers();
+      _initControllers(metaImportada);
+      _actualizar(metaImportada);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: const Color(0xFF1E1E2E),
+            content: Text(
+              '✅ Metadatos importados de "${p.basename(file.path)}". Volumen sugerido: ${metaImportada.volume}',
+              style: const TextStyle(color: Color(0xFFA6E3A1), fontWeight: FontWeight.bold),
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: const Color(0xFF313244),
+            content: Text(
+              '⚠️ Error al leer el ePub: $e',
+              style: const TextStyle(color: Color(0xFFF38BA8)),
+            ),
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final meta = widget.metadatos;
@@ -264,6 +307,20 @@ class _FormularioMetadatosState extends State<FormularioMetadatos> {
                     ),
                   ],
                 ),
+              ),
+              const SizedBox(width: 12),
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF89B4FA).withValues(alpha: 0.18),
+                  foregroundColor: const Color(0xFF89B4FA),
+                  side: const BorderSide(color: Color(0xFF89B4FA), width: 0.8),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  elevation: 0,
+                ),
+                onPressed: _importarDesdeEpubAnterior,
+                icon: const Icon(Icons.file_open_outlined, size: 16),
+                label: const Text('Importar de ePub previo', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
               ),
             ],
           ),

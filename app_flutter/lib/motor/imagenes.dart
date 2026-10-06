@@ -1,11 +1,11 @@
-final String separadorXhtml = '<p class="hr align-center large centrado grande"><b>※ ・ ※ ・ ※</b></p>';
+final String separadorXhtml = '<p class="text align-center large"><b>※ ・ ※ ・ ※</b></p>';
 
 final _reImgPandocP = RegExp(r'<p[^>]*>\s*<img\b[^>]*src="[^"]*?(?:Images/|image0*)(\d+)\.[a-zA-Z]+"[^>]*>\s*</p>', caseSensitive: false);
 final _reImgPandoc = RegExp(r'<img\b[^>]*src="[^"]*?image0*(\d+)\.[a-zA-Z]+"[^>]*>', caseSensitive: false);
-final _reImagenTagP = RegExp(r'<p[^>]*>\s*\[IMAGEN\s*0*(\d+)\]\s*</p>', caseSensitive: false);
-final _reImagenTag = RegExp(r'\[IMAGEN\s*0*(\d+)\]', caseSensitive: false);
-final _reSeparadorP = RegExp(r'<p[^>]*>\s*\[(?:HR|SEPARADOR)\]\s*</p>', caseSensitive: false);
-final _reSeparador = RegExp(r'\[(?:HR|SEPARADOR)\]', caseSensitive: false);
+final _reImagenTagP = RegExp(r'<p[^>]*>\s*\[(?:IMAGEN|ILUSTRACI[OÓ]N|ILU)\s*0*(\d+)\]\s*</p>', caseSensitive: false);
+final _reImagenTag = RegExp(r'\[(?:IMAGEN|ILUSTRACI[OÓ]N|ILU)\s*0*(\d+)\]', caseSensitive: false);
+final _reSeparadorP = RegExp(r'<p[^>]*>\s*\[(?:HR|SEPARADOR|ESCENA)\]\s*</p>', caseSensitive: false);
+final _reSeparador = RegExp(r'\[(?:HR|SEPARADOR|ESCENA)\]', caseSensitive: false);
 
 String _reemplazoImagen(Match match) {
   int num = int.parse(match.group(1)!);
@@ -77,6 +77,11 @@ ProcesarResult procesarImagenes(String html) {
   return (html: html, count: contador);
 }
 
+final _reSeparadorExistente = RegExp(
+  r'<p\s+class="[^"]*(?:hr|centrado|grande)[^"]*">\s*(<b>\s*(?:[※†◇■*•]\s*・\s*[※†◇■*•]\s*・\s*[※†◇■*•]|\*\s*\*\s*\*)\s*</b>)\s*</p>',
+  caseSensitive: false,
+);
+
 ProcesarResult procesarSeparadores(String html) {
   int contador = 0;
   String reemplazo(Match m) {
@@ -85,5 +90,8 @@ ProcesarResult procesarSeparadores(String html) {
   }
   html = html.replaceAllMapped(_reSeparadorP, reemplazo);
   html = html.replaceAllMapped(_reSeparador, reemplazo);
+  html = html.replaceAllMapped(_reSeparadorExistente, (m) {
+    return '<p class="text align-center large">${m.group(1)}</p>';
+  });
   return (html: html, count: contador);
 }

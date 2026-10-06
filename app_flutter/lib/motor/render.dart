@@ -192,7 +192,7 @@ String renderTablaContenidos(List<Chapter> capitulos, List<String> titulos) {
   buffer.writeln('');
   buffer.writeln('<body xml:lang="es" lang="es" epub:type="frontmatter">');
   buffer.writeln('<section epub:type="toc" role="doc-toc" id="toc" aria-label="Contenido">');
-  buffer.writeln('  <h1 class="oculto sigil_not_in_toc" title="Contenido"></h1>');
+  buffer.writeln('  <h1 class="hidden sigil_not_in_toc" title="Contenido"></h1>');
 
   for (int i = 0; i < capitulos.length; i++) {
     final archivo = capitulos[i].archivo ?? 'C${(i + 1).toString().padLeft(2, '0')}.xhtml';

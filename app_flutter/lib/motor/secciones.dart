@@ -198,7 +198,18 @@ List<SectionItem> convertirResultadoASecciones(
     enabled: true,
   ));
 
-  // Posición 6: Logos editoriales (logos.xhtml)
+  // Posición 6: Créditos (creditos.xhtml)
+  secciones.add(SectionItem(
+    id: 'sec_credits',
+    kind: SectionKind.credits,
+    matter: BookMatter.front,
+    title: 'Créditos',
+    fileName: 'creditos.xhtml',
+    inToc: false,
+    enabled: true,
+  ));
+
+  // Posición 7: Logos editoriales (logos.xhtml)
   secciones.add(SectionItem(
     id: 'sec_logos',
     kind: SectionKind.logos,

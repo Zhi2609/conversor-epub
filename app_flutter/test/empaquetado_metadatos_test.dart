@@ -162,6 +162,7 @@ void main() {
         'cubierta.xhtml',
         'sinopsis.xhtml',
         'titulo.xhtml',
+        'creditos.xhtml',
         'logos.xhtml',
         'prologo.xhtml',
         'C01.xhtml',
@@ -391,8 +392,8 @@ void main() {
       // belongs-to-collection y calibre:series tienen inglés
       expect(opf.contains('<meta id="serie" property="belongs-to-collection">The Devil Princess [NL]</meta>'), isTrue);
       expect(opf.contains('<meta content="The Devil Princess [NL]" name="calibre:series"/>'), isTrue);
-      expect(opf.contains('<meta property="group-position" refines="#serie">01</meta>'), isTrue);
-      expect(opf.contains('<meta content="01" name="calibre:series_index"/>'), isTrue);
+      expect(opf.contains('<meta property="group-position" refines="#serie">1</meta>'), isTrue);
+      expect(opf.contains('<meta content="1" name="calibre:series_index"/>'), isTrue);
       // dc:date está actualizado
       expect(opf.contains('<dc:date>2018-10-31T00:00:00Z</dc:date>'), isTrue);
 
@@ -486,11 +487,11 @@ void main() {
       expect(css.contains('.gp-warning'), isTrue);
       expect(css.contains('.gp-gold-info'), isTrue);
 
-      // 3. content.opf usa <opf:meta>
+      // 3. content.opf usa metadatos de serie y alternate-script
       final opf = utf8.decode(mapArchivos['OEBPS/content.opf']!);
       expect(opf.contains('property="alternate-script"') && opf.contains('refines="#creator01"') && opf.contains('むらさきゆきや'), isTrue);
-      expect(opf.contains('<opf:meta id="serie" property="belongs-to-collection">How NOT to Summon a Demon Lord [NL]</opf:meta>'), isTrue);
-      expect(opf.contains('<opf:meta content="How NOT to Summon a Demon Lord [NL]" name="calibre:series"/>'), isTrue);
+      expect(RegExp(r'<(?:opf:)?meta id="serie" property="belongs-to-collection">How NOT to Summon a Demon Lord \[NL\]</(?:opf:)?meta>').hasMatch(opf), isTrue);
+      expect(RegExp(r'<(?:opf:)?meta content="How NOT to Summon a Demon Lord \[NL\]" name="calibre:series"/>').hasMatch(opf), isTrue);
 
       // 4. titulo.xhtml tiene estructura 1.16 (subtitle y role="doc-subtitle")
       final titulo = utf8.decode(mapArchivos['OEBPS/Text/titulo.xhtml']!);
@@ -523,6 +524,70 @@ void main() {
       final logos = utf8.decode(mapArchivos['OEBPS/Text/logos.xhtml']!);
       expect(logos.contains('src="../Images/grupo.png"'), isTrue);
       expect(logos.contains('src="../Images/zeepubs.png"'), isTrue);
+
+      // 7. Base 1.16 contiene y preserva creditos.xhtml y creditos.jpg
+      expect(mapArchivos.containsKey('OEBPS/Text/creditos.xhtml'), isTrue);
+      expect(mapArchivos.containsKey('OEBPS/Images/creditos.jpg'), isTrue);
+      final creditosHtml = utf8.decode(mapArchivos['OEBPS/Text/creditos.xhtml']!);
+      expect(creditosHtml.contains('src="../Images/creditos.jpg"'), isTrue);
+      expect(creditosHtml.contains('epub:type="other-credits"'), isTrue);
+      expect(creditosHtml.contains('role="doc-credits"'), isTrue);
+      expect(creditosHtml.contains('class="space-3"'), isTrue);
+
+      // 8. content.opf registra creditos en manifest y spine
+      expect(opf.contains('<item id="creditos.xhtml" href="Text/creditos.xhtml" media-type="application/xhtml+xml"/>'), isTrue);
+      expect(opf.contains('<item id="creditos.jpg" href="Images/creditos.jpg" media-type="image/jpeg"/>'), isTrue);
+      expect(opf.contains('<itemref idref="creditos.xhtml"/>'), isTrue);
+
+      // 9. toc.xhtml registra creditos en landmarks
+      final toc = utf8.decode(mapArchivos['OEBPS/Text/toc.xhtml']!);
+      expect(toc.contains('<li><a epub:type="other-credits" href="creditos.xhtml">Créditos</a></li>'), isTrue);
+
+      // 10. Formato dual del volumen: '1' en serie y '01' en título
+      expect(RegExp(r'<(?:opf:)?meta\b[^>]*property="group-position"[^>]*>1</(?:opf:)?meta>').hasMatch(opf), isTrue);
+      expect(RegExp(r'<(?:opf:)?meta\b[^>]*content="1"[^>]*name="calibre:series_index"').hasMatch(opf) ||
+             RegExp(r'<(?:opf:)?meta\b[^>]*name="calibre:series_index"[^>]*content="1"').hasMatch(opf), isTrue);
+      expect(titulo.contains('Volumen 01'), isTrue);
+    });
+
+    test('Formato dual del volumen para Volumen 02: digito simple 2 en serie e indice, y 02 en titulos', () {
+      File fileBase16 = File('assets/Base3_v1.16.0.epub');
+      if (!fileBase16.existsSync()) {
+        fileBase16 = File('../assets/Base3_v1.16.0.epub');
+      }
+      final bytes16 = fileBase16.readAsBytesSync();
+
+      const meta = BookMetadata(
+        titleSpanish: 'Cómo no Invocar a un Señor Demonio',
+        series: 'How NOT to Summon a Demon Lord [NL]',
+        volume: '02',
+        groupTag: 'KT',
+      );
+
+      final res = empaquetarEpub(
+        bytesBaseEpub: bytes16,
+        capitulosYEspeciales: [ArchivoEpubEntrada(nombre: 'C01.xhtml', contenidoHtml: '<p>C1</p>')],
+        ordenSpine: ['C01.xhtml'],
+        entradasToc: [(archivo: 'C01.xhtml', titulo: 'Capítulo 1')],
+        metadatos: meta,
+      );
+
+      final zip = ZipDecoder().decodeBytes(res.bytesEpub);
+      final mapArchivos = {for (var f in zip.files) f.name: f.content as List<int>};
+      final opf = utf8.decode(mapArchivos['OEBPS/content.opf']!);
+      final titulo = utf8.decode(mapArchivos['OEBPS/Text/titulo.xhtml']!);
+
+      // group-position y calibre:series_index usan dígito '2'
+      expect(RegExp(r'<(?:opf:)?meta\b[^>]*property="group-position"[^>]*>2</(?:opf:)?meta>').hasMatch(opf), isTrue);
+      expect(RegExp(r'<(?:opf:)?meta\b[^>]*content="2"[^>]*name="calibre:series_index"').hasMatch(opf) ||
+             RegExp(r'<(?:opf:)?meta\b[^>]*name="calibre:series_index"[^>]*content="2"').hasMatch(opf), isTrue);
+
+      // dc:title y titulo.xhtml usan relleno '02'
+      expect(RegExp(r'<dc:title[^>]*>Cómo no Invocar a un Señor Demonio - Volumen 02 \[KT\]</dc:title>').hasMatch(opf), isTrue);
+      expect(titulo.contains('Volumen 02'), isTrue);
+
+      // Nombre de archivo por defecto usa V02
+      expect(meta.defaultFileName, equals('Cómo no Invocar a un Señor Demonio - V02 [KT].epub'));
     });
   });
 }
