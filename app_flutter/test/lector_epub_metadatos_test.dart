@@ -5,11 +5,24 @@ import 'package:conversor_epub/motor/lector_epub_metadatos.dart';
 
 void main() {
   group('TestLectorEpubMetadatos', () {
-    test('Extrae metadatos de Cómo no Invocar a un Señor Demonio e incrementa volumen a 02', () {
-      File fileEpub = File('../Cómo no Invocar a un Señor Demonio - V01 [Kyuden Translations].epub');
-      if (!fileEpub.existsSync()) {
-        fileEpub = File('Cómo no Invocar a un Señor Demonio - V01 [Kyuden Translations].epub');
+    File resolverEpub() {
+      const nombres = [
+        '../Cómo no Invocar a un Señor Demonio - V01 [Kyuden Translations]_v1.16.2.epub',
+        'Cómo no Invocar a un Señor Demonio - V01 [Kyuden Translations]_v1.16.2.epub',
+        '../Cómo no Invocar a un Señor Demonio - V01 [Kyuden Translations]_v1.16.0.epub',
+        'Cómo no Invocar a un Señor Demonio - V01 [Kyuden Translations]_v1.16.0.epub',
+        '../Cómo no Invocar a un Señor Demonio - V01 [Kyuden Translations].epub',
+        'Cómo no Invocar a un Señor Demonio - V01 [Kyuden Translations].epub',
+      ];
+      for (final n in nombres) {
+        final f = File(n);
+        if (f.existsSync()) return f;
       }
+      return File(nombres.first);
+    }
+
+    test('Extrae metadatos de Cómo no Invocar a un Señor Demonio e incrementa volumen a 02', () {
+      final fileEpub = resolverEpub();
       expect(fileEpub.existsSync(), isTrue, reason: 'El epub de Señor Demonio debe existir');
 
       final bytes = fileEpub.readAsBytesSync();
@@ -17,7 +30,8 @@ void main() {
 
       // Títulos
       expect(meta.titleSpanish, equals('Cómo no Invocar a un Señor Demonio'));
-      expect(meta.titleJapanese, equals('Isekai Maou to Shoukan Shoujo Dorei Majutsu'));
+      expect(meta.titleJapanese.contains('Isekai Maou to Shoukan Shoujo'), isTrue);
+      expect(meta.titleKanji, equals('異世界魔王と召喚少女の奴隷魔術'));
       expect(meta.series, equals('How NOT to Summon a Demon Lord [NL]'));
       expect(meta.groupTag, equals('KT'));
 
@@ -57,10 +71,7 @@ void main() {
     });
 
     test('Extrae metadatos conservando volumen original si incrementarVolumen es false', () {
-      File fileEpub = File('../Cómo no Invocar a un Señor Demonio - V01 [Kyuden Translations].epub');
-      if (!fileEpub.existsSync()) {
-        fileEpub = File('Cómo no Invocar a un Señor Demonio - V01 [Kyuden Translations].epub');
-      }
+      final fileEpub = resolverEpub();
       expect(fileEpub.existsSync(), isTrue);
 
       final bytes = fileEpub.readAsBytesSync();

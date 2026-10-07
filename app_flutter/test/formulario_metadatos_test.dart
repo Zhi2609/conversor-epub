@@ -192,9 +192,14 @@ void main() {
         (w) => w is TextField && w.decoration?.hintText == 'Ej: The Devil Princess [NL]',
       );
 
+      final kanjiFinder = find.byWidgetPredicate(
+        (w) => w is TextField && w.decoration?.hintText == 'Ej: 異世界魔王と召喚少女の奴隷魔術',
+      );
+
       expect(spanishFinder, findsOneWidget);
       expect(subtitleFinder, findsOneWidget);
       expect(japaneseFinder, findsOneWidget);
+      expect(kanjiFinder, findsOneWidget);
       expect(englishFinder, findsOneWidget);
 
       // 2. Modificar Subtítulo
@@ -208,12 +213,17 @@ void main() {
       expect(actual.titleJapanese, equals('Akuma Koujo ~Yurui Akuma no Monogatari~'));
       expect(actual.effectiveTitle, equals('Akuma Koujo ~Yurui Akuma no Monogatari~ - Volumen 01 [KT]'));
 
-      // 4. Modificar Título en Inglés / Colección
+      // 4. Modificar Título en Kanjis Japoneses
+      await tester.enterText(kanjiFinder, '悪魔公女');
+      await tester.pump();
+      expect(actual.titleKanji, equals('悪魔公女'));
+
+      // 5. Modificar Título en Inglés / Colección
       await tester.enterText(englishFinder, 'The Devil Princess [NL]');
       await tester.pump();
       expect(actual.series, equals('The Devil Princess [NL]'));
 
-      // 5. El archivo generado debe conservar el Título en Español
+      // 6. El archivo generado debe conservar el Título en Español
       expect(actual.defaultFileName, equals('La Princesa Demonio - V01 [KT].epub'));
     });
   });

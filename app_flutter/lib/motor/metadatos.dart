@@ -125,8 +125,10 @@ class BookMetadata {
   final String titleSpanish;
   /// Subtítulo en español (opcional, en título.xhtml)
   final String subtitle;
-  /// Título de la novela en Romaji / Japonés (utilizado para <dc:title> en content.opf)
+  /// Título de la novela en Romaji / Japonés (utilizado para alternate-script ja-Latn y dc:title legado)
   final String titleJapanese;
+  /// Título original en Kanjis japoneses (opcional, en alternate-script xml:lang="ja")
+  final String titleKanji;
 
   /// Alias de compatibilidad: devuelve titleSpanish si existe, o el título configurado
   final String title;
@@ -152,7 +154,7 @@ class BookMetadata {
   final String projectUrl; // uri-id (URL web oficial)
 
   // Clasificación y Taxonomía
-  final String bookType; // dc:type (ej: 'Novela Ligera')
+  final String bookType; // dc:type (ej: 'Novela ligera')
   final List<String> subjects; // dc:subject (demografías y géneros)
   final String synopsis;
 
@@ -174,6 +176,7 @@ class BookMetadata {
     this.titleSpanish = '',
     this.subtitle = '',
     this.titleJapanese = '',
+    this.titleKanji = '',
     this.titleSort = '',
     this.series = '',
     this.volume = '',
@@ -188,7 +191,7 @@ class BookMetadata {
     this.proofreader = '',
     this.publisher = '',
     this.projectUrl = '',
-    this.bookType = 'Novela Ligera',
+    this.bookType = 'Novela ligera',
     this.subjects = const [],
     this.synopsis = '',
     this.isbn13 = '',
@@ -243,6 +246,7 @@ class BookMetadata {
     String? titleSpanish,
     String? subtitle,
     String? titleJapanese,
+    String? titleKanji,
     String? titleSort,
     String? series,
     String? volume,
@@ -273,6 +277,7 @@ class BookMetadata {
       titleSpanish: tSpanish,
       subtitle: subtitle ?? this.subtitle,
       titleJapanese: titleJapanese ?? this.titleJapanese,
+      titleKanji: titleKanji ?? this.titleKanji,
       titleSort: titleSort ?? this.titleSort,
       series: series ?? this.series,
       volume: volume ?? this.volume,

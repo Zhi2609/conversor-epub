@@ -244,9 +244,48 @@ BookMetadata extraerMetadatosDeEpub(Uint8List bytesEpub, {bool incrementarVolume
     }
   }
 
-  // 6. Deducir título en romaji/japonés a partir de dc:title
+  // 6. Deducir títulos desde alternate-script multilingüe 1.16.2 o a partir de dc:title
+  String titleKanji = '';
+  final matchKanji = RegExp(
+    r'<(?:opf:)?meta\b[^>]*(?:refines="#serie"[^>]*property="alternate-script"[^>]*xml:lang="ja"|property="alternate-script"[^>]*xml:lang="ja"[^>]*refines="#serie")[^>]*>(.*?)</(?:opf:)?meta>',
+    caseSensitive: false,
+    dotAll: true,
+  ).firstMatch(opfHtml) ??
+  RegExp(
+    r'<(?:opf:)?meta\b[^>]*(?:refines="#title"[^>]*property="alternate-script"[^>]*xml:lang="ja"|property="alternate-script"[^>]*xml:lang="ja"[^>]*refines="#title")[^>]*>(.*?)</(?:opf:)?meta>',
+    caseSensitive: false,
+    dotAll: true,
+  ).firstMatch(opfHtml);
+  if (matchKanji != null) {
+    titleKanji = _descXml(matchKanji.group(1)!);
+  }
+
+  final matchAltEs = RegExp(
+    r'<(?:opf:)?meta\b[^>]*(?:refines="#serie"[^>]*property="alternate-script"[^>]*xml:lang="es"|property="alternate-script"[^>]*xml:lang="es"[^>]*refines="#serie")[^>]*>(.*?)</(?:opf:)?meta>',
+    caseSensitive: false,
+    dotAll: true,
+  ).firstMatch(opfHtml);
+  if (matchAltEs != null && titleSpanish.isEmpty) {
+    titleSpanish = _descXml(matchAltEs.group(1)!);
+  }
+
   String titleJapanese = '';
-  if (titleRaw.isNotEmpty) {
+  final matchAltJaLatn = RegExp(
+    r'<(?:opf:)?meta\b[^>]*(?:refines="#serie"[^>]*property="alternate-script"[^>]*xml:lang="ja-Latn"|property="alternate-script"[^>]*xml:lang="ja-Latn"[^>]*refines="#serie")[^>]*>(.*?)</(?:opf:)?meta>',
+    caseSensitive: false,
+    dotAll: true,
+  ).firstMatch(opfHtml) ??
+  RegExp(
+    r'<(?:opf:)?meta\b[^>]*(?:refines="#title"[^>]*property="alternate-script"[^>]*xml:lang="ja-Latn"|property="alternate-script"[^>]*xml:lang="ja-Latn"[^>]*refines="#title")[^>]*>(.*?)</(?:opf:)?meta>',
+    caseSensitive: false,
+    dotAll: true,
+  ).firstMatch(opfHtml);
+
+  if (matchAltJaLatn != null) {
+    titleJapanese = _descXml(matchAltJaLatn.group(1)!)
+        .replaceAll(RegExp(r'\s*[-_–]\s*(?:Vol(?:umen|\.?)?)\s*\d+.*$', caseSensitive: false), '')
+        .trim();
+  } else if (titleRaw.isNotEmpty) {
     String tLimpio = titleRaw.replaceAll(RegExp(r'\s*\[[^\]]+\]\s*$'), '').trim();
     tLimpio = tLimpio.replaceAll(RegExp(r'\s*[-_–]\s*(?:Vol(?:umen|\.?)?)\s*\d+.*$', caseSensitive: false), '').trim();
     if (tLimpio.toLowerCase() != titleSpanish.toLowerCase()) {
@@ -276,6 +315,7 @@ BookMetadata extraerMetadatosDeEpub(Uint8List bytesEpub, {bool incrementarVolume
     titleSpanish: titleSpanish,
     subtitle: subtitle,
     titleJapanese: titleJapanese,
+    titleKanji: titleKanji,
     series: series.isNotEmpty ? series : titleSpanish,
     volume: siguienteVolumen,
     groupTag: groupTag,

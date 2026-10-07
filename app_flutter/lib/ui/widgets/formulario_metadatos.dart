@@ -22,6 +22,7 @@ class _FormularioMetadatosState extends State<FormularioMetadatos> {
   late TextEditingController _titleSpanishCtrl;
   late TextEditingController _subtitleCtrl;
   late TextEditingController _titleJapaneseCtrl;
+  late TextEditingController _titleKanjiCtrl;
   late TextEditingController _seriesCtrl;
   late TextEditingController _volumeCtrl;
   late TextEditingController _groupTagCtrl;
@@ -103,6 +104,7 @@ class _FormularioMetadatosState extends State<FormularioMetadatos> {
     _titleSpanishCtrl = TextEditingController(text: m.titleSpanish.isNotEmpty ? m.titleSpanish : m.title);
     _subtitleCtrl = TextEditingController(text: m.subtitle);
     _titleJapaneseCtrl = TextEditingController(text: m.titleJapanese);
+    _titleKanjiCtrl = TextEditingController(text: m.titleKanji);
     _seriesCtrl = TextEditingController(text: m.series);
     _volumeCtrl = TextEditingController(text: m.volume);
     _groupTagCtrl = TextEditingController(text: m.groupTag);
@@ -140,6 +142,7 @@ class _FormularioMetadatosState extends State<FormularioMetadatos> {
     _titleSpanishCtrl.dispose();
     _subtitleCtrl.dispose();
     _titleJapaneseCtrl.dispose();
+    _titleKanjiCtrl.dispose();
     _seriesCtrl.dispose();
     _volumeCtrl.dispose();
     _groupTagCtrl.dispose();
@@ -361,13 +364,31 @@ class _FormularioMetadatosState extends State<FormularioMetadatos> {
               ],
             ),
             const SizedBox(height: 12),
-            // Fila 2: Título en Japonés / Romaji (dc:title en OPF - arriba)
-            _campoTexto(
-              controller: _titleJapaneseCtrl,
-              label: 'Título de la Novela en Romaji / Japonés (dc:title)',
-              hint: 'Ej: Akuma Koujo ~Yurui Akuma no Monogatari~',
-              icon: Icons.menu_book,
-              onChanged: (v) => _actualizar(meta.copyWith(titleJapanese: v)),
+            // Fila 2: Título en Japonés / Romaji y Kanjis (alternate-script en OPF)
+            Row(
+              children: [
+                Expanded(
+                  flex: 3,
+                  child: _campoTexto(
+                    controller: _titleJapaneseCtrl,
+                    label: 'Título de la Novela en Romaji / Japonés (ja-Latn)',
+                    hint: 'Ej: Akuma Koujo ~Yurui Akuma no Monogatari~',
+                    icon: Icons.menu_book,
+                    onChanged: (v) => _actualizar(meta.copyWith(titleJapanese: v)),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  flex: 2,
+                  child: _campoTexto(
+                    controller: _titleKanjiCtrl,
+                    label: 'Título en Kanjis Japoneses (alternate-script ja)',
+                    hint: 'Ej: 異世界魔王と召喚少女の奴隷魔術',
+                    icon: Icons.translate,
+                    onChanged: (v) => _actualizar(meta.copyWith(titleKanji: v)),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 12),
             // Fila 3: Título en Inglés / Colección (calibre:series en OPF - abajo), Volumen y Siglas

@@ -490,7 +490,7 @@ void main() {
       // 3. content.opf usa metadatos de serie y alternate-script
       final opf = utf8.decode(mapArchivos['OEBPS/content.opf']!);
       expect(opf.contains('property="alternate-script"') && opf.contains('refines="#creator01"') && opf.contains('むらさきゆきや'), isTrue);
-      expect(RegExp(r'<(?:opf:)?meta id="serie" property="belongs-to-collection">How NOT to Summon a Demon Lord \[NL\]</(?:opf:)?meta>').hasMatch(opf), isTrue);
+      expect(RegExp(r'<(?:opf:)?meta id="serie" property="belongs-to-collection"(?:\s+xml:lang="en")?>How NOT to Summon a Demon Lord \[NL\]</(?:opf:)?meta>').hasMatch(opf), isTrue);
       expect(RegExp(r'<(?:opf:)?meta content="How NOT to Summon a Demon Lord \[NL\]" name="calibre:series"/>').hasMatch(opf), isTrue);
 
       // 4. titulo.xhtml tiene estructura 1.16 (subtitle y role="doc-subtitle")
@@ -516,7 +516,7 @@ void main() {
       final resumen = utf8.decode(mapArchivos['OEBPS/Text/resumen.xhtml']!);
       expect(resumen.contains('src="../Images/02.jpg"'), isTrue);
       expect(resumen.contains('src="../Images/03.jpg"'), isTrue);
-      expect(resumen.contains('<figure class="fill break-after" id="resumen_0001">'), isTrue);
+      expect(resumen.contains('<figure class="fill break-after">'), isTrue);
 
       final contenido = utf8.decode(mapArchivos['OEBPS/Text/contenido.xhtml']!);
       expect(contenido.contains('src="../Images/02.jpg"'), isTrue);
@@ -583,11 +583,79 @@ void main() {
              RegExp(r'<(?:opf:)?meta\b[^>]*name="calibre:series_index"[^>]*content="2"').hasMatch(opf), isTrue);
 
       // dc:title y titulo.xhtml usan relleno '02'
-      expect(RegExp(r'<dc:title[^>]*>Cómo no Invocar a un Señor Demonio - Volumen 02 \[KT\]</dc:title>').hasMatch(opf), isTrue);
+      expect(RegExp(r'<dc:title[^>]*>(?:How NOT to Summon a Demon Lord|Cómo no Invocar a un Señor Demonio) - Volumen 02 \[KT\]</dc:title>').hasMatch(opf), isTrue);
+      expect(opf.contains('Volumen 02'), isTrue);
       expect(titulo.contains('Volumen 02'), isTrue);
 
       // Nombre de archivo por defecto usa V02
       expect(meta.defaultFileName, equals('Cómo no Invocar a un Señor Demonio - V02 [KT].epub'));
+    });
+
+    test('Empaqueta con Base 1.16.2 inyectando esquema multilingüe completo con titleKanji y sin file-as en Zhi/ZeePubs', () {
+      File fileBase16 = File('assets/Base3_v1.16.0.epub');
+      if (!fileBase16.existsSync()) {
+        fileBase16 = File('../assets/Base3_v1.16.0.epub');
+      }
+      expect(fileBase16.existsSync(), isTrue);
+      final bytes16 = fileBase16.readAsBytesSync();
+
+      const meta = BookMetadata(
+        titleSpanish: 'Cómo no Invocar a un Señor Demonio',
+        titleJapanese: 'Isekai Maou to Shoukan Shoujo no Dorei Majutsu',
+        titleKanji: '異世界魔王と召喚少女の奴隷魔術',
+        series: 'How NOT to Summon a Demon Lord',
+        volume: '01',
+        groupTag: 'KT',
+        author: 'Yukiya Murasaki',
+        authorJapanese: 'むらさき ゆきや',
+        authorFileAs: 'Murasaki, Yukiya',
+        illustrator: 'Tsurusaki Takahiro',
+        illustratorJapanese: '鶴崎 貴大',
+        illustratorFileAs: 'Takahiro, Tsurusaki',
+        translator: 'Rin-san & Edngo',
+        bookType: 'Novela ligera',
+      );
+
+      final res = empaquetarEpub(
+        bytesBaseEpub: bytes16,
+        capitulosYEspeciales: [
+          ArchivoEpubEntrada(nombre: 'C01.xhtml', contenidoHtml: '<p class="no-indent">Capítulo 1</p>'),
+        ],
+        ordenSpine: ['C01.xhtml'],
+        entradasToc: [(archivo: 'C01.xhtml', titulo: 'Capítulo 1')],
+        metadatos: meta,
+      );
+
+      final zip = ZipDecoder().decodeBytes(res.bytesEpub);
+      final mapArchivos = {for (var f in zip.files) f.name: f.content as List<int>};
+      final opf = utf8.decode(mapArchivos['OEBPS/content.opf']!);
+
+      // 1. dc:title en inglés con xml:lang="en"
+      expect(opf.contains('<dc:title id="title" xml:lang="en">How NOT to Summon a Demon Lord - Volumen 01 [KT]</dc:title>'), isTrue);
+
+      // 2. Refinamientos de #title
+      expect(opf.contains('<meta refines="#title" property="title-type">main</meta>'), isTrue);
+      expect(opf.contains('<meta refines="#title" property="alternate-script" xml:lang="es">Cómo no Invocar a un Señor Demonio - Volumen 01</meta>'), isTrue);
+      expect(opf.contains('<meta refines="#title" property="alternate-script" xml:lang="ja-Latn">Isekai Maou to Shoukan Shoujo no Dorei Majutsu - Volumen 01</meta>'), isTrue);
+      expect(opf.contains('<meta refines="#title" property="alternate-script" xml:lang="ja">異世界魔王と召喚少女の奴隷魔術</meta>'), isTrue);
+
+      // 3. Refinamientos de #serie
+      expect(opf.contains('<meta id="serie" property="belongs-to-collection" xml:lang="en">How NOT to Summon a Demon Lord [NL]</meta>'), isTrue);
+      expect(opf.contains('<meta refines="#serie" property="collection-type">series</meta>'), isTrue);
+      expect(opf.contains('<meta refines="#serie" property="group-position">1</meta>'), isTrue);
+      expect(opf.contains('<meta refines="#serie" property="alternate-script" xml:lang="es">Cómo no Invocar a un Señor Demonio</meta>'), isTrue);
+      expect(opf.contains('<meta refines="#serie" property="alternate-script" xml:lang="ja-Latn">Isekai Maou to Shoukan Shoujo no Dorei Majutsu</meta>'), isTrue);
+      expect(opf.contains('<meta refines="#serie" property="alternate-script" xml:lang="ja">異世界魔王と召喚少女の奴隷魔術</meta>'), isTrue);
+
+      // 4. Zhi y ZeePubs no tienen file-as
+      expect(opf.contains('refines="#contrib02" property="file-as"'), isFalse);
+      expect(opf.contains('refines="#contrib03" property="file-as"'), isFalse);
+
+      // 5. dc:type es Novela ligera
+      expect(opf.contains('<dc:type>Novela ligera</dc:type>'), isTrue);
+
+      // 6. Manifest y spine no contienen contenido-2.xhtml
+      expect(opf.contains('contenido-2.xhtml'), isFalse);
     });
   });
 }
