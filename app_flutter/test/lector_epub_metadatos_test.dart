@@ -1,11 +1,13 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:conversor_epub/motor/empaquetado.dart';
 import 'package:conversor_epub/motor/metadatos.dart';
 import 'package:conversor_epub/motor/lector_epub_metadatos.dart';
 
 void main() {
   group('TestLectorEpubMetadatos', () {
-    File resolverEpub() {
+    Uint8List obtenerBytesEpubPrueba() {
       const nombres = [
         '../Cómo no Invocar a un Señor Demonio - V01 [Kyuden Translations]_v1.16.2.epub',
         'Cómo no Invocar a un Señor Demonio - V01 [Kyuden Translations]_v1.16.2.epub',
@@ -16,16 +18,50 @@ void main() {
       ];
       for (final n in nombres) {
         final f = File(n);
-        if (f.existsSync()) return f;
+        if (f.existsSync()) return f.readAsBytesSync();
       }
-      return File(nombres.first);
+
+      // Fallback autónomo para entornos sin el archivo externo gitignored
+      File fileBase = File('assets/Base3_v1.16.0.epub');
+      if (!fileBase.existsSync()) {
+        fileBase = File('../assets/Base3_v1.16.0.epub');
+      }
+      expect(fileBase.existsSync(), isTrue, reason: 'Base3_v1.16.0.epub debe existir');
+
+      final metaSeed = BookMetadata(
+        titleSpanish: 'Cómo no Invocar a un Señor Demonio',
+        titleJapanese: 'Isekai Maou to Shoukan Shoujo no Dorei Majutsu',
+        titleKanji: '異世界魔王と召喚少女の奴隷魔術',
+        series: 'How NOT to Summon a Demon Lord [NL]',
+        groupTag: 'KT',
+        volume: '1',
+        author: 'Yukiya Murasaki',
+        authorJapanese: 'むらさき ゆきや',
+        authorFileAs: 'Murasaki, Yukiya',
+        illustrator: 'Tsurusaki Takahiro',
+        illustratorJapanese: '鶴崎 貴大',
+        illustratorFileAs: 'Takahiro, Tsurusaki',
+        translator: 'Rin-san & Edngo',
+        proofreader: 'Rin-san & Mbeju',
+        publisher: 'Kyuden Translations',
+        subjects: ['Juvenil', 'Chicos/Shounen', 'Fantasía', 'Comedia'],
+        synopsis: 'Takuma Sakamoto es invocado a otro mundo.',
+      );
+
+      final res = empaquetarEpub(
+        bytesBaseEpub: fileBase.readAsBytesSync(),
+        capitulosYEspeciales: [
+          ArchivoEpubEntrada(nombre: 'C01.xhtml', contenidoHtml: '<p>Cap 1</p>'),
+        ],
+        ordenSpine: ['C01.xhtml'],
+        entradasToc: [(archivo: 'C01.xhtml', titulo: 'Capítulo 1')],
+        metadatos: metaSeed,
+      );
+      return Uint8List.fromList(res.bytesEpub);
     }
 
     test('Extrae metadatos de Cómo no Invocar a un Señor Demonio e incrementa volumen a 02', () {
-      final fileEpub = resolverEpub();
-      expect(fileEpub.existsSync(), isTrue, reason: 'El epub de Señor Demonio debe existir');
-
-      final bytes = fileEpub.readAsBytesSync();
+      final bytes = obtenerBytesEpubPrueba();
       final meta = extraerMetadatosDeEpub(bytes, incrementarVolumen: true);
 
       // Títulos
@@ -71,10 +107,7 @@ void main() {
     });
 
     test('Extrae metadatos conservando volumen original si incrementarVolumen es false', () {
-      final fileEpub = resolverEpub();
-      expect(fileEpub.existsSync(), isTrue);
-
-      final bytes = fileEpub.readAsBytesSync();
+      final bytes = obtenerBytesEpubPrueba();
       final meta = extraerMetadatosDeEpub(bytes, incrementarVolumen: false);
 
       expect(meta.volume, equals('1'));

@@ -8,8 +8,8 @@ Aplicación de escritorio nativa para **Linux** (escrita en Flutter / Dart) que 
 
 ### 1. Compilación Integral a `.epub` (Estándar Base3 / ZeePubs)
 - **Empaquetado directo a `.epub` (ePub 3)**: Genera un archivo `.epub` 100% estándar con el archivo `mimetype` sin comprimir al inicio del contenedor ZIP (offset byte 0).
-- **Plantilla base integrada (`Base3_v1.15.0.epub`)**: Embebida como asset nativo de Flutter (`rootBundle`). Conserva tipografías incrustadas (`times.ttf`, `Castellar`, `Oswald`, etc.), hojas de estilo CSS (`style.css`, `nav-style.css`), páginas estructurales (`cubierta`, `sinopsis`, `resumen`, `perfil`, `titulo`, `creditos`, `logos`, etc.) y el contenedor `META-INF`.
-- **Estructura canónica de 19 posiciones**: Alineación 1:1 con la espina dorsal (*spine*) de Base3, controlando la linealidad (`linear="yes"` / `linear="no"`) de cubiertas, páginas preliminares y de navegación.
+- **Plantilla base integrada (`Base3_v1.16.0.epub` con estándar v1.16.2)**: Embebida como asset nativo de Flutter (`rootBundle`). Conserva tipografías incrustadas (`times.ttf`, `Castellar`, `Oswald`, `LucidaConsole`, etc.), hojas de estilo CSS (`style.css`, `nav-style.css`), páginas estructurales (`cubierta`, `sinopsis`, `resumen`, `perfil`, `titulo`, `creditos`, `logos`, etc.) y el contenedor `META-INF`.
+- **Estructura canónica de 19 posiciones**: Alineación 1:1 con la espina dorsal (*spine*) de Base3, controlando la linealidad (`linear="yes"` / `linear="no"`) de cubiertas, páginas preliminares y de navegación, preservando `creditos.xhtml` y la única referencia `nav` en `toc.xhtml`.
 - **Purga y exclusión limpia**: Elimina los capítulos de muestra (`Section0001.xhtml`, `Section0002.xhtml`) e inserta los capítulos del manuscrito (`C01.xhtml`, `C02.xhtml`, etc.). Las secciones deshabilitadas por el maquetador se purgan automáticamente del archivo ZIP, del manifiesto `<manifest>`, del `<spine>` y de la tabla de contenidos (`toc.xhtml` y `contenido-2.xhtml`).
 - **Nomenclatura canónica de salida**: Autogenera el nombre del archivo final siguiendo el formato editorial:
   ```text
@@ -20,23 +20,25 @@ Aplicación de escritorio nativa para **Linux** (escrita en Flutter / Dart) que 
 
 ---
 
-### 2. Gestor de Metadatos Editoriales OPF
-Pantalla dedicada y accesible con un solo clic para configurar exhaustivamente el archivo `content.opf` y las páginas de créditos según las reglas de ZeePubs:
+### 2. Gestor de Metadatos Editoriales OPF (Estándar v1.16.2)
+Pantalla dedicada y accesible con un solo clic para configurar exhaustivamente el archivo `content.opf` y las páginas de créditos según las reglas de ZeePubs, con **importación directa de metadatos desde un `.epub` anterior**:
 
-#### Taxonomía Trilingüe de Títulos
-- **Título de la Novela en Español** (ej: *La Princesa Demonio*): Se deduce automáticamente al cargar el manuscrito. Alimenta el nombre del archivo `.epub` generado y el `<span class="grande" epub:type="title">` de la página de título interior (`titulo.xhtml`).
-- **Subtítulo en Español (Opcional)** (ej: *La Historia del Demonio Despreocupado*): Se inyecta en `titulo.xhtml` bajo `<span epub:type="subtitle" role="doc-subtitle">`. Si se deja vacío, el marcador y el salto de línea se eliminan de forma limpia sin dejar texto residual.
-- **Título de la Novela en Romaji / Japonés** (ej: *Akuma Koujo ~Yurui Akuma no Monogatari~*): Se utiliza en `<dc:title>` de `content.opf` produciendo:
+#### Taxonomía Multilingüe de Títulos y Formato Dual de Volumen
+- **Título de la Novela en Español** (ej: *Cómo no Invocar a un Señor Demonio*): Se deduce automáticamente al cargar el manuscrito. Alimenta el nombre del archivo `.epub` generado, los metadatos `alternate-script xml:lang="es"` (en `#title` y `#serie`) y la página de título interior (`titulo.xhtml`).
+- **Subtítulo en Español (Opcional)**: Se inyecta en `titulo.xhtml` bajo `<span epub:type="subtitle" role="doc-subtitle">`. Si se deja vacío, el marcador y el salto de línea se eliminan de forma limpia sin dejar texto residual.
+- **Título de la Novela en Romaji / Japonés** (ej: *Isekai Maou to Shoukan Shoujo no Dorei Majutsu*): Se utiliza en `<dc:title id="title">` de `content.opf` produciendo:
   ```xml
-  <dc:title>Akuma Koujo ~Yurui Akuma no Monogatari~ - Volumen 01 [KT]</dc:title>
+  <dc:title id="title">Isekai Maou to Shoukan Shoujo no Dorei Majutsu - Volumen 01 [KT]</dc:title>
   ```
   *(Si se deja vacío, hace fallback automático al título en español)*.
-- **Título de la Novela en Inglés / Colección** (ej: *The Devil Princess [NL]*): Alimenta la colección de la obra tanto en ePub 3 como en metadatos de Calibre:
+- **Título en Kanji / Japonés Nativo**: Se inyecta como `<meta property="alternate-script" refines="#title" xml:lang="ja">` y `<meta property="alternate-script" refines="#serie" xml:lang="ja">`.
+- **Título de la Novela en Inglés / Colección** y **Formato Dual de Volumen**: Alimenta la colección de la obra en ePub 3 y Calibre usando el índice entero sin cero a la izquierda (`1`) en propiedades numéricas y con cero a la izquierda (`01`) en títulos:
   ```xml
-  <meta id="serie" property="belongs-to-collection">The Devil Princess [NL]</meta>
-  <meta property="group-position" refines="#serie">01</meta>
-  <meta name="calibre:series" content="The Devil Princess [NL]"/>
-  <meta name="calibre:series_index" content="01"/>
+  <meta id="serie" property="belongs-to-collection">How NOT to Summon a Demon Lord [NL]</meta>
+  <meta property="collection-type" refines="#serie">series</meta>
+  <meta property="group-position" refines="#serie">1</meta>
+  <meta name="calibre:series" content="How NOT to Summon a Demon Lord [NL]"/>
+  <meta name="calibre:series_index" content="1"/>
   ```
 - **Banner de previsualización en vivo**: Muestra en tiempo real cómo quedarán el `dc:title`, la colección y el nombre del archivo `.epub`.
 
@@ -215,6 +217,7 @@ conversor-epub/
 │   │   └── motor/            # Núcleo puro portado a Dart
 │   │       ├── modelo.dart            # Clases Chapter, Resultado, Nota, Contadores
 │   │       ├── metadatos.dart         # Modelo BookMetadata, UUID v7, ISBN, subjects
+│   │       ├── lector_epub_metadatos.dart # Importador de metadatos desde volúmenes .epub previos
 │   │       ├── secciones.dart         # Modelado y spine canónico de 19 posiciones
 │   │       ├── empaquetado.dart       # Generador de contenedor ePub 3 y manipulación OPF
 │   │       ├── busqueda_reemplazo.dart# Motor de búsqueda y reemplazo en memoria
@@ -227,11 +230,12 @@ conversor-epub/
 │   │       ├── procesar.dart          # Orquestador del pipeline
 │   │       └── render.dart            # Inyección en templates XHTML
 │   ├── assets/               # Recursos empaquetados nativamente en el ejecutable
-│   │   ├── Base3_v1.15.0.epub# Plantilla ePub base con estilos, fuentes y metadatos
+│   │   ├── Base3_v1.16.0.epub# Plantilla ePub base oficial (actualizada a v1.16.2)
+│   │   ├── Base3_v1.15.0.epub# Plantilla ePub base legacy
 │   │   ├── Conv_Xhtml/       # template.xhtml
 │   │   ├── Plantillas/       # prologo.xhtml, epilogo.xhtml, autor.xhtml, traductor.xhtml, notas.xhtml
 │   │   └── ConversorEpub.png # Ícono oficial de la aplicación
-│   ├── test/                 # Suite de pruebas unitarias y de widgets (59 tests)
+│   ├── test/                 # Suite de pruebas unitarias y de widgets (69 tests)
 │   ├── linux/                # Configuración de compilación nativa en C++/GTK
 │   └── pubspec.yaml          # Metadatos, dependencias y assets declarados
 ├── assets/                   # Recursos estáticos raíz (.desktop, ícono, plantillas)
@@ -245,14 +249,14 @@ conversor-epub/
 
 ## Pruebas Automatizadas
 
-La aplicación cuenta con una suite completa de **59 pruebas automatizadas** que garantizan la integridad de:
+La aplicación cuenta con una suite completa de **69 pruebas automatizadas** que garantizan la integridad de:
 - Máquina de estados y cortafuegos de comillas canónicas (`D1`, `D2`, `D9`).
 - Fuzzing de balance tipográfico con documentos sintéticos.
-- Deduplicación y formateo de marcadores `<hr>` y figuras de imágenes.
+- Deduplicación y formateo de marcadores `<hr>` (`text align-center large`) y figuras de imágenes.
 - Orden canónico de demografías y géneros (`ordenarSubjectsCanonico`).
 - Formateo de identificadores ISBN-13 e ISBN-10 con guiones.
-- Taxonomía trilingüe de títulos y subtítulos en `content.opf` y `titulo.xhtml`.
-- Inyección y purga limpia en el manifiesto, spine y tabla de contenidos.
+- Esquema multilingüe v1.16.2 (`#title` y `#serie`, `titleKanji`), formato dual de volumen (`group-position` / `calibre:series_index`) e importación de metadatos desde `.epub`.
+- Inyección y purga limpia en el manifiesto, spine y tabla de contenidos (`toc.xhtml` y `contenido-2.xhtml`).
 
 Para ejecutar toda la batería de pruebas:
 
