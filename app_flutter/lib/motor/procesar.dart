@@ -36,7 +36,8 @@ _ProcesarDocumentoResult _procesarDocumento(String html, List<Nota> notas, {List
 Future<Resultado> procesar({
   required String modo,
   required String rutaEntrada,
-  required String rutaTemplate,
+  String? rutaTemplate,
+  String? contenidoTemplate,
   List<String>? titulos,
   int startNum = 1,
   String? rutaPlantillas,
@@ -45,7 +46,33 @@ Future<Resultado> procesar({
     throw Exception('Modo desconocido: $modo');
   }
 
-  String template = File(rutaTemplate).readAsStringSync();
+  String template;
+  if (contenidoTemplate != null && contenidoTemplate.isNotEmpty) {
+    template = contenidoTemplate;
+  } else {
+    final candidatos = <String>[
+      if (rutaTemplate != null && rutaTemplate.isNotEmpty) rutaTemplate,
+      'assets/Conv_Xhtml/template.xhtml',
+      '../assets/Conv_Xhtml/template.xhtml',
+      '${File(Platform.resolvedExecutable).parent.path}/data/flutter_assets/assets/Conv_Xhtml/template.xhtml',
+    ];
+    File? archivoEncontrado;
+    for (final c in candidatos) {
+      final f = File(c);
+      if (f.existsSync()) {
+        archivoEncontrado = f;
+        break;
+      }
+    }
+    if (archivoEncontrado == null) {
+      throw PathNotFoundException(
+        rutaTemplate ?? 'assets/Conv_Xhtml/template.xhtml',
+        const OSError('No existe el fichero o el directorio', 2),
+      );
+    }
+    template = archivoEncontrado.readAsStringSync();
+  }
+
   if (!template.contains('{{CONTENIDO}}')) {
     throw Exception('El template no contiene el placeholder {{CONTENIDO}}');
   }

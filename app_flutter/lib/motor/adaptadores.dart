@@ -54,11 +54,24 @@ Future<ProcessResult> _ejecutarConversionPython(String rutaPdf, String rutaSalid
 
   try {
     // 1. Probar intérpretes candidatos directos (.venv o python del sistema)
+    final exeDir = File(Platform.resolvedExecutable).parent.path;
+    final repoRootDesdeBundle = p.normalize(p.join(exeDir, '..', '..', '..', '..', '..', '..'));
     final candidatos = <String>[];
     if (Platform.isWindows) {
-      candidatos.addAll(['.venv\\Scripts\\python.exe', 'python']);
+      candidatos.addAll([
+        '.venv\\Scripts\\python.exe',
+        p.join(repoRootDesdeBundle, '.venv', 'Scripts', 'python.exe'),
+        'python',
+      ]);
     } else {
-      candidatos.addAll(['.venv/bin/python3', '.venv/bin/python', 'python3', 'python']);
+      candidatos.addAll([
+        '.venv/bin/python3',
+        '.venv/bin/python',
+        '../.venv/bin/python3',
+        p.join(repoRootDesdeBundle, '.venv', 'bin', 'python3'),
+        'python3',
+        'python',
+      ]);
     }
 
     for (final cmd in candidatos) {

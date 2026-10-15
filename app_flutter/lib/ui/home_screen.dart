@@ -199,11 +199,13 @@ class _HomeScreenState extends State<HomeScreen> {
       });
 
       String? plantillas = Directory(rutaPlantillasDefecto).existsSync() ? rutaPlantillasDefecto : null;
+      final contenidoTemplate = await _cargarPlantilla();
 
       _resultado = await procesar(
         modo: modo,
         rutaEntrada: ruta,
         rutaTemplate: rutaTemplateDefecto,
+        contenidoTemplate: contenidoTemplate,
         startNum: _startNumActual,
         rutaPlantillas: plantillas,
       );
